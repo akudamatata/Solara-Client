@@ -22,13 +22,16 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Build unsigned IPA
-        run: flutter build ipa --no-codesign --export-options-plist ios/Flutter/exportOptions.plist
+      - name: Build iOS app bundle
+        run: flutter build ios --release --no-codesign
+
+      - name: Package unsigned IPA
+        run: bash tool/package_unsigned_ipa.sh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: solara-ios-build
           path: |
-            build/ios/ipa/*.ipa
-            build/ios/archive/*.xcarchive
+            build/ios/ipa/Runner.ipa
+            build/ios/ipa/Runner.app.dSYM
