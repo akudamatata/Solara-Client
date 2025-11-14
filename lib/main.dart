@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:audio_session/audio_session.dart';
-import 'package:characters/characters.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -370,52 +369,85 @@ class _PlayerArtworkState extends State<_PlayerArtwork>
     final isPlaying = player.isPlaying && !player.isLoadingSong;
     _syncAnimation(isPlaying);
 
-    final artwork = ClipRRect(
-      borderRadius: BorderRadius.circular(180),
-      child: cover == null
-          ? _ArtworkPlaceholder(song?.name ?? 'Solara')
-          : Image.network(
-              cover,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, progress) {
-                if (progress == null) {
-                  return child;
-                }
-                return const _ArtworkLoading();
-              },
-              errorBuilder: (_, __, ___) => _ArtworkPlaceholder(song?.name ?? ''),
-            ),
+    final mediaSize = MediaQuery.of(context).size;
+    final double maxDiameter = min(mediaSize.width * 0.7, 260);
+    final double diameter = max(180.0, maxDiameter);
+    final double padding = diameter * 0.12;
+
+    final artwork = ClipOval(
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF1F2A38), Color(0xFF151820)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: cover == null
+            ? _ArtworkPlaceholder(size: diameter - padding * 2)
+            : Image.network(
+                cover,
+                fit: BoxFit.cover,
+                filterQuality: FilterQuality.high,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) {
+                    return child;
+                  }
+                  return const _ArtworkLoading();
+                },
+                errorBuilder: (_, __, ___) => _ArtworkPlaceholder(size: diameter - padding * 2),
+              ),
+      ),
     );
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(200),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1A1D23), Color(0xFF090B0F)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+      width: diameter,
+      height: diameter,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [Color(0x55202932), Color(0xFF0F1118)],
+          radius: 0.88,
+          center: Alignment(-0.1, -0.1),
         ),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x55000000),
-            blurRadius: 40,
-            offset: Offset(0, 30),
+            color: Color(0x33000000),
+            blurRadius: 30,
+            offset: Offset(0, 18),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(32),
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            return Transform.rotate(
-              angle: _controller.value * pi * 2,
-              child: child,
-            );
-          },
-          child: artwork,
+      padding: EdgeInsets.all(padding),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFF0C0F15),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.08),
+            width: 1.6,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x44000000),
+              blurRadius: 26,
+              offset: Offset(0, 18),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(diameter * 0.06),
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              return Transform.rotate(
+                angle: _controller.value * pi * 2,
+                child: child,
+              );
+            },
+            child: artwork,
+          ),
         ),
       ),
     );
@@ -423,27 +455,34 @@ class _PlayerArtworkState extends State<_PlayerArtwork>
 }
 
 class _ArtworkPlaceholder extends StatelessWidget {
-  const _ArtworkPlaceholder(this.label);
+  const _ArtworkPlaceholder({required this.size});
 
-  final String label;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF1F2A38), Color(0xFF12141A)],
-        ),
-      ),
-      child: Center(
-        child: Text(
-          label.isEmpty ? '♪' : label.characters.take(2).join(),
-          style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                color: Colors.white.withOpacity(0.65),
-              ),
-          textAlign: TextAlign.center,
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final effectiveSize = constraints.biggest.shortestSide.isFinite
+            ? constraints.biggest.shortestSide
+            : size;
+        return Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF202631), Color(0xFF12151C)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Center(
+            child: Icon(
+              Icons.music_note_rounded,
+              size: effectiveSize * 0.38,
+              color: Colors.white.withOpacity(0.78),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -739,82 +778,88 @@ class _QueuePanel extends StatelessWidget {
     final player = context.watch<SolaraPlayerController>();
     final songs = showFavorites ? player.favorites : player.queue;
 
-    return AnimatedPositioned(
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
-      left: 0,
-      right: 0,
-      bottom: visible ? 0 : -MediaQuery.of(context).size.height,
-      child: Material(
-        color: const Color(0xFF101218).withOpacity(0.98),
-        elevation: 30,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
-            child: Column(
-              children: [
-                Container(
-                  width: 44,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(6),
+    return IgnorePointer(
+      ignoring: !visible,
+      child: AnimatedPositioned(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        left: 0,
+        right: 0,
+        bottom: visible ? 0 : -MediaQuery.of(context).size.height,
+        child: Material(
+          color: const Color(0xFF101218).withOpacity(0.98),
+          elevation: 30,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+              child: Column(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Text(
-                      showFavorites ? '收藏列表' : '播放列表',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      onPressed: songs.isEmpty
-                          ? null
-                          : () => player.playFromCollection(songs, 0),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: onClose,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _QueueTabs(
-                  showFavorites: showFavorites,
-                  onToggle: onToggleTab,
-                  playlistCount: player.queue.length,
-                  favoritesCount: player.favorites.length,
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: songs.isEmpty
-                      ? const Center(child: Text('暂无歌曲'))
-                      : ListView.separated(
-                          itemCount: songs.length,
-                          separatorBuilder: (_, __) => const Divider(height: 16, thickness: 0.2),
-                          itemBuilder: (context, index) {
-                            final song = songs[index];
-                            final isActive = player.currentSong == song;
-                            return _QueueTile(
-                              song: song,
-                              index: index,
-                              isActive: isActive,
-                              onTap: () => player.playFromCollection(songs, index),
-                              onFavoriteToggle: () => player.toggleFavorite(song),
-                              isFavorite: player.isFavorite(song),
-                              onRemove: showFavorites
-                                  ? () => player.toggleFavorite(song)
-                                  : () => player.removeFromQueue(song),
-                            );
-                          },
-                        ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Text(
+                        showFavorites ? '收藏列表' : '播放列表',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.play_arrow_rounded),
+                        onPressed: songs.isEmpty
+                            ? null
+                            : () => player.playFromCollection(songs, 0),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: onClose,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _QueueTabs(
+                    showFavorites: showFavorites,
+                    onToggle: onToggleTab,
+                    playlistCount: player.queue.length,
+                    favoritesCount: player.favorites.length,
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: songs.isEmpty
+                        ? const Center(child: Text('暂无歌曲'))
+                        : ListView.separated(
+                            itemCount: songs.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 16, thickness: 0.2),
+                            itemBuilder: (context, index) {
+                              final song = songs[index];
+                              final isActive = player.currentSong == song;
+                              return _QueueTile(
+                                song: song,
+                                index: index,
+                                isActive: isActive,
+                                onTap: () =>
+                                    player.playFromCollection(songs, index),
+                                onFavoriteToggle: () =>
+                                    player.toggleFavorite(song),
+                                isFavorite: player.isFavorite(song),
+                                onRemove: showFavorites
+                                    ? () => player.toggleFavorite(song)
+                                    : () => player.removeFromQueue(song),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
