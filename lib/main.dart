@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:math' as math;
 
@@ -91,7 +92,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
 
   @override
   void dispose() {
-    _localhostServer.stop();
+    unawaited(_localhostServer.close());
     super.dispose();
   }
 
