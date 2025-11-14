@@ -8,7 +8,7 @@ Flutter wrapper that delivers the Solara web music player as a polished, portrai
 - `lib/main.dart` – Flutter shell that boots a local server, injects the page into a rounded "device" frame, and handles loading/error states.
 - `ios/` – Runner target configured with the bundle identifier `com.wetdreamboy.solara`, portrait-only, ATS exceptions for localhost, and AppStore-ready settings.
 - `android/` – kept in sync with the same applicationId for parity/testing.
-- `.github/workflows/ios-build.yml` – GitHub Actions workflow that produces an unsigned IPA artifact with `flutter build ipa --no-codesign`.
+- `.github/workflows/ios-build.yml` – GitHub Actions workflow that produces an unsigned IPA artifact with `flutter build ios --release --no-codesign` and a packaging helper script.
 
 ## Requirements
 
@@ -23,7 +23,8 @@ flutter pub get
 flutter run -d ios        # or any connected simulator
 
 # Generate an unsigned IPA locally (requires macOS + Xcode)
-flutter build ipa --no-codesign --export-options-plist=ios/Flutter/exportOptions.plist
+flutter build ios --release --no-codesign
+bash tool/package_unsigned_ipa.sh
 ```
 
 The Flutter layer spins up an embedded localhost server (port `8079`) that serves `assets/solara_web/index.html`. Hot reloading works when editing the Flutter wrapper; changes to the HTML/JS assets require a full rebuild.
@@ -41,8 +42,8 @@ The workflow `.github/workflows/ios-build.yml` does the following whenever trigg
 1. Checks out the repo.
 2. Installs Flutter via `subosito/flutter-action`.
 3. Runs `flutter pub get`.
-4. Builds an unsigned IPA with `flutter build ipa --no-codesign`.
-5. Uploads `build/ios/archive/Runner.xcarchive` and the generated IPA as artifacts.
+4. Builds an unsigned iOS app bundle with `flutter build ios --release --no-codesign`.
+5. Packages the bundle into `build/ios/ipa/Runner.ipa` via `tool/package_unsigned_ipa.sh` and uploads it together with the debug symbols.
 
 Download the artifact from the workflow run page, unzip, and distribute/sign as needed.
 
