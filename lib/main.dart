@@ -1,12 +1,19 @@
-import 'dart:io' show Platform;
-import 'dart:math' as math;
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
 
-import 'package:flutter/foundation.dart';
+import 'package:audio_session/audio_session.dart';
+import 'package:characters/characters.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:http/http.dart' as http;
+import 'package:just_audio/just_audio.dart';
+import 'package:provider/provider.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final session = await AudioSession.instance;
+  await session.configure(const AudioSessionConfiguration.music());
   runApp(const SolaraApp());
 }
 
@@ -15,19 +22,40 @@ class SolaraApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Solara',
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        fontFamily: 'SpecialElite',
-        scaffoldBackgroundColor: const Color(0xFF0A0608),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFFF6B5F),
-          secondary: Color(0xFF272B34),
+    final api = SolaraApi();
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => SolaraPlayerController(api),
         ),
-        useMaterial3: true,
+        ChangeNotifierProxyProvider<SolaraPlayerController, SolaraSearchController>(
+          create: (_) => SolaraSearchController(api),
+          update: (_, player, search) => (search ?? SolaraSearchController(api))
+            ..attachPlayer(player),
+        ),
+      ],
+      child: MaterialApp(
+        title: 'Solara',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          brightness: Brightness.dark,
+          fontFamily: 'SpecialElite',
+          scaffoldBackgroundColor: Colors.transparent,
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFFFF6B5F),
+            secondary: Color(0xFF272B34),
+            surface: Color(0xFF0E0F13),
+            onSurface: Color(0xFFFAFAFA),
+          ),
+          textTheme: ThemeData.dark().textTheme.apply(
+                fontFamily: 'SpecialElite',
+                bodyColor: Colors.white,
+                displayColor: Colors.white,
+              ),
+          useMaterial3: true,
+        ),
+        home: const SolaraHomePage(),
       ),
-      home: const SolaraHomePage(),
     );
   }
 }
@@ -40,203 +68,647 @@ class SolaraHomePage extends StatefulWidget {
 }
 
 class _SolaraHomePageState extends State<SolaraHomePage> {
-  static const _port = 8079;
-  final InAppLocalhostServer _localhostServer = InAppLocalhostServer(
-    documentRoot: 'assets/solara_web',
-    port: _port,
-  );
-  late final PullToRefreshController _pullToRefreshController =
-      PullToRefreshController(onRefresh: () async {
-    await _controller?.reload();
-    _pullToRefreshController.endRefreshing();
-  });
-
-  InAppWebViewController? _controller;
-  double _progress = 0;
-  bool _serverReady = false;
-  String? _errorMessage;
-
-  bool get _supportsWebView {
-    if (kIsWeb) {
-      return false;
-    }
-    final isFlutterTest = Platform.environment.containsKey('FLUTTER_TEST');
-    if (isFlutterTest) {
-      return false;
-    }
-    return defaultTargetPlatform == TargetPlatform.iOS ||
-        defaultTargetPlatform == TargetPlatform.android;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _bootLocalServer();
-  }
-
-  Future<void> _bootLocalServer() async {
-    if (!_supportsWebView) {
-      setState(() => _errorMessage = 'This experience requires an iOS/Android device.');
-      return;
-    }
-    try {
-      await _localhostServer.start();
-      if (mounted) {
-        setState(() => _serverReady = true);
-      }
-    } catch (error) {
-      setState(() => _errorMessage = 'Unable to boot Solara assets: $error');
-    }
-  }
-
-  @override
-  void dispose() {
-    _localhostServer.stop();
-    super.dispose();
-  }
+  bool _showQueue = false;
+  bool _showFavorites = false;
+  bool _showSearch = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: _errorMessage != null
-              ? _ErrorBanner(message: _errorMessage!)
-              : !_serverReady
-                  ? const _LoadingState()
-                  : _SolaraFrame(
-                      progress: _progress,
-                      child: _buildPlayer(),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF362125), Color(0xFF050608)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: Stack(
+            children: [
+              const _BackgroundHalo(),
+              Align(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    child: Column(
+                      children: [
+                        _buildToolbar(context),
+                        const SizedBox(height: 18),
+                        const _PlayerArtwork(),
+                        const SizedBox(height: 28),
+                        const _SongSummary(),
+                        const SizedBox(height: 20),
+                        const _QualityAndActions(),
+                        const SizedBox(height: 22),
+                        const _ProgressSection(),
+                        const SizedBox(height: 20),
+                        _buildControls(context),
+                        const Spacer(),
+                        _buildMiniQueueToggle(context),
+                      ],
                     ),
+                  ),
+                ),
+              ),
+              _QueuePanel(
+                visible: _showQueue,
+                showFavorites: _showFavorites,
+                onClose: () => setState(() => _showQueue = false),
+                onToggleTab: (favorites) => setState(() => _showFavorites = favorites),
+              ),
+              _SearchOverlay(
+                visible: _showSearch,
+                onClose: () => setState(() => _showSearch = false),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildPlayer() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(46),
-      child: InAppWebView(
-        initialUrlRequest: URLRequest(
-          url: WebUri('http://localhost:$_port/index.html'),
+  Widget _buildToolbar(BuildContext context) {
+    final player = context.watch<SolaraPlayerController>();
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        DecoratedBox(
+          decoration: const BoxDecoration(
+            color: Color(0x33000000),
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+          ),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.music_note, size: 18),
+                SizedBox(width: 8),
+                Text('Solara'),
+              ],
+            ),
+          ),
         ),
-        initialSettings: InAppWebViewSettings(
-          allowsInlineMediaPlayback: true,
-          allowsPictureInPictureMediaPlayback: true,
-          mediaPlaybackRequiresUserGesture: false,
-          useOnDownloadStart: true,
-          disallowOverScroll: false,
-          transparentBackground: true,
-          allowFileAccessFromFileURLs: true,
-          allowUniversalAccessFromFileURLs: true,
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.search),
+              onPressed: player.isLoading ? null : () => setState(() => _showSearch = true),
+            ),
+            const SizedBox(width: 12),
+            IconButton(
+              icon: const Icon(Icons.queue_music_outlined),
+              onPressed: () {
+                setState(() {
+                  _showFavorites = false;
+                  _showQueue = true;
+                });
+              },
+            ),
+          ],
         ),
-        onWebViewCreated: (controller) => _controller = controller,
-        pullToRefreshController: _pullToRefreshController,
-        onReceivedError: (controller, request, error) {
-          setState(() {
-            _errorMessage = error.description;
-          });
-        },
-        onProgressChanged: (controller, progress) {
-          setState(() {
-            _progress = progress / 100;
-          });
-          if (progress >= 100) {
-            _pullToRefreshController.endRefreshing();
-          }
-        },
+      ],
+    );
+  }
+
+  Widget _buildControls(BuildContext context) {
+    final player = context.watch<SolaraPlayerController>();
+    final isPlaying = player.isPlaying;
+    final iconTheme = Theme.of(context).iconTheme.copyWith(color: Colors.white);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _ControlButton(
+          icon: Icons.skip_previous_rounded,
+          onTap: player.hasQueue ? player.playPrevious : null,
+          iconTheme: iconTheme,
+        ),
+        _ControlButton(
+          icon: isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+          size: 64,
+          onTap: player.hasQueue
+              ? () => isPlaying ? player.pause() : player.resume()
+              : null,
+          background: const LinearGradient(
+            colors: [Color(0xFFFF6B5F), Color(0xFFFF8C66)],
+          ),
+          iconTheme: iconTheme,
+        ),
+        _ControlButton(
+          icon: Icons.skip_next_rounded,
+          onTap: player.hasQueue ? player.playNext : null,
+          iconTheme: iconTheme,
+        ),
+        _ControlButton(
+          icon: Icons.favorite_border_rounded,
+          onTap: player.currentSong == null
+              ? null
+              : () => player.toggleFavorite(player.currentSong!),
+          isActive: player.currentSong != null && player.isFavorite(player.currentSong!),
+          iconTheme: iconTheme,
+        ),
+        _ControlButton(
+          icon: Icons.queue_music,
+          onTap: () {
+            setState(() {
+              _showFavorites = false;
+              _showQueue = true;
+            });
+          },
+          iconTheme: iconTheme,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMiniQueueToggle(BuildContext context) {
+    final player = context.watch<SolaraPlayerController>();
+    if (!player.hasQueue) {
+      return const SizedBox.shrink();
+    }
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _showFavorites = false;
+          _showQueue = true;
+        });
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(22),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.keyboard_arrow_up_rounded, size: 20),
+            const SizedBox(width: 6),
+            Text(
+              '${player.queue.length} 首歌曲 · 播放列表',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _SolaraFrame extends StatelessWidget {
-  const _SolaraFrame({required this.child, required this.progress});
+class _BackgroundHalo extends StatelessWidget {
+  const _BackgroundHalo();
 
-  final Widget child;
-  final double progress;
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      ignoring: true,
+      child: Align(
+        alignment: const Alignment(0, -0.9),
+        child: Container(
+          width: 460,
+          height: 460,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [Color(0x44FF6B5F), Color(0x11000000), Colors.transparent],
+              stops: [0.1, 0.5, 1],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PlayerArtwork extends StatelessWidget {
+  const _PlayerArtwork();
+
+  @override
+  Widget build(BuildContext context) {
+    final player = context.watch<SolaraPlayerController>();
+    final song = player.currentSong;
+    final cover = player.currentArtwork;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(200),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1A1D23), Color(0xFF090B0F)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x55000000),
+            blurRadius: 40,
+            offset: Offset(0, 30),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(32),
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(180),
+          child: cover == null
+              ? _ArtworkPlaceholder(song?.name ?? 'Solara')
+              : Image.network(
+                  cover,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) {
+                      return child;
+                    }
+                    return const _ArtworkLoading();
+                  },
+                  errorBuilder: (_, __, ___) => _ArtworkPlaceholder(song?.name ?? ''),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ArtworkPlaceholder extends StatelessWidget {
+  const _ArtworkPlaceholder(this.label);
+
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF32101C), Color(0xFF050505)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+          colors: [Color(0xFF1F2A38), Color(0xFF12141A)],
         ),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width =
-              math.min(math.max(constraints.maxWidth - 32, 320.0), 430.0);
-          final height = math.max(constraints.maxHeight - 32, 720.0);
-          return Align(
-            child: Container(
-              width: width,
-              height: height.clamp(720.0, 960.0).toDouble(),
-              decoration: BoxDecoration(
-                color: const Color(0xFF050608),
-                borderRadius: BorderRadius.circular(48),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x99000000),
-                    offset: Offset(0, 30),
-                    blurRadius: 60,
-                    spreadRadius: -20,
-                  ),
-                ],
+      child: Center(
+        child: Text(
+          label.isEmpty ? '♪' : label.characters.take(2).join(),
+          style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                color: Colors.white.withOpacity(0.65),
               ),
-              child: Stack(
-                children: [
-                  Positioned.fill(child: child),
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 200),
-                      opacity: progress >= 1 ? 0 : 1,
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: SizedBox(
-                          width: width - 64,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(99),
-                            child: LinearProgressIndicator(
-                              minHeight: 4,
-                              value: progress,
-                              backgroundColor: Colors.white10,
-                              color: const Color(0xFFFF6B5F),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+          textAlign: TextAlign.center,
+        ),
       ),
     );
   }
 }
 
-class _LoadingState extends StatelessWidget {
-  const _LoadingState();
+class _ArtworkLoading extends StatelessWidget {
+  const _ArtworkLoading();
 
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: CircularProgressIndicator(strokeWidth: 2.5),
+    );
+  }
+}
+
+class _SongSummary extends StatelessWidget {
+  const _SongSummary();
+
+  @override
+  Widget build(BuildContext context) {
+    final player = context.watch<SolaraPlayerController>();
+    final song = player.currentSong;
+    final title = song?.name ?? '选择一首歌曲开始播放';
+    final artist = song?.artist ?? '未知艺术家';
+    return Column(
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                height: 1.2,
+              ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          artist,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.white70,
+              ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+}
+
+class _QualityAndActions extends StatelessWidget {
+  const _QualityAndActions();
+
+  @override
+  Widget build(BuildContext context) {
+    final player = context.watch<SolaraPlayerController>();
+    final quality = player.quality;
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _RoundedButton(
+          onTap: () => player.currentSong == null
+              ? null
+              : player.toggleFavorite(player.currentSong!),
+          icon: player.currentSong != null && player.isFavorite(player.currentSong!)
+              ? Icons.favorite
+              : Icons.favorite_border,
+        ),
+        const SizedBox(width: 12),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            color: Colors.white.withOpacity(0.05),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<SongQuality>(
+              value: quality,
+              dropdownColor: const Color(0xFF181A20),
+              icon: const Icon(Icons.keyboard_arrow_down_rounded),
+              onChanged: player.currentSong == null
+                  ? null
+                  : (value) {
+                      if (value != null) {
+                        player.updateQuality(value);
+                      }
+                    },
+              items: SongQuality.values
+                  .map((q) => DropdownMenuItem(
+                        value: q,
+                        child: Text(q.label, style: theme.textTheme.bodyMedium),
+                      ))
+                  .toList(),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        _RoundedButton(
+          icon: Icons.download_for_offline_outlined,
+          onTap: null,
+        ),
+      ],
+    );
+  }
+}
+
+class _RoundedButton extends StatelessWidget {
+  const _RoundedButton({required this.icon, this.onTap});
+
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withOpacity(0.06),
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Icon(icon, size: 22),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProgressSection extends StatelessWidget {
+  const _ProgressSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final player = context.watch<SolaraPlayerController>();
+    final duration = player.duration;
+    final position = player.position;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: const Color(0xFFFF6B5F),
+            inactiveTrackColor: Colors.white10,
+            trackHeight: 4,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+          ),
+          child: Slider(
+            value: duration.inMilliseconds == 0
+                ? 0
+                : position.inMilliseconds.clamp(0, duration.inMilliseconds).toDouble(),
+            min: 0,
+            max: duration.inMilliseconds == 0 ? 1 : duration.inMilliseconds.toDouble(),
+            onChanged: duration.inMilliseconds == 0
+                ? null
+                : (value) => player.seek(Duration(milliseconds: value.round())),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(player.positionLabel, style: Theme.of(context).textTheme.labelSmall),
+            Text(player.durationLabel, style: Theme.of(context).textTheme.labelSmall),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ControlButton extends StatelessWidget {
+  const _ControlButton({
+    required this.icon,
+    this.onTap,
+    this.size = 48,
+    this.iconTheme,
+    this.isActive = false,
+    this.background,
+  });
+
+  final IconData icon;
+  final VoidCallback? onTap;
+  final double size;
+  final IconThemeData? iconTheme;
+  final bool isActive;
+  final Gradient? background;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconWidget = Icon(icon, size: size * 0.45);
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: background,
+          color: background == null
+              ? (isActive ? const Color(0x33FF6B5F) : Colors.white.withOpacity(0.05))
+              : null,
+          shape: BoxShape.circle,
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(size),
+          onTap: onTap,
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: Center(
+              child: IconTheme(
+                data: iconTheme ?? Theme.of(context).iconTheme,
+                child: iconWidget,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QueuePanel extends StatelessWidget {
+  const _QueuePanel({
+    required this.visible,
+    required this.showFavorites,
+    required this.onClose,
+    required this.onToggleTab,
+  });
+
+  final bool visible;
+  final bool showFavorites;
+  final VoidCallback onClose;
+  final ValueChanged<bool> onToggleTab;
+
+  @override
+  Widget build(BuildContext context) {
+    final player = context.watch<SolaraPlayerController>();
+    final songs = showFavorites ? player.favorites : player.queue;
+
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      left: 0,
+      right: 0,
+      bottom: visible ? 0 : -MediaQuery.of(context).size.height,
+      child: Material(
+        color: const Color(0xFF101218).withOpacity(0.98),
+        elevation: 30,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+            child: Column(
+              children: [
+                Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Text(
+                      showFavorites ? '收藏列表' : '播放列表',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      onPressed: songs.isEmpty
+                          ? null
+                          : () => player.playFromCollection(songs, 0),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: onClose,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _QueueTabs(
+                  showFavorites: showFavorites,
+                  onToggle: onToggleTab,
+                  playlistCount: player.queue.length,
+                  favoritesCount: player.favorites.length,
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: songs.isEmpty
+                      ? const Center(child: Text('暂无歌曲'))
+                      : ListView.separated(
+                          itemCount: songs.length,
+                          separatorBuilder: (_, __) => const Divider(height: 16, thickness: 0.2),
+                          itemBuilder: (context, index) {
+                            final song = songs[index];
+                            final isActive = player.currentSong == song;
+                            return _QueueTile(
+                              song: song,
+                              index: index,
+                              isActive: isActive,
+                              onTap: () => player.playFromCollection(songs, index),
+                              onFavoriteToggle: () => player.toggleFavorite(song),
+                              isFavorite: player.isFavorite(song),
+                              onRemove: showFavorites
+                                  ? () => player.toggleFavorite(song)
+                                  : () => player.removeFromQueue(song),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QueueTabs extends StatelessWidget {
+  const _QueueTabs({
+    required this.showFavorites,
+    required this.onToggle,
+    required this.playlistCount,
+    required this.favoritesCount,
+  });
+
+  final bool showFavorites;
+  final ValueChanged<bool> onToggle;
+  final int playlistCount;
+  final int favoritesCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(32),
+        color: Colors.white.withOpacity(0.04),
+      ),
+      padding: const EdgeInsets.all(6),
+      child: Row(
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text(
-            'Booting Solara assets…',
-            style: TextStyle(letterSpacing: 0.4),
+          _QueueTabButton(
+            label: '播放列表 ($playlistCount)',
+            active: !showFavorites,
+            onTap: () => onToggle(false),
+          ),
+          _QueueTabButton(
+            label: '收藏列表 ($favoritesCount)',
+            active: showFavorites,
+            onTap: () => onToggle(true),
           ),
         ],
       ),
@@ -244,43 +716,967 @@ class _LoadingState extends StatelessWidget {
   }
 }
 
-class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message});
+class _QueueTabButton extends StatelessWidget {
+  const _QueueTabButton({required this.label, required this.active, required this.onTap});
 
-  final String message;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.red.shade900,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.red.shade200.withOpacity(.5)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 38),
-              const SizedBox(height: 12),
-              Text(
-                'Solara player unavailable',
-                style: Theme.of(context).textTheme.titleLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                message,
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-            ],
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            color: active ? const Color(0xFFFF6B5F) : Colors.transparent,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: active ? FontWeight.bold : FontWeight.normal,
+                  ),
+            ),
           ),
         ),
       ),
     );
+  }
+}
+
+class _QueueTile extends StatelessWidget {
+  const _QueueTile({
+    required this.song,
+    required this.index,
+    required this.isActive,
+    required this.onTap,
+    required this.onFavoriteToggle,
+    required this.isFavorite,
+    required this.onRemove,
+  });
+
+  final Song song;
+  final int index;
+  final bool isActive;
+  final VoidCallback onTap;
+  final VoidCallback onFavoriteToggle;
+  final bool isFavorite;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Text('${index + 1}'.padLeft(2, '0'), style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    song.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    song.artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, size: 20),
+              onPressed: onFavoriteToggle,
+            ),
+            IconButton(
+              icon: const Icon(Icons.download_for_offline_outlined, size: 20),
+              onPressed: null,
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, size: 20),
+              onPressed: onRemove,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchOverlay extends StatefulWidget {
+  const _SearchOverlay({required this.visible, required this.onClose});
+
+  final bool visible;
+  final VoidCallback onClose;
+
+  @override
+  State<_SearchOverlay> createState() => _SearchOverlayState();
+}
+
+class _SearchOverlayState extends State<_SearchOverlay> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    final search = context.read<SolaraSearchController>();
+    _controller = TextEditingController(text: search.query);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final search = context.watch<SolaraSearchController>();
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      left: 0,
+      right: 0,
+      top: widget.visible ? 0 : -MediaQuery.of(context).size.height,
+      height: MediaQuery.of(context).size.height,
+      child: Material(
+        color: const Color(0xFF0E0F13).withOpacity(0.98),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: (value) => search.search(value),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.07),
+                          prefixIcon: const Icon(Icons.search),
+                          hintText: '搜索歌曲或歌手',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(28),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: widget.onClose,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _SearchSourceSelector(
+                  selected: search.source,
+                  onSelected: search.changeSource,
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: search.isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : search.results.isEmpty
+                          ? const Center(child: Text('暂无搜索结果'))
+                          : ListView.separated(
+                              itemCount: search.results.length,
+                              separatorBuilder: (_, __) => const Divider(height: 18, thickness: 0.2),
+                              itemBuilder: (context, index) {
+                                final song = search.results[index];
+                                final isSelected = search.isSelected(song);
+                                return _SearchResultTile(
+                                  song: song,
+                                  isSelected: isSelected,
+                                  onSelect: () => search.toggleSelection(song),
+                                );
+                              },
+                            ),
+                ),
+                const SizedBox(height: 12),
+                _ImportBar(
+                  selectedCount: search.selectedCount,
+                  onImport: search.selectedCount == 0
+                      ? null
+                      : () async {
+                          await search.importSelection();
+                          widget.onClose();
+                        },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchSourceSelector extends StatelessWidget {
+  const _SearchSourceSelector({required this.selected, required this.onSelected});
+
+  final SongSource selected;
+  final ValueChanged<SongSource> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 42,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemBuilder: (context, index) {
+          final source = SongSource.values[index];
+          final active = selected == source;
+          return ChoiceChip(
+            selected: active,
+            onSelected: (_) => onSelected(source),
+            label: Text(source.label),
+          );
+        },
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemCount: SongSource.values.length,
+      ),
+    );
+  }
+}
+
+class _SearchResultTile extends StatelessWidget {
+  const _SearchResultTile({
+    required this.song,
+    required this.isSelected,
+    required this.onSelect,
+  });
+
+  final Song song;
+  final bool isSelected;
+  final VoidCallback onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onSelect,
+      borderRadius: BorderRadius.circular(18),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+              color: isSelected ? const Color(0xFFFF6B5F) : Colors.white54,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    song.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    song.artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.play_arrow_rounded),
+              onPressed: () => context.read<SolaraPlayerController>().playFromCollection([song], 0),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ImportBar extends StatelessWidget {
+  const _ImportBar({required this.selectedCount, required this.onImport});
+
+  final int selectedCount;
+  final VoidCallback? onImport;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Text('导入已选 ($selectedCount)'),
+          const Spacer(),
+          ElevatedButton(
+            onPressed: onImport,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B5F),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            ),
+            child: const Text('添加到播放列表'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SolaraApi {
+  SolaraApi({http.Client? client}) : _client = client ?? http.Client();
+
+  final http.Client _client;
+
+  static const String _baseUrl = 'https://music-api.gdstudio.xyz/api.php';
+  static const Map<String, String> _headers = {
+    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
+    'Referer': 'https://music-api.gdstudio.xyz/',
+    'Origin': 'https://music-api.gdstudio.xyz',
+    'Accept': 'application/json',
+  };
+
+  final Random _rng = Random();
+
+  String _signature() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    return List.generate(16, (_) => chars[_rng.nextInt(chars.length)]).join();
+  }
+
+  Future<dynamic> _get(Map<String, String> params) async {
+    final uri = Uri.parse(_baseUrl).replace(queryParameters: {
+      ...params,
+      's': params['s'] ?? _signature(),
+    });
+    final response = await _client.get(uri, headers: _headers);
+    if (response.statusCode >= 400) {
+      throw SolaraApiException('请求失败: ${response.statusCode}');
+    }
+    final body = response.body;
+    try {
+      return jsonDecode(body);
+    } catch (_) {
+      return body;
+    }
+  }
+
+  Future<List<Song>> fetchPlaylist({String playlistId = '3778678', int limit = 50}) async {
+    final data = await _get({
+      'types': 'playlist',
+      'id': playlistId,
+      'limit': '$limit',
+    });
+    if (data is! Map<String, dynamic>) {
+      throw SolaraApiException('播放列表数据格式错误');
+    }
+    final tracks = (data['playlist']?['tracks'] as List<dynamic>? ?? [])
+        .map((raw) => Song.fromPlaylist(raw as Map<String, dynamic>))
+        .whereNotNull()
+        .toList();
+    if (tracks.isEmpty) {
+      throw SolaraApiException('未获取到播放列表数据');
+    }
+    return tracks.take(limit).toList();
+  }
+
+  Future<List<Song>> search(String keyword, {SongSource source = SongSource.netease, int limit = 20, int page = 1}) async {
+    if (keyword.trim().isEmpty) {
+      return const [];
+    }
+    final data = await _get({
+      'types': 'search',
+      'source': source.param,
+      'name': keyword,
+      'count': '$limit',
+      'pages': '$page',
+    });
+    if (data is! List) {
+      throw SolaraApiException('搜索数据格式错误');
+    }
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(Song.fromSearch)
+        .whereNotNull()
+        .toList();
+  }
+
+  Future<SongAudio> resolveSongUrl(Song song, SongQuality quality) async {
+    final data = await _get({
+      'types': 'url',
+      'id': song.urlId ?? song.id,
+      'source': song.source.param,
+      'br': quality.br,
+    });
+    if (data is Map<String, dynamic> && data['url'] is String) {
+      return SongAudio(url: data['url'] as String, quality: quality);
+    }
+    throw SolaraApiException('无法获取歌曲播放地址');
+  }
+
+  Future<String?> resolveArtwork(Song song, {int size = 320}) async {
+    final picId = song.picId;
+    if (picId == null || picId.isEmpty) {
+      return null;
+    }
+    final data = await _get({
+      'types': 'pic',
+      'id': picId,
+      'source': song.source.param,
+      'size': '$size',
+    });
+    if (data is Map<String, dynamic> && data['url'] is String) {
+      return data['url'] as String;
+    }
+    return null;
+  }
+
+  Future<List<LyricLine>> fetchLyrics(Song song) async {
+    final data = await _get({
+      'types': 'lyric',
+      'id': song.lyricId ?? song.id,
+      'source': song.source.param,
+    });
+    final lyricRaw = data is Map<String, dynamic> ? data['lyric'] as String? : null;
+    if (lyricRaw == null || lyricRaw.isEmpty) {
+      return const [];
+    }
+    return LyricLine.parse(lyricRaw);
+  }
+
+  void dispose() {
+    _client.close();
+  }
+}
+
+class SolaraApiException implements Exception {
+  SolaraApiException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+enum SongSource { netease, tencent, kugou, migu }
+
+extension on SongSource {
+  String get label {
+    switch (this) {
+      case SongSource.netease:
+        return '网易云音乐';
+      case SongSource.tencent:
+        return 'QQ音乐';
+      case SongSource.kugou:
+        return '酷狗音乐';
+      case SongSource.migu:
+        return '咪咕音乐';
+    }
+  }
+
+  String get param {
+    switch (this) {
+      case SongSource.netease:
+        return 'netease';
+      case SongSource.tencent:
+        return 'tencent';
+      case SongSource.kugou:
+        return 'kugou';
+      case SongSource.migu:
+        return 'migu';
+    }
+  }
+}
+
+enum SongQuality { standard, high, extreme, lossless }
+
+extension SongQualityExt on SongQuality {
+  String get label {
+    switch (this) {
+      case SongQuality.standard:
+        return '标准音质 (128k)';
+      case SongQuality.high:
+        return '高品音质 (192k)';
+      case SongQuality.extreme:
+        return '极高音质 (320k)';
+      case SongQuality.lossless:
+        return '无损音质 (FLAC)';
+    }
+  }
+
+  String get br {
+    switch (this) {
+      case SongQuality.standard:
+        return '128';
+      case SongQuality.high:
+        return '192';
+      case SongQuality.extreme:
+        return '320';
+      case SongQuality.lossless:
+        return 'flac';
+    }
+  }
+}
+
+class Song {
+  const Song({
+    required this.id,
+    required this.source,
+    required this.name,
+    required this.artist,
+    this.album,
+    this.picId,
+    this.urlId,
+    this.lyricId,
+  });
+
+  static SongSource _parseSource(String? value) {
+    if (value == null) {
+      return SongSource.netease;
+    }
+    return SongSource.values.firstWhere(
+      (source) => source.param == value,
+      orElse: () => SongSource.netease,
+    );
+  }
+
+  static Song? fromSearch(Map<String, dynamic> json) {
+    final id = json['id'];
+    final name = json['name'];
+    if (id == null || name == null) {
+      return null;
+    }
+    final artistField = json['artist'];
+    final artists = artistField is List
+        ? artistField.whereType<String>().join(' / ')
+        : artistField?.toString() ?? '未知艺术家';
+    return Song(
+      id: id.toString(),
+      source: _parseSource(json['source'] as String?),
+      name: name.toString(),
+      artist: artists.isEmpty ? '未知艺术家' : artists,
+      album: json['album']?.toString(),
+      picId: json['pic_id']?.toString(),
+      urlId: json['url_id']?.toString(),
+      lyricId: json['lyric_id']?.toString(),
+    );
+  }
+
+  static Song? fromPlaylist(Map<String, dynamic> json) {
+    final id = json['id'];
+    final name = json['name'];
+    if (id == null || name == null) {
+      return null;
+    }
+    final artists = (json['ar'] as List<dynamic>? ?? [])
+        .map((item) => (item as Map<String, dynamic>)['name'])
+        .whereType<String>()
+        .join(' / ');
+    final album = json['al'] as Map<String, dynamic>?;
+    final picId = album?['pic_str'] ?? album?['pic'] ?? album?['picUrl'];
+    return Song(
+      id: id.toString(),
+      source: SongSource.netease,
+      name: name.toString(),
+      artist: artists.isEmpty ? '未知艺术家' : artists,
+      album: album?['name']?.toString(),
+      picId: picId?.toString(),
+      urlId: id.toString(),
+      lyricId: id.toString(),
+    );
+  }
+
+  final String id;
+  final SongSource source;
+  final String name;
+  final String artist;
+  final String? album;
+  final String? picId;
+  final String? urlId;
+  final String? lyricId;
+
+  String get identity => '${source.param}:$id';
+
+  @override
+  bool operator ==(Object other) =>
+      other is Song && other.identity == identity;
+
+  @override
+  int get hashCode => identity.hashCode;
+}
+
+class SongAudio {
+  const SongAudio({required this.url, required this.quality});
+
+  final String url;
+  final SongQuality quality;
+}
+
+class LyricLine {
+  const LyricLine({required this.time, required this.text});
+
+  final Duration time;
+  final String text;
+
+  static final RegExp _lineRegExp = RegExp(r'\[(\d{2}):(\d{2})\.(\d{2,3})]');
+
+  static List<LyricLine> parse(String raw) {
+    final List<LyricLine> lines = [];
+    for (final entry in raw.split('\n')) {
+      final matches = _lineRegExp.allMatches(entry);
+      if (matches.isEmpty) continue;
+      final text = entry.replaceAll(_lineRegExp, '').trim();
+      if (text.isEmpty) continue;
+      for (final match in matches) {
+        final minutes = int.tryParse(match.group(1) ?? '0') ?? 0;
+        final seconds = int.tryParse(match.group(2) ?? '0') ?? 0;
+        final hundredths = match.group(3);
+        final millis = hundredths == null
+            ? 0
+            : (hundredths.length == 3
+                ? int.tryParse(hundredths) ?? 0
+                : (int.tryParse(hundredths) ?? 0) * 10);
+        final time = Duration(minutes: minutes, seconds: seconds, milliseconds: millis);
+        lines.add(LyricLine(time: time, text: text));
+      }
+    }
+    lines.sort((a, b) => a.time.compareTo(b.time));
+    return lines;
+  }
+}
+
+class SolaraPlayerController extends ChangeNotifier {
+  SolaraPlayerController(this._api) {
+    _init();
+  }
+
+  final SolaraApi _api;
+  final AudioPlayer _player = AudioPlayer();
+  final List<Song> _queue = [];
+  final Map<String, Song> _favorites = {};
+  final Map<String, String> _artworkCache = {};
+  final Map<String, List<LyricLine>> _lyricsCache = {};
+
+  StreamSubscription<Duration>? _positionSub;
+  StreamSubscription<Duration?>? _durationSub;
+  StreamSubscription<PlayerState>? _stateSub;
+
+  bool _isLoading = false;
+  bool _isLoadingSong = false;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+  Song? _currentSong;
+  SongQuality _quality = SongQuality.extreme;
+  String? _currentArtwork;
+  List<LyricLine> _currentLyrics = const [];
+  String? _errorMessage;
+
+  Future<void> _init() async {
+    _positionSub = _player.positionStream.listen((value) {
+      _position = value;
+      notifyListeners();
+    });
+    _durationSub = _player.durationStream.listen((value) {
+      _duration = value ?? Duration.zero;
+      notifyListeners();
+    });
+    _stateSub = _player.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        unawaited(playNext());
+      }
+      notifyListeners();
+    });
+    unawaited(_loadInitialQueue());
+  }
+
+  Future<void> _loadInitialQueue() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final songs = await _api.fetchPlaylist(limit: 30);
+      _queue
+        ..clear()
+        ..addAll(songs);
+      if (_queue.isNotEmpty) {
+        await playSong(_queue.first);
+      }
+    } catch (error) {
+      _errorMessage = error.toString();
+      notifyListeners();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  List<Song> get queue => List.unmodifiable(_queue);
+  List<Song> get favorites => _favorites.values.toList(growable: false);
+  bool get hasQueue => _queue.isNotEmpty;
+  bool get isPlaying => _player.playing;
+  bool get isLoading => _isLoading;
+  bool get isBuffering => _player.playerState.processingState == ProcessingState.buffering;
+  bool get isLoadingSong => _isLoadingSong;
+  Song? get currentSong => _currentSong;
+  SongQuality get quality => _quality;
+  Duration get position => _position;
+  Duration get duration => _duration;
+  String get positionLabel => _formatDuration(_position);
+  String get durationLabel => _formatDuration(_duration);
+  String? get currentArtwork => _currentArtwork;
+  List<LyricLine> get currentLyrics => _currentLyrics;
+  String? get errorMessage => _errorMessage;
+
+  Future<void> playSong(Song song) async {
+    if (song.id.isEmpty) {
+      return;
+    }
+    _isLoadingSong = true;
+    notifyListeners();
+    try {
+      final audio = await _api.resolveSongUrl(song, _quality);
+      await _player.setUrl(audio.url);
+      await _player.play();
+      _currentSong = song;
+      _currentArtwork = await _loadArtwork(song);
+      _currentLyrics = await _loadLyrics(song);
+      notifyListeners();
+    } catch (error) {
+      _errorMessage = error.toString();
+      notifyListeners();
+    } finally {
+      _isLoadingSong = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> playFromCollection(List<Song> songs, int index) async {
+    if (songs.isEmpty || index < 0 || index >= songs.length) {
+      return;
+    }
+    final song = songs[index];
+    if (!_queue.contains(song)) {
+      addSongsToQueue(songs);
+    }
+    await playSong(song);
+  }
+
+  Future<void> playNext() async {
+    if (_queue.isEmpty) return;
+    if (_currentSong == null) {
+      await playSong(_queue.first);
+      return;
+    }
+    final currentIndex = _queue.indexOf(_currentSong!);
+    final nextIndex = (currentIndex + 1) % _queue.length;
+    await playSong(_queue[nextIndex]);
+  }
+
+  Future<void> playPrevious() async {
+    if (_queue.isEmpty) return;
+    if (_currentSong == null) {
+      await playSong(_queue.first);
+      return;
+    }
+    final currentIndex = _queue.indexOf(_currentSong!);
+    final previousIndex = currentIndex <= 0 ? _queue.length - 1 : currentIndex - 1;
+    await playSong(_queue[previousIndex]);
+  }
+
+  Future<void> pause() async {
+    await _player.pause();
+    notifyListeners();
+  }
+
+  Future<void> resume() async {
+    await _player.play();
+    notifyListeners();
+  }
+
+  Future<void> seek(Duration position) async {
+    await _player.seek(position);
+  }
+
+  void addSongsToQueue(List<Song> songs) {
+    for (final song in songs) {
+      if (song.id.isEmpty) continue;
+      if (_queue.contains(song)) continue;
+      _queue.add(song);
+    }
+    notifyListeners();
+  }
+
+  void removeFromQueue(Song song) {
+    final removed = _queue.remove(song);
+    if (!removed) {
+      return;
+    }
+    final wasCurrent = song == _currentSong;
+    if (wasCurrent) {
+      if (_queue.isNotEmpty) {
+        unawaited(playSong(_queue.first));
+      } else {
+        _currentSong = null;
+        _currentArtwork = null;
+        _currentLyrics = const [];
+        unawaited(_player.stop());
+      }
+    }
+    notifyListeners();
+  }
+
+  void toggleFavorite(Song song) {
+    if (_favorites.containsKey(song.identity)) {
+      _favorites.remove(song.identity);
+    } else {
+      _favorites[song.identity] = song;
+    }
+    notifyListeners();
+  }
+
+  bool isFavorite(Song song) => _favorites.containsKey(song.identity);
+
+  Future<void> updateQuality(SongQuality quality) async {
+    if (_quality == quality) return;
+    _quality = quality;
+    notifyListeners();
+    if (_currentSong != null) {
+      await playSong(_currentSong!);
+    }
+  }
+
+  Future<String?> _loadArtwork(Song song) async {
+    final key = song.identity;
+    if (_artworkCache.containsKey(key)) {
+      return _artworkCache[key];
+    }
+    final url = await _api.resolveArtwork(song);
+    if (url != null) {
+      _artworkCache[key] = url;
+    }
+    return url;
+  }
+
+  Future<List<LyricLine>> _loadLyrics(Song song) async {
+    final key = song.identity;
+    if (_lyricsCache.containsKey(key)) {
+      return _lyricsCache[key]!;
+    }
+    final lyrics = await _api.fetchLyrics(song);
+    _lyricsCache[key] = lyrics;
+    return lyrics;
+  }
+
+  String _formatDuration(Duration duration) {
+    if (duration == Duration.zero) {
+      return '00:00';
+    }
+    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  @override
+  void dispose() {
+    _positionSub?.cancel();
+    _durationSub?.cancel();
+    _stateSub?.cancel();
+    _player.dispose();
+    _api.dispose();
+    super.dispose();
+  }
+}
+
+class SolaraSearchController extends ChangeNotifier {
+  SolaraSearchController(this._api);
+
+  final SolaraApi _api;
+  SolaraPlayerController? _player;
+
+  List<Song> _results = const [];
+  final Set<String> _selection = <String>{};
+  String _query = '';
+  SongSource _source = SongSource.netease;
+  bool _isLoading = false;
+
+  void attachPlayer(SolaraPlayerController player) {
+    _player = player;
+  }
+
+  List<Song> get results => _results;
+  String get query => _query;
+  SongSource get source => _source;
+  bool get isLoading => _isLoading;
+  int get selectedCount => _selection.length;
+
+  Future<void> search(String keyword) async {
+    _query = keyword;
+    _isLoading = true;
+    _selection.clear();
+    notifyListeners();
+    try {
+      _results = await _api.search(keyword, source: _source, limit: 40);
+    } catch (error) {
+      _results = const [];
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void changeSource(SongSource source) {
+    if (_source == source) return;
+    _source = source;
+    notifyListeners();
+    if (_query.isNotEmpty) {
+      unawaited(search(_query));
+    }
+  }
+
+  bool isSelected(Song song) => _selection.contains(song.identity);
+
+  void toggleSelection(Song song) {
+    if (_selection.contains(song.identity)) {
+      _selection.remove(song.identity);
+    } else {
+      _selection.add(song.identity);
+    }
+    notifyListeners();
+  }
+
+  Future<void> importSelection() async {
+    if (_player == null || _selection.isEmpty) {
+      return;
+    }
+    final songs = _results.where((song) => _selection.contains(song.identity)).toList();
+    _player!.addSongsToQueue(songs);
+    _selection.clear();
+    notifyListeners();
   }
 }
