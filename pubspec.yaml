@@ -1,5 +1,5 @@
 name: solara_mobile
-description: Native-like Solara music experience backed by the cloned Solara web player.
+description: Native Flutter recreation of the Solara music client backed by the direct Solara API.
 version: 1.0.0+1
 publish_to: "none"
 
@@ -9,7 +9,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_inappwebview: ^6.0.0
+  http: ^1.1.0
+  just_audio: ^0.9.36
+  audio_session: ^0.1.16
+  provider: ^6.1.2
+  collection: ^1.18.0
+  characters: ^1.3.0
 
 dev_dependencies:
   flutter_test:
@@ -18,8 +23,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/solara_web/
   fonts:
     - family: SpecialElite
       fonts:

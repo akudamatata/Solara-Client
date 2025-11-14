@@ -1,11 +1,11 @@
-# Solara iOS Shell
+# Solara Native Flutter Client
 
-Flutter wrapper that delivers the Solara web music player as a polished, portrait-only iOS (and Android) experience. The original web assets from [akudamatata/solara](https://github.com/akudamatata/solara) ship inside the app and are rendered through a full-screen `InAppWebView`, so the UI and functionality stay 1:1 with the design shown in the screenshots.
+This project rebuilds the Solara music experience as a first-class Flutter application that mirrors the vertical iOS layout from [akudamatata/Solara](https://github.com/akudamatata/Solara). Instead of wrapping the web player, the app renders native widgets, talks directly to `https://music-api.gdstudio.xyz/api.php`, and exposes player controls, playlists, favourites, search, and quality switching with a mobile-first feel.
 
 ## Project layout
 
-- `assets/solara_web/` – untouched Solara web build (HTML, CSS, JS, preview GIF, etc.).
-- `lib/main.dart` – Flutter shell that boots a local server, injects the page into a rounded "device" frame, and handles loading/error states.
+- `lib/main.dart` – Flutter app (widgets + controllers) that renders the Solara UI natively and talks to the direct music API.
+- `tool/package_unsigned_ipa.sh` – helper that zips the built `Runner.app` into an unsigned IPA and copies the dSYM for distribution.
 - `ios/` – Runner target configured with the bundle identifier `com.wetdreamboy.solara`, portrait-only, ATS exceptions for localhost, and AppStore-ready settings.
 - `android/` – kept in sync with the same applicationId for parity/testing.
 - `.github/workflows/ios-build.yml` – GitHub Actions workflow that produces an unsigned IPA artifact with `flutter build ios --release --no-codesign` and a packaging helper script.
@@ -27,13 +27,12 @@ flutter build ios --release --no-codesign
 bash tool/package_unsigned_ipa.sh
 ```
 
-The Flutter layer spins up an embedded localhost server (port `8079`) that serves `assets/solara_web/index.html`. Hot reloading works when editing the Flutter wrapper; changes to the HTML/JS assets require a full rebuild.
+### Core architecture
 
-### Customizing the embedded player
-
-- Replace/modify files inside `assets/solara_web/` (e.g., update playlists, tweak CSS).
-- Declare any new asset folders in `pubspec.yaml` under the `assets:` section.
-- If the Solara JS starts new network requests, remember to whitelist the domains under `NSAppTransportSecurity` if they are non-HTTPS.
+- `SolaraApi` (inside `lib/main.dart`) issues signed GET requests directly to `https://music-api.gdstudio.xyz/api.php` with the same parameters as the original web implementation.
+- `SolaraPlayerController` manages queue playback through `just_audio`, handles quality changes (128k / 192k / 320k / FLAC), caches album artwork + lyrics, and exposes derived UI state.
+- `SolaraSearchController` mirrors the mobile search overlay – it supports source switching (网易云 / QQ / 酷狗 / 咪咕), multi-select import into the queue, and one-tap preview.
+- Native widgets recreate the Solara mobile layout: gradient shell, album art halo, progress slider, toolbar, playlist & favourite panels, and the modal search sheet.
 
 ## GitHub Actions (unsigned IPA)
 
@@ -49,6 +48,6 @@ Download the artifact from the workflow run page, unzip, and distribute/sign as 
 
 ## Support / next steps
 
-- Add authentication or API keys by injecting runtime values into the Solara JS bundle.
-- Extend the Flutter shell with native overlays (mini player, playback controls, deep links).
+- Hook in offline caching or downloads once storage/licensing requirements are clear.
+- Integrate lyrics display or background blur derived from `SolaraPlayerController.currentLyrics`.
 - Connect a CI/CD provider (Fastlane, Codemagic) if you need signed builds or TestFlight uploads.
