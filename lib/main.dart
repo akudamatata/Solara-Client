@@ -131,43 +131,84 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
 
   Widget _buildToolbar(BuildContext context) {
     final player = context.watch<SolaraPlayerController>();
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        DecoratedBox(
-          decoration: const BoxDecoration(
-            color: Color(0x33000000),
-            borderRadius: BorderRadius.all(Radius.circular(16)),
+    final isCupertino = Theme.of(context).platform == TargetPlatform.iOS;
+    if (!isCupertino) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          DecoratedBox(
+            decoration: const BoxDecoration(
+              color: Color(0x33000000),
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.music_note, size: 18),
+                  SizedBox(width: 8),
+                  Text('Solara'),
+                ],
+              ),
+            ),
           ),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.music_note, size: 18),
-                SizedBox(width: 8),
-                Text('Solara'),
-              ],
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.search),
+                onPressed:
+                    player.isLoading ? null : () => setState(() => _showSearch = true),
+              ),
+              const SizedBox(width: 12),
+              IconButton(
+                icon: const Icon(Icons.queue_music_outlined),
+                onPressed: () {
+                  setState(() {
+                    _showFavorites = false;
+                    _showQueue = true;
+                  });
+                },
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    const double buttonSize = 44;
+    return Row(
+      children: [
+        SizedBox(
+          height: buttonSize,
+          width: buttonSize,
+          child: _ToolbarCircleButton(
+            icon: Icons.radar,
+            tooltip: '探索雷达',
+            isLoading: player.isExploring,
+            onTap: player.isLoading ? null : () => player.exploreRadar(),
+          ),
+        ),
+        Expanded(
+          child: Center(
+            child: Text(
+              'Solara',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
             ),
           ),
         ),
-        Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.search),
-              onPressed: player.isLoading ? null : () => setState(() => _showSearch = true),
-            ),
-            const SizedBox(width: 12),
-            IconButton(
-              icon: const Icon(Icons.queue_music_outlined),
-              onPressed: () {
-                setState(() {
-                  _showFavorites = false;
-                  _showQueue = true;
-                });
-              },
-            ),
-          ],
+        SizedBox(
+          height: buttonSize,
+          width: buttonSize,
+          child: _ToolbarCircleButton(
+            icon: Icons.search,
+            tooltip: '搜索',
+            onTap:
+                player.isLoading ? null : () => setState(() => _showSearch = true),
+          ),
         ),
       ],
     );
@@ -177,9 +218,17 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
     final player = context.watch<SolaraPlayerController>();
     final isPlaying = player.isPlaying;
     final iconTheme = Theme.of(context).iconTheme.copyWith(color: Colors.white);
+    final playMode = player.playMode;
+    final playModeData = _PlayModeVisuals.from(playMode);
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        _ControlButton(
+          icon: playModeData.icon,
+          tooltip: playModeData.label,
+          onTap: player.hasQueue ? player.cyclePlayMode : null,
+          iconTheme: iconTheme,
+        ),
         _ControlButton(
           icon: Icons.skip_previous_rounded,
           onTap: player.hasQueue ? player.playPrevious : null,
@@ -202,15 +251,8 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
           iconTheme: iconTheme,
         ),
         _ControlButton(
-          icon: Icons.favorite_border_rounded,
-          onTap: player.currentSong == null
-              ? null
-              : () => player.toggleFavorite(player.currentSong!),
-          isActive: player.currentSong != null && player.isFavorite(player.currentSong!),
-          iconTheme: iconTheme,
-        ),
-        _ControlButton(
           icon: Icons.queue_music,
+          tooltip: '播放列表',
           onTap: () {
             setState(() {
               _showFavorites = false;
@@ -282,14 +324,68 @@ class _BackgroundHalo extends StatelessWidget {
   }
 }
 
-class _PlayerArtwork extends StatelessWidget {
+class _PlayerArtwork extends StatefulWidget {
   const _PlayerArtwork();
+
+  @override
+  State<_PlayerArtwork> createState() => _PlayerArtworkState();
+}
+
+class _PlayerArtworkState extends State<_PlayerArtwork>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 22),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _syncAnimation(bool isPlaying) {
+    if (isPlaying) {
+      if (!_controller.isAnimating) {
+        _controller.repeat();
+      }
+    } else {
+      if (_controller.isAnimating) {
+        _controller.stop(canceled: false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final player = context.watch<SolaraPlayerController>();
     final song = player.currentSong;
     final cover = player.currentArtwork;
+    final isPlaying = player.isPlaying && !player.isLoadingSong;
+    _syncAnimation(isPlaying);
+
+    final artwork = ClipRRect(
+      borderRadius: BorderRadius.circular(180),
+      child: cover == null
+          ? _ArtworkPlaceholder(song?.name ?? 'Solara')
+          : Image.network(
+              cover,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) {
+                  return child;
+                }
+                return const _ArtworkLoading();
+              },
+              errorBuilder: (_, __, ___) => _ArtworkPlaceholder(song?.name ?? ''),
+            ),
+    );
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -311,21 +407,15 @@ class _PlayerArtwork extends StatelessWidget {
       padding: const EdgeInsets.all(32),
       child: AspectRatio(
         aspectRatio: 1,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(180),
-          child: cover == null
-              ? _ArtworkPlaceholder(song?.name ?? 'Solara')
-              : Image.network(
-                  cover,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, progress) {
-                    if (progress == null) {
-                      return child;
-                    }
-                    return const _ArtworkLoading();
-                  },
-                  errorBuilder: (_, __, ___) => _ArtworkPlaceholder(song?.name ?? ''),
-                ),
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            return Transform.rotate(
+              angle: _controller.value * pi * 2,
+              child: child,
+            );
+          },
+          child: artwork,
         ),
       ),
     );
@@ -378,22 +468,54 @@ class _SongSummary extends StatelessWidget {
     final song = player.currentSong;
     final title = song?.name ?? '选择一首歌曲开始播放';
     final artist = song?.artist ?? '未知艺术家';
+    final theme = Theme.of(context);
+    final bool canFavorite = song != null;
+    final bool isFavorite = canFavorite && player.isFavorite(song!);
+    final favoriteButton = IconButton(
+      onPressed: canFavorite ? () => player.toggleFavorite(song!) : null,
+      icon: Icon(
+        isFavorite ? Icons.favorite : Icons.favorite_border,
+        color: canFavorite
+            ? (isFavorite ? theme.colorScheme.primary : theme.iconTheme.color)
+            : theme.disabledColor,
+      ),
+    );
+
     return Column(
       children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                height: 1.2,
+        SizedBox(
+          width: double.infinity,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 56),
+                child: Text(
+                  title,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        height: 1.2,
+                      ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
               ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
+              Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: favoriteButton,
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
           artist,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          style: theme.textTheme.bodyMedium?.copyWith(
                 color: Colors.white70,
               ),
           textAlign: TextAlign.center,
@@ -411,75 +533,75 @@ class _QualityAndActions extends StatelessWidget {
     final player = context.watch<SolaraPlayerController>();
     final quality = player.quality;
     final theme = Theme.of(context);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _RoundedButton(
-          onTap: () => player.currentSong == null
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        color: Colors.white.withOpacity(0.05),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<SongQuality>(
+          value: quality,
+          dropdownColor: const Color(0xFF181A20),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+          onChanged: player.currentSong == null
               ? null
-              : player.toggleFavorite(player.currentSong!),
-          icon: player.currentSong != null && player.isFavorite(player.currentSong!)
-              ? Icons.favorite
-              : Icons.favorite_border,
+              : (value) {
+                  if (value != null) {
+                    player.updateQuality(value);
+                  }
+                },
+          items: SongQuality.values
+              .map((q) => DropdownMenuItem(
+                    value: q,
+                    child: Text(q.label, style: theme.textTheme.bodyMedium),
+                  ))
+              .toList(),
         ),
-        const SizedBox(width: 12),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            color: Colors.white.withOpacity(0.05),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<SongQuality>(
-              value: quality,
-              dropdownColor: const Color(0xFF181A20),
-              icon: const Icon(Icons.keyboard_arrow_down_rounded),
-              onChanged: player.currentSong == null
-                  ? null
-                  : (value) {
-                      if (value != null) {
-                        player.updateQuality(value);
-                      }
-                    },
-              items: SongQuality.values
-                  .map((q) => DropdownMenuItem(
-                        value: q,
-                        child: Text(q.label, style: theme.textTheme.bodyMedium),
-                      ))
-                  .toList(),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        _RoundedButton(
-          icon: Icons.download_for_offline_outlined,
-          onTap: null,
-        ),
-      ],
+      ),
     );
   }
 }
 
-class _RoundedButton extends StatelessWidget {
-  const _RoundedButton({required this.icon, this.onTap});
+class _ToolbarCircleButton extends StatelessWidget {
+  const _ToolbarCircleButton({
+    required this.icon,
+    this.onTap,
+    this.tooltip,
+    this.isLoading = false,
+  });
 
   final IconData icon;
   final VoidCallback? onTap;
+  final String? tooltip;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withOpacity(0.06),
-      borderRadius: BorderRadius.circular(24),
+    final button = Material(
+      color: Colors.white.withOpacity(0.08),
+      shape: const CircleBorder(),
       child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Icon(icon, size: 22),
+        customBorder: const CircleBorder(),
+        onTap: isLoading ? null : onTap,
+        child: Center(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: isLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(icon, size: 22),
+          ),
         ),
       ),
     );
+    if (tooltip == null || tooltip!.isEmpty) {
+      return button;
+    }
+    return Tooltip(message: tooltip!, child: button);
   }
 }
 
@@ -534,6 +656,7 @@ class _ControlButton extends StatelessWidget {
     this.iconTheme,
     this.isActive = false,
     this.background,
+    this.tooltip,
   });
 
   final IconData icon;
@@ -542,11 +665,12 @@ class _ControlButton extends StatelessWidget {
   final IconThemeData? iconTheme;
   final bool isActive;
   final Gradient? background;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
     final iconWidget = Icon(icon, size: size * 0.45);
-    return Material(
+    final button = Material(
       color: Colors.transparent,
       child: Ink(
         decoration: BoxDecoration(
@@ -572,6 +696,28 @@ class _ControlButton extends StatelessWidget {
         ),
       ),
     );
+    if (tooltip == null || tooltip!.isEmpty) {
+      return button;
+    }
+    return Tooltip(message: tooltip!, child: button);
+  }
+}
+
+class _PlayModeVisuals {
+  const _PlayModeVisuals(this.icon, this.label);
+
+  final IconData icon;
+  final String label;
+
+  static _PlayModeVisuals from(PlayMode mode) {
+    switch (mode) {
+      case PlayMode.list:
+        return const _PlayModeVisuals(Icons.repeat_rounded, '列表循环');
+      case PlayMode.single:
+        return const _PlayModeVisuals(Icons.repeat_one_rounded, '单曲循环');
+      case PlayMode.random:
+        return const _PlayModeVisuals(Icons.shuffle_rounded, '随机播放');
+    }
   }
 }
 
@@ -1245,6 +1391,8 @@ extension SongQualityExt on SongQuality {
   }
 }
 
+enum PlayMode { list, single, random }
+
 class Song {
   const Song({
     required this.id,
@@ -1383,6 +1531,30 @@ class SolaraPlayerController extends ChangeNotifier {
   final Map<String, Song> _favorites = {};
   final Map<String, String> _artworkCache = {};
   final Map<String, List<LyricLine>> _lyricsCache = {};
+  final Random _random = Random();
+
+  static const List<String> _exploreGenres = [
+    '流行',
+    '摇滚',
+    '古典音乐',
+    '民谣',
+    '电子',
+    '爵士',
+    '说唱',
+    '乡村',
+    '蓝调',
+    'R&B',
+    '金属',
+    '嘻哈',
+    '轻音乐',
+  ];
+
+  static const List<SongSource> _exploreSources = [
+    SongSource.netease,
+    SongSource.tencent,
+    SongSource.kugou,
+    SongSource.migu,
+  ];
 
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
@@ -1390,10 +1562,12 @@ class SolaraPlayerController extends ChangeNotifier {
 
   bool _isLoading = false;
   bool _isLoadingSong = false;
+  bool _isExploring = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   Song? _currentSong;
   SongQuality _quality = SongQuality.extreme;
+  PlayMode _playMode = PlayMode.list;
   String? _currentArtwork;
   List<LyricLine> _currentLyrics = const [];
   String? _errorMessage;
@@ -1443,8 +1617,10 @@ class SolaraPlayerController extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isBuffering => _player.playerState.processingState == ProcessingState.buffering;
   bool get isLoadingSong => _isLoadingSong;
+  bool get isExploring => _isExploring;
   Song? get currentSong => _currentSong;
   SongQuality get quality => _quality;
+  PlayMode get playMode => _playMode;
   Duration get position => _position;
   Duration get duration => _duration;
   String get positionLabel => _formatDuration(_position);
@@ -1493,9 +1669,29 @@ class SolaraPlayerController extends ChangeNotifier {
       await playSong(_queue.first);
       return;
     }
-    final currentIndex = _queue.indexOf(_currentSong!);
-    final nextIndex = (currentIndex + 1) % _queue.length;
-    await playSong(_queue[nextIndex]);
+    switch (_playMode) {
+      case PlayMode.single:
+        await _player.seek(Duration.zero);
+        await _player.play();
+        return;
+      case PlayMode.random:
+        final options = _queue.where((song) => song != _currentSong).toList();
+        final Song nextSong;
+        if (options.isEmpty) {
+          nextSong = _currentSong!;
+        } else {
+          nextSong = options[_random.nextInt(options.length)];
+        }
+        await playSong(nextSong);
+        return;
+      case PlayMode.list:
+        final currentIndex = _queue.indexOf(_currentSong!);
+        final nextIndex = currentIndex >= 0 && currentIndex + 1 < _queue.length
+            ? currentIndex + 1
+            : 0;
+        await playSong(_queue[nextIndex]);
+        return;
+    }
   }
 
   Future<void> playPrevious() async {
@@ -1504,9 +1700,42 @@ class SolaraPlayerController extends ChangeNotifier {
       await playSong(_queue.first);
       return;
     }
-    final currentIndex = _queue.indexOf(_currentSong!);
-    final previousIndex = currentIndex <= 0 ? _queue.length - 1 : currentIndex - 1;
-    await playSong(_queue[previousIndex]);
+    switch (_playMode) {
+      case PlayMode.single:
+        await _player.seek(Duration.zero);
+        await _player.play();
+        return;
+      case PlayMode.random:
+        final options = _queue.where((song) => song != _currentSong).toList();
+        final Song previousSong;
+        if (options.isEmpty) {
+          previousSong = _currentSong!;
+        } else {
+          previousSong = options[_random.nextInt(options.length)];
+        }
+        await playSong(previousSong);
+        return;
+      case PlayMode.list:
+        final currentIndex = _queue.indexOf(_currentSong!);
+        final previousIndex = currentIndex <= 0 ? _queue.length - 1 : currentIndex - 1;
+        await playSong(_queue[previousIndex]);
+        return;
+    }
+  }
+
+  void cyclePlayMode() {
+    switch (_playMode) {
+      case PlayMode.list:
+        _playMode = PlayMode.single;
+        break;
+      case PlayMode.single:
+        _playMode = PlayMode.random;
+        break;
+      case PlayMode.random:
+        _playMode = PlayMode.list;
+        break;
+    }
+    notifyListeners();
   }
 
   Future<void> pause() async {
@@ -1568,6 +1797,42 @@ class SolaraPlayerController extends ChangeNotifier {
     notifyListeners();
     if (_currentSong != null) {
       await playSong(_currentSong!);
+    }
+  }
+
+  Future<void> exploreRadar() async {
+    if (_isExploring) {
+      return;
+    }
+    _isExploring = true;
+    notifyListeners();
+    try {
+      final genre = _exploreGenres[_random.nextInt(_exploreGenres.length)];
+      final source = _exploreSources[_random.nextInt(_exploreSources.length)];
+      final results = await _api.search(genre, source: source, limit: 30, page: 1);
+      if (results.isEmpty) {
+        return;
+      }
+      final newSongs = <Song>[];
+      for (final song in results) {
+        if (!_queue.contains(song)) {
+          newSongs.add(song);
+        }
+      }
+      if (newSongs.isEmpty) {
+        return;
+      }
+      final wasEmpty = _queue.isEmpty;
+      addSongsToQueue(newSongs);
+      if (wasEmpty && _queue.isNotEmpty) {
+        await playSong(_queue.first);
+      }
+    } catch (error) {
+      _errorMessage = error.toString();
+      notifyListeners();
+    } finally {
+      _isExploring = false;
+      notifyListeners();
     }
   }
 
