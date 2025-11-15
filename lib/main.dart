@@ -99,6 +99,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
             children: [
               const _BackgroundHalo(),
               Align(
+                alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 420),
                   child: Padding(
@@ -398,31 +399,38 @@ class _PlayerArtworkState extends State<_PlayerArtwork>
     final mediaSize = MediaQuery.of(context).size;
     final double maxDiameter = min(mediaSize.width * 0.7, 260);
     final double diameter = max(180.0, maxDiameter);
-    final double padding = diameter * 0.12;
+    final double framePadding = diameter * 0.12;
+    final double innerPadding = diameter * 0.06;
+    final double artworkSize = max(0.0, diameter - framePadding * 2 - innerPadding * 2);
 
     final artwork = ClipOval(
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF1F2A38), Color(0xFF151820)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      child: SizedBox.square(
+        dimension: artworkSize,
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF1F2A38), Color(0xFF151820)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
+          child: cover == null
+              ? _ArtworkPlaceholder(size: artworkSize)
+              : Image.network(
+                  cover,
+                  width: artworkSize,
+                  height: artworkSize,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.high,
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) {
+                      return child;
+                    }
+                    return const _ArtworkLoading();
+                  },
+                  errorBuilder: (_, __, ___) => _ArtworkPlaceholder(size: artworkSize),
+                ),
         ),
-        child: cover == null
-            ? _ArtworkPlaceholder(size: diameter - padding * 2)
-            : Image.network(
-                cover,
-                fit: BoxFit.cover,
-                filterQuality: FilterQuality.high,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) {
-                    return child;
-                  }
-                  return const _ArtworkLoading();
-                },
-                errorBuilder: (_, __, ___) => _ArtworkPlaceholder(size: diameter - padding * 2),
-              ),
       ),
     );
 
@@ -445,7 +453,7 @@ class _PlayerArtworkState extends State<_PlayerArtwork>
           ),
         ],
       ),
-      padding: EdgeInsets.all(padding),
+      padding: EdgeInsets.all(framePadding),
       child: DecoratedBox(
         decoration: BoxDecoration(
           shape: BoxShape.circle,
@@ -463,7 +471,7 @@ class _PlayerArtworkState extends State<_PlayerArtwork>
           ],
         ),
         child: Padding(
-          padding: EdgeInsets.all(diameter * 0.06),
+          padding: EdgeInsets.all(innerPadding),
           child: AnimatedBuilder(
             animation: _controller,
             builder: (context, child) {
@@ -835,7 +843,7 @@ class _QueuePanel extends StatelessWidget {
 
     final mediaQuery = MediaQuery.of(context);
     final size = mediaQuery.size;
-    final viewPadding = mediaQuery.viewPadding;
+    final safePadding = mediaQuery.padding;
     return IgnorePointer(
       ignoring: !visible,
       child: Stack(
@@ -861,30 +869,30 @@ class _QueuePanel extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeOutCubic,
               opacity: visible ? 1 : 0,
-              child: Material(
-                color: const Color(0xFF101218).withOpacity(0.96),
-                elevation: 30,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
-                child: SafeArea(
-                  top: false,
-                  bottom: false,
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      24,
-                      18 + viewPadding.top,
-                      24,
-                      24 + viewPadding.bottom,
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: Colors.white24,
-                            borderRadius: BorderRadius.circular(6),
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: size.height - safePadding.top + 24,
+                  ),
+                  child: Material(
+                    color: const Color(0xFF101218).withOpacity(0.96),
+                    elevation: 30,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+                    child: SafeArea(
+                      top: true,
+                      bottom: true,
+                      minimum: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
                           ),
-                        ),
                         const SizedBox(height: 16),
                         Row(
                           children: [
@@ -925,9 +933,10 @@ class _QueuePanel extends StatelessWidget {
                           child: songs.isEmpty
                               ? const Center(child: Text('暂无歌曲'))
                               : ListView.separated(
+                                  physics: const BouncingScrollPhysics(),
                                   padding: EdgeInsets.only(
                                     top: 4,
-                                    bottom: viewPadding.bottom + 16,
+                                    bottom: safePadding.bottom + 16,
                                   ),
                                   itemCount: songs.length,
                                   separatorBuilder: (_, __) =>
