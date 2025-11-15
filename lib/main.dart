@@ -1,14 +1,20 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:audio_session/audio_session.dart';
 import 'package:collection/collection.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -138,16 +144,12 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         }
 
                         return Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: topSection,
-                            ),
-                            Padding(
-                              padding: EdgeInsets.only(bottom: bottomSpacing),
-                              child: _buildControls(context),
-                            ),
+                            ...topSection,
+                            SizedBox(height: sectionSpacing),
+                            _buildControls(context),
+                            SizedBox(height: bottomSpacing),
                           ],
                         );
                       },
@@ -545,35 +547,30 @@ class _SongSummary extends StatelessWidget {
     );
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 56),
-                child: Text(
-                  title,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        height: 1.2,
-                      ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      height: 1.2,
+                    ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: favoriteButton,
-                ),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 44,
+              height: 44,
+              child: favoriteButton,
+            ),
+          ],
         ),
         const SizedBox(height: 6),
         Text(
@@ -677,37 +674,71 @@ class _ProgressSection extends StatelessWidget {
     final duration = player.duration;
     final position = player.position;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            activeTrackColor: const Color(0xFFFF6B5F),
-            inactiveTrackColor: Colors.white10,
-            trackHeight: 4,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-          ),
-          child: Slider(
-            value: duration.inMilliseconds == 0
-                ? 0
-                : position.inMilliseconds.clamp(0, duration.inMilliseconds).toDouble(),
-            min: 0,
-            max: duration.inMilliseconds == 0 ? 1 : duration.inMilliseconds.toDouble(),
-            onChanged: duration.inMilliseconds == 0
-                ? null
-                : (value) => player.seek(Duration(milliseconds: value.round())),
+        SizedBox(
+          width: 56,
+          child: Text(
+            player.positionLabel,
+            style: Theme.of(context).textTheme.labelSmall,
           ),
         ),
-        const SizedBox(height: 6),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(player.positionLabel, style: Theme.of(context).textTheme.labelSmall),
-            Text(player.durationLabel, style: Theme.of(context).textTheme.labelSmall),
-          ],
+        const SizedBox(width: 12),
+        Expanded(
+          child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: const Color(0xFFFF6B5F),
+              inactiveTrackColor: Colors.white10,
+              trackHeight: 4,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+              overlayShape: SliderComponentShape.noOverlay,
+              trackShape: const _EdgeToEdgeSliderTrackShape(),
+            ),
+            child: Slider(
+              value: duration.inMilliseconds == 0
+                  ? 0
+                  : position.inMilliseconds
+                      .clamp(0, duration.inMilliseconds)
+                      .toDouble(),
+              min: 0,
+              max: duration.inMilliseconds == 0 ? 1 : duration.inMilliseconds.toDouble(),
+              onChanged: duration.inMilliseconds == 0
+                  ? null
+                  : (value) => player.seek(Duration(milliseconds: value.round())),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 56,
+          child: Text(
+            player.durationLabel,
+            style: Theme.of(context).textTheme.labelSmall,
+            textAlign: TextAlign.right,
+          ),
         ),
       ],
     );
+  }
+}
+
+class _EdgeToEdgeSliderTrackShape extends RoundedRectSliderTrackShape {
+  const _EdgeToEdgeSliderTrackShape();
+
+  @override
+  Rect getPreferredRect({
+    required RenderBox parentBox,
+    Offset offset = Offset.zero,
+    required SliderThemeData sliderTheme,
+    bool isEnabled = false,
+    bool isDiscrete = false,
+  }) {
+    final double trackHeight = sliderTheme.trackHeight ?? 4;
+    final double trackLeft = offset.dx;
+    final double trackTop = offset.dy + (parentBox.size.height - trackHeight) / 2;
+    final double trackWidth = parentBox.size.width;
+    return Rect.fromLTWH(trackLeft, trackTop, trackWidth, trackHeight);
   }
 }
 
@@ -802,7 +833,9 @@ class _QueuePanel extends StatelessWidget {
     final player = context.watch<SolaraPlayerController>();
     final songs = showFavorites ? player.favorites : player.queue;
 
-    final size = MediaQuery.of(context).size;
+    final mediaQuery = MediaQuery.of(context);
+    final size = mediaQuery.size;
+    final viewPadding = mediaQuery.viewPadding;
     return IgnorePointer(
       ignoring: !visible,
       child: Stack(
@@ -834,8 +867,14 @@ class _QueuePanel extends StatelessWidget {
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
                 child: SafeArea(
                   top: false,
+                  bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      18 + viewPadding.top,
+                      24,
+                      24 + viewPadding.bottom,
+                    ),
                     child: Column(
                       children: [
                         Container(
@@ -873,29 +912,39 @@ class _QueuePanel extends StatelessWidget {
                           playlistCount: player.queue.length,
                           favoritesCount: player.favorites.length,
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
+                        _QueueActionsBar(
+                          showFavorites: showFavorites,
+                          onImport: () => _importCollection(context, player, favorites: showFavorites),
+                          onExport: () => _exportCollection(context, player, favorites: showFavorites),
+                          onClear: () => _clearCollection(context, player, favorites: showFavorites),
+                          onAddAll: showFavorites ? () => _addFavoritesToQueue(context, player) : null,
+                        ),
+                        const SizedBox(height: 16),
                         Expanded(
                           child: songs.isEmpty
                               ? const Center(child: Text('暂无歌曲'))
                               : ListView.separated(
+                                  padding: EdgeInsets.only(
+                                    top: 4,
+                                    bottom: viewPadding.bottom + 16,
+                                  ),
                                   itemCount: songs.length,
                                   separatorBuilder: (_, __) =>
                                       const Divider(height: 16, thickness: 0.2),
                                   itemBuilder: (context, index) {
                                     final song = songs[index];
                                     final isActive = player.currentSong == song;
+                                    final actions = showFavorites
+                                        ? _buildFavoriteActions(context, player, song)
+                                        : _buildQueueActions(context, player, song);
                                     return _QueueTile(
                                       song: song,
                                       index: index,
                                       isActive: isActive,
                                       onTap: () =>
                                           player.playFromCollection(songs, index),
-                                      onFavoriteToggle: () =>
-                                          player.toggleFavorite(song),
-                                      isFavorite: player.isFavorite(song),
-                                      onRemove: showFavorites
-                                          ? () => player.toggleFavorite(song)
-                                          : () => player.removeFromQueue(song),
+                                      actions: actions,
                                     );
                                   },
                                 ),
@@ -908,6 +957,299 @@ class _QueuePanel extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _importCollection(
+    BuildContext context,
+    SolaraPlayerController player, {
+    required bool favorites,
+  }) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['json'],
+      );
+      if (result == null || result.files.isEmpty) {
+        return;
+      }
+      final path = result.files.single.path;
+      if (path == null) {
+        _showSnackBar(context, '未选择有效的文件', error: true);
+        return;
+      }
+      final content = await File(path).readAsString();
+      final songs = player.parseImportedSongs(content);
+      if (songs.isEmpty) {
+        _showSnackBar(context, '未找到可导入的歌曲', error: true);
+        return;
+      }
+      final added = favorites
+          ? player.addSongsToFavorites(songs)
+          : player.addSongsToQueue(songs);
+      final duplicates = songs.length - added;
+      if (added == 0) {
+        _showSnackBar(
+          context,
+          favorites ? '文件中的歌曲已在收藏列表中' : '文件中的歌曲已在播放列表中',
+        );
+      } else {
+        final duplicateHint = duplicates > 0 ? '，$duplicates 首已存在' : '';
+        _showSnackBar(
+          context,
+          '成功导入 $added 首歌曲$duplicateHint',
+          success: true,
+        );
+      }
+    } catch (_) {
+      _showSnackBar(context, '导入失败，请确认文件格式', error: true);
+    }
+  }
+
+  Future<void> _exportCollection(
+    BuildContext context,
+    SolaraPlayerController player, {
+    required bool favorites,
+  }) async {
+    final songs = favorites ? player.favorites : player.queue;
+    if (songs.isEmpty) {
+      _showSnackBar(
+        context,
+        favorites ? '收藏列表为空，无法导出' : '播放列表为空，无法导出',
+      );
+      return;
+    }
+    try {
+      final json = player.buildCollectionExportPayload(songs, favorites: favorites);
+      final directory = await getTemporaryDirectory();
+      final now = DateTime.now();
+      final formatted =
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+      final label = favorites ? 'favorites' : 'playlist';
+      final fileName = 'solara-$label-$formatted.json';
+      final file = File('${directory.path}/$fileName');
+      await file.writeAsString(json);
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'application/json', name: fileName)],
+        text: '导出的 Solara ${favorites ? '收藏列表' : '播放列表'}',
+      );
+      _showSnackBar(
+        context,
+        '已导出 ${songs.length} 首歌曲',
+        success: true,
+      );
+    } catch (_) {
+      _showSnackBar(context, '导出失败，请稍后重试', error: true);
+    }
+  }
+
+  void _clearCollection(
+    BuildContext context,
+    SolaraPlayerController player, {
+    required bool favorites,
+  }) {
+    final removed = favorites ? player.clearFavorites() : player.clearQueue();
+    if (removed == 0) {
+      _showSnackBar(context, favorites ? '收藏列表为空' : '播放列表为空');
+    } else {
+      _showSnackBar(
+        context,
+        favorites ? '收藏列表已清空' : '播放列表已清空',
+        success: true,
+      );
+    }
+  }
+
+  void _addFavoritesToQueue(BuildContext context, SolaraPlayerController player) {
+    final added = player.addFavoritesToQueue();
+    if (added == 0) {
+      _showSnackBar(context, '收藏歌曲已全部在播放列表中');
+    } else {
+      _showSnackBar(
+        context,
+        '已添加 $added 首收藏歌曲到播放列表',
+        success: true,
+      );
+    }
+  }
+
+  Future<void> _downloadSong(
+    BuildContext context,
+    SolaraPlayerController player,
+    Song song,
+  ) async {
+    final url = await player.resolveDownloadUrl(song);
+    if (url == null || url.isEmpty) {
+      _showSnackBar(context, '暂时无法获取下载链接', error: true);
+      return;
+    }
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      _showSnackBar(context, '下载链接无效', error: true);
+      return;
+    }
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched) {
+      _showSnackBar(context, '无法打开下载链接', error: true);
+    }
+  }
+
+  void _showSnackBar(
+    BuildContext context,
+    String message, {
+    bool success = false,
+    bool error = false,
+  }) {
+    final theme = Theme.of(context);
+    Color? background;
+    if (error) {
+      background = Colors.redAccent;
+    } else if (success) {
+      background = theme.colorScheme.primary;
+    }
+    final textStyle = error || success
+        ? const TextStyle(color: Colors.white)
+        : null;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: textStyle),
+        backgroundColor: background,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  List<_QueueTileAction> _buildQueueActions(
+    BuildContext context,
+    SolaraPlayerController player,
+    Song song,
+  ) {
+    final isFavorite = player.isFavorite(song);
+    return [
+      _QueueTileAction(
+        icon: isFavorite ? Icons.favorite : Icons.favorite_border,
+        tooltip: isFavorite ? '取消收藏' : '收藏',
+        color: isFavorite ? Theme.of(context).colorScheme.primary : null,
+        onTap: () {
+          player.toggleFavorite(song);
+          final nowFavorite = player.isFavorite(song);
+          _showSnackBar(
+            context,
+            nowFavorite ? '已添加到收藏' : '已从收藏列表移除',
+            success: nowFavorite,
+          );
+        },
+      ),
+      _QueueTileAction(
+        icon: Icons.download_for_offline_outlined,
+        tooltip: '下载',
+        onTap: () => _downloadSong(context, player, song),
+      ),
+      _QueueTileAction(
+        icon: Icons.delete_outline,
+        tooltip: '从播放列表移除',
+        onTap: () {
+          final removed = player.removeFromQueue(song);
+          if (removed) {
+            _showSnackBar(context, '已从播放列表移除', success: true);
+          }
+        },
+      ),
+    ];
+  }
+
+  List<_QueueTileAction> _buildFavoriteActions(
+    BuildContext context,
+    SolaraPlayerController player,
+    Song song,
+  ) {
+    return [
+      _QueueTileAction(
+        icon: Icons.playlist_add,
+        tooltip: '添加到播放列表',
+        onTap: () {
+          final added = player.addSongsToQueue([song]);
+          _showSnackBar(
+            context,
+            added > 0 ? '已添加到播放列表' : '歌曲已在播放列表中',
+            success: added > 0,
+          );
+        },
+      ),
+      _QueueTileAction(
+        icon: Icons.download_for_offline_outlined,
+        tooltip: '下载',
+        onTap: () => _downloadSong(context, player, song),
+      ),
+      _QueueTileAction(
+        icon: Icons.delete_outline,
+        tooltip: '移除收藏',
+        onTap: () {
+          player.toggleFavorite(song);
+          _showSnackBar(context, '已从收藏列表移除');
+        },
+      ),
+    ];
+  }
+}
+
+class _QueueActionsBar extends StatelessWidget {
+  const _QueueActionsBar({
+    required this.showFavorites,
+    required this.onImport,
+    required this.onExport,
+    required this.onClear,
+    this.onAddAll,
+  });
+
+  final bool showFavorites;
+  final VoidCallback onImport;
+  final VoidCallback onExport;
+  final VoidCallback onClear;
+  final VoidCallback? onAddAll;
+
+  @override
+  Widget build(BuildContext context) {
+    final buttons = <Widget>[];
+    if (showFavorites && onAddAll != null) {
+      buttons.add(
+        _QueueActionButton(
+          icon: Icons.playlist_add_check,
+          label: '全部添加到播放列表',
+          onTap: onAddAll,
+        ),
+      );
+    }
+    buttons.addAll([
+      _QueueActionButton(icon: Icons.file_download, label: '导入', onTap: onImport),
+      _QueueActionButton(icon: Icons.file_upload, label: '导出', onTap: onExport),
+      _QueueActionButton(icon: Icons.delete_sweep, label: '清空', onTap: onClear),
+    ]);
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      alignment: WrapAlignment.center,
+      children: buttons,
+    );
+  }
+}
+
+class _QueueActionButton extends StatelessWidget {
+  const _QueueActionButton({required this.icon, required this.label, required this.onTap});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 38,
+      child: FilledButton.tonalIcon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        label: Text(label),
       ),
     );
   }
@@ -991,18 +1333,14 @@ class _QueueTile extends StatelessWidget {
     required this.index,
     required this.isActive,
     required this.onTap,
-    required this.onFavoriteToggle,
-    required this.isFavorite,
-    required this.onRemove,
+    required this.actions,
   });
 
   final Song song;
   final int index;
   final bool isActive;
   final VoidCallback onTap;
-  final VoidCallback onFavoriteToggle;
-  final bool isFavorite;
-  final VoidCallback onRemove;
+  final List<_QueueTileAction> actions;
 
   @override
   Widget build(BuildContext context) {
@@ -1037,22 +1375,44 @@ class _QueueTile extends StatelessWidget {
                 ],
               ),
             ),
-            IconButton(
-              icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, size: 20),
-              onPressed: onFavoriteToggle,
-            ),
-            IconButton(
-              icon: const Icon(Icons.download_for_offline_outlined, size: 20),
-              onPressed: null,
-            ),
-            IconButton(
-              icon: const Icon(Icons.close_rounded, size: 20),
-              onPressed: onRemove,
-            ),
+            for (final action in actions)
+              _QueueTileActionButton(action: action),
           ],
         ),
       ),
     );
+  }
+}
+
+class _QueueTileAction {
+  const _QueueTileAction({
+    required this.icon,
+    required this.onTap,
+    this.tooltip,
+    this.color,
+  });
+
+  final IconData icon;
+  final VoidCallback? onTap;
+  final String? tooltip;
+  final Color? color;
+}
+
+class _QueueTileActionButton extends StatelessWidget {
+  const _QueueTileActionButton({required this.action});
+
+  final _QueueTileAction action;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = IconButton(
+      icon: Icon(action.icon, size: 20, color: action.color),
+      onPressed: action.onTap,
+    );
+    if (action.tooltip == null || action.tooltip!.isEmpty) {
+      return button;
+    }
+    return Tooltip(message: action.tooltip!, child: button);
   }
 }
 
@@ -1551,6 +1911,95 @@ class Song {
     );
   }
 
+  static Song? fromSerialized(Map<String, dynamic> json) {
+    final nameValue = json['name'];
+    final String name = nameValue is String ? nameValue.trim() : nameValue?.toString() ?? '';
+    if (name.isEmpty) {
+      return null;
+    }
+    final id = _resolveSongId(json);
+    if (id == null || id.isEmpty) {
+      return null;
+    }
+    final sourceCandidate = json['source'] ?? json['platform'] ?? json['provider'] ?? json['vendor'];
+    final SongSource source = _parseSource(sourceCandidate?.toString());
+    final artistValue = json['artist'] ?? json['artists'] ?? json['singers'] ?? json['singer'];
+    final artist = _normalizeArtist(artistValue);
+    final albumValue = json['album'];
+    final album = albumValue is Map<String, dynamic>
+        ? albumValue['name']?.toString()
+        : albumValue?.toString();
+    final picId = json['picId'] ??
+        json['pic_id'] ??
+        json['pic'] ??
+        json['picStr'] ??
+        json['picUrl'] ??
+        json['cover'] ??
+        json['coverImgId'] ??
+        json['albummid'] ??
+        json['image'];
+    final urlId = json['urlId'] ?? json['url_id'] ?? json['rid'] ?? json['sid'] ?? id;
+    final lyricId = json['lyricId'] ?? json['lyric_id'] ?? json['lrc'] ?? id;
+    return Song(
+      id: id,
+      source: source,
+      name: name,
+      artist: artist.isEmpty ? '未知艺术家' : artist,
+      album: album?.toString(),
+      picId: picId?.toString(),
+      urlId: urlId?.toString(),
+      lyricId: lyricId?.toString(),
+    );
+  }
+
+  static String? _resolveSongId(Map<String, dynamic> json) {
+    const candidates = [
+      'id',
+      'songId',
+      'songid',
+      'songmid',
+      'mid',
+      'hash',
+      'sid',
+      'rid',
+      'trackId',
+    ];
+    for (final key in candidates) {
+      if (!json.containsKey(key)) continue;
+      final value = json[key];
+      if (value == null) continue;
+      if (value is num) {
+        return value.toString();
+      }
+      final text = value.toString().trim();
+      if (text.isNotEmpty) {
+        return text;
+      }
+    }
+    return null;
+  }
+
+  static String _normalizeArtist(dynamic value) {
+    if (value is String) {
+      return value.trim();
+    }
+    if (value is List) {
+      final names = value
+          .map((entry) {
+            if (entry is String) return entry.trim();
+            if (entry is Map && entry['name'] is String) return (entry['name'] as String).trim();
+            return '';
+          })
+          .where((name) => name.isNotEmpty)
+          .toList();
+      return names.join(' / ');
+    }
+    if (value is Map && value['name'] is String) {
+      return (value['name'] as String).trim();
+    }
+    return '';
+  }
+
   final String id;
   final SongSource source;
   final String name;
@@ -1559,6 +2008,17 @@ class Song {
   final String? picId;
   final String? urlId;
   final String? lyricId;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'source': source.param,
+        'name': name,
+        'artist': artist,
+        if (album != null) 'album': album,
+        if (picId != null) 'pic_id': picId,
+        if (urlId != null) 'url_id': urlId,
+        if (lyricId != null) 'lyric_id': lyricId,
+      };
 
   String get identity => '${source.param}:$id';
 
@@ -1615,6 +2075,8 @@ class SolaraPlayerController extends ChangeNotifier {
     _init();
   }
 
+  static const MethodChannel _remoteChannel = MethodChannel('solara/remote_controls');
+
   final SolaraApi _api;
   final AudioPlayer _player = AudioPlayer();
   final List<Song> _queue = [];
@@ -1649,6 +2111,7 @@ class SolaraPlayerController extends ChangeNotifier {
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<PlayerState>? _stateSub;
+  bool _remoteConfigured = false;
 
   bool _isLoading = false;
   bool _isLoadingSong = false;
@@ -1663,6 +2126,8 @@ class SolaraPlayerController extends ChangeNotifier {
   String? _errorMessage;
 
   Future<void> _init() async {
+    _remoteChannel.setMethodCallHandler(_handleRemoteCommand);
+    await _configureRemote();
     _positionSub = _player.positionStream.listen((value) {
       _position = value;
       notifyListeners();
@@ -1697,8 +2162,56 @@ class SolaraPlayerController extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+      unawaited(_updateRemoteCommands());
     }
   }
+
+  Future<void> _configureRemote() async {
+    try {
+      await _remoteChannel.invokeMethod('configure');
+      _remoteConfigured = true;
+    } catch (_) {
+      _remoteConfigured = false;
+    }
+  }
+
+  Future<void> _handleRemoteCommand(MethodCall call) async {
+    switch (call.method) {
+      case 'skipNext':
+        if (hasQueue) {
+          unawaited(playNext());
+        }
+        break;
+      case 'skipPrevious':
+        if (hasQueue) {
+          unawaited(playPrevious());
+        }
+        break;
+    }
+  }
+
+  Future<void> _updateRemoteCommands() async {
+    if (!_remoteConfigured) {
+      await _configureRemote();
+      if (!_remoteConfigured) {
+        return;
+      }
+    }
+    final bool hasPrevious = _hasPreviousForRemote;
+    final bool hasNext = _hasNextForRemote;
+    try {
+      await _remoteChannel.invokeMethod('updateState', {
+        'hasPrevious': hasPrevious,
+        'hasNext': hasNext,
+      });
+    } catch (_) {
+      _remoteConfigured = false;
+    }
+  }
+
+  bool get _hasPreviousForRemote => _queue.isNotEmpty;
+
+  bool get _hasNextForRemote => _queue.isNotEmpty;
 
   List<Song> get queue => List.unmodifiable(_queue);
   List<Song> get favorites => _favorites.values.toList(growable: false);
@@ -1752,6 +2265,7 @@ class SolaraPlayerController extends ChangeNotifier {
       _currentSong = song;
       _currentArtwork = artwork;
       _currentLyrics = await lyricsFuture;
+      unawaited(_updateRemoteCommands());
       notifyListeners();
     } catch (error) {
       _errorMessage = error.toString();
@@ -1783,6 +2297,7 @@ class SolaraPlayerController extends ChangeNotifier {
       case PlayMode.single:
         await _player.seek(Duration.zero);
         await _player.play();
+        unawaited(_updateRemoteCommands());
         return;
       case PlayMode.random:
         final options = _queue.where((song) => song != _currentSong).toList();
@@ -1814,6 +2329,7 @@ class SolaraPlayerController extends ChangeNotifier {
       case PlayMode.single:
         await _player.seek(Duration.zero);
         await _player.play();
+        unawaited(_updateRemoteCommands());
         return;
       case PlayMode.random:
         final options = _queue.where((song) => song != _currentSong).toList();
@@ -1846,6 +2362,7 @@ class SolaraPlayerController extends ChangeNotifier {
         break;
     }
     notifyListeners();
+    unawaited(_updateRemoteCommands());
   }
 
   Future<void> pause() async {
@@ -1862,19 +2379,34 @@ class SolaraPlayerController extends ChangeNotifier {
     await _player.seek(position);
   }
 
-  void addSongsToQueue(List<Song> songs) {
+  Future<String?> resolveDownloadUrl(Song song) async {
+    try {
+      final audio = await _api.resolveSongUrl(song, _quality);
+      return audio.url;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  int addSongsToQueue(List<Song> songs) {
+    var added = 0;
     for (final song in songs) {
       if (song.id.isEmpty) continue;
       if (_queue.contains(song)) continue;
       _queue.add(song);
+      added++;
     }
-    notifyListeners();
+    if (added > 0) {
+      notifyListeners();
+      unawaited(_updateRemoteCommands());
+    }
+    return added;
   }
 
-  void removeFromQueue(Song song) {
+  bool removeFromQueue(Song song) {
     final removed = _queue.remove(song);
     if (!removed) {
-      return;
+      return false;
     }
     final wasCurrent = song == _currentSong;
     if (wasCurrent) {
@@ -1888,6 +2420,23 @@ class SolaraPlayerController extends ChangeNotifier {
       }
     }
     notifyListeners();
+    unawaited(_updateRemoteCommands());
+    return true;
+  }
+
+  int clearQueue() {
+    if (_queue.isEmpty) {
+      return 0;
+    }
+    final removed = _queue.length;
+    _queue.clear();
+    _currentSong = null;
+    _currentArtwork = null;
+    _currentLyrics = const [];
+    unawaited(_player.stop());
+    notifyListeners();
+    unawaited(_updateRemoteCommands());
+    return removed;
   }
 
   void toggleFavorite(Song song) {
@@ -1897,6 +2446,37 @@ class SolaraPlayerController extends ChangeNotifier {
       _favorites[song.identity] = song;
     }
     notifyListeners();
+  }
+
+  int addSongsToFavorites(List<Song> songs) {
+    var added = 0;
+    for (final song in songs) {
+      if (_favorites.containsKey(song.identity)) continue;
+      _favorites[song.identity] = song;
+      added++;
+    }
+    if (added > 0) {
+      notifyListeners();
+    }
+    return added;
+  }
+
+  int clearFavorites() {
+    if (_favorites.isEmpty) {
+      return 0;
+    }
+    final removed = _favorites.length;
+    _favorites.clear();
+    notifyListeners();
+    return removed;
+  }
+
+  int addFavoritesToQueue() {
+    final favorites = this.favorites;
+    if (favorites.isEmpty) {
+      return 0;
+    }
+    return addSongsToQueue(favorites);
   }
 
   bool isFavorite(Song song) => _favorites.containsKey(song.identity);
@@ -1944,6 +2524,48 @@ class SolaraPlayerController extends ChangeNotifier {
       _isExploring = false;
       notifyListeners();
     }
+  }
+
+  String buildCollectionExportPayload(List<Song> songs, {required bool favorites}) {
+    final payload = {
+      'meta': {
+        'app': 'Solara',
+        'version': 1,
+        'type': favorites ? 'favorites' : 'playlist',
+        'exportedAt': DateTime.now().toIso8601String(),
+        'itemCount': songs.length,
+      },
+      'items': songs.map((song) => song.toJson()).toList(),
+    };
+    return jsonEncode(payload);
+  }
+
+  List<Song> parseImportedSongs(String raw) {
+    if (raw.trim().isEmpty) {
+      return const [];
+    }
+    final dynamic payload = jsonDecode(raw);
+    final Iterable<dynamic> items = _extractCollectionItems(payload);
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(Song.fromSerialized)
+        .whereNotNull()
+        .toList();
+  }
+
+  Iterable<dynamic> _extractCollectionItems(dynamic payload) {
+    if (payload is List) {
+      return payload;
+    }
+    if (payload is Map<String, dynamic>) {
+      for (final key in const ['items', 'songs', 'playlist', 'tracks', 'data']) {
+        final value = payload[key];
+        if (value is List) {
+          return value;
+        }
+      }
+    }
+    return const [];
   }
 
   Future<String?> _loadArtwork(Song song) async {
