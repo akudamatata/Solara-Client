@@ -212,6 +212,16 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
     );
   }
 
+  void _openSettingsSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      barrierColor: Colors.black.withOpacity(0.6),
+      backgroundColor: Colors.transparent,
+      builder: (context) => const _SettingsSheet(),
+    );
+  }
+
   double _clampSpacing(double value, double min, double max) {
     if (value < min) return min;
     if (value > max) return max;
@@ -280,12 +290,16 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
         ),
         Expanded(
           child: Center(
-            child: Text(
-              'Solara',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                  ),
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onDoubleTap: () => _openSettingsSheet(context),
+              child: Text(
+                'Solara',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+              ),
             ),
           ),
         ),
@@ -589,35 +603,42 @@ class _SongSummary extends StatelessWidget {
             ? (isFavorite ? theme.colorScheme.primary : theme.iconTheme.color)
             : theme.disabledColor,
       ),
+      iconSize: 20,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+      tooltip: canFavorite
+          ? (isFavorite ? '取消收藏' : '收藏')
+          : '暂无可收藏的歌曲',
     );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      height: 1.2,
-                    ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
+        Center(
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 260),
+                child: Text(
+                  title,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        height: 1.2,
+                      ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 44,
-              height: 44,
-              child: favoriteButton,
-            ),
-          ],
+              favoriteButton,
+            ],
+          ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Text(
           artist,
           style: theme.textTheme.bodyMedium?.copyWith(
@@ -638,30 +659,232 @@ class _QualityAndActions extends StatelessWidget {
     final player = context.watch<SolaraPlayerController>();
     final quality = player.quality;
     final theme = Theme.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        color: Colors.white.withOpacity(0.05),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<SongQuality>(
-          value: quality,
-          dropdownColor: const Color(0xFF181A20),
-          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-          onChanged: player.currentSong == null
-              ? null
-              : (value) {
-                  if (value != null) {
-                    player.updateQuality(value);
-                  }
-                },
-          items: SongQuality.values
-              .map((q) => DropdownMenuItem(
+    return Center(
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          color: Colors.white.withOpacity(0.04),
+          border: Border.all(color: Colors.white12, width: 1),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<SongQuality>(
+            value: quality,
+            dropdownColor: const Color(0xFF15171D),
+            borderRadius: BorderRadius.circular(16),
+            icon: const Icon(Icons.expand_more, size: 20),
+            style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+            focusColor: Colors.transparent,
+            isDense: true,
+            onChanged: player.currentSong == null
+                ? null
+                : (value) {
+                    if (value != null) {
+                      player.updateQuality(value);
+                    }
+                  },
+            items: SongQuality.values
+                .map(
+                  (q) => DropdownMenuItem(
                     value: q,
                     child: Text(q.label, style: theme.textTheme.bodyMedium),
-                  ))
-              .toList(),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsSheet extends StatelessWidget {
+  const _SettingsSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final player = context.watch<SolaraPlayerController>();
+    final queueCount = player.queue.length;
+    final favoritesCount = player.favorites.length;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF101218).withOpacity(0.96),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+          ),
+          child: SafeArea(
+            top: false,
+            minimum: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 48,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '设置',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _SettingsSection(
+                  title: '播放列表',
+                  children: [
+                    _SettingsActionTile(
+                      icon: Icons.file_download,
+                      label: '导入播放列表',
+                      subtitle: '支持 JSON 格式文件',
+                      onTap: () => _importCollection(
+                        context,
+                        player,
+                        favorites: false,
+                      ),
+                    ),
+                    _SettingsActionTile(
+                      icon: Icons.file_upload,
+                      label: '导出播放列表',
+                      subtitle: '当前 ${queueCount.toString()} 首歌曲',
+                      onTap: () => _exportCollection(
+                        context,
+                        player,
+                        favorites: false,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                _SettingsSection(
+                  title: '收藏列表',
+                  children: [
+                    _SettingsActionTile(
+                      icon: Icons.favorite_border,
+                      label: '导入收藏列表',
+                      subtitle: '支持 JSON 格式文件',
+                      onTap: () => _importCollection(
+                        context,
+                        player,
+                        favorites: true,
+                      ),
+                    ),
+                    _SettingsActionTile(
+                      icon: Icons.favorite,
+                      label: '导出收藏列表',
+                      subtitle: '当前 ${favoritesCount.toString()} 首歌曲',
+                      onTap: () => _exportCollection(
+                        context,
+                        player,
+                        favorites: true,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsSection extends StatelessWidget {
+  const _SettingsSection({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.3,
+          ),
+        ),
+        const SizedBox(height: 12),
+        for (var i = 0; i < children.length; i++) ...[
+          children[i],
+          if (i != children.length - 1) const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+}
+
+class _SettingsActionTile extends StatelessWidget {
+  const _SettingsActionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.subtitle,
+  });
+
+  final IconData icon;
+  final String label;
+  final String? subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: Colors.white.withOpacity(0.05),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(icon, size: 20, color: theme.colorScheme.primary),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white60,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, size: 20, color: Colors.white38),
+            ],
+          ),
         ),
       ),
     );
@@ -1045,89 +1268,6 @@ class _QueuePanel extends StatelessWidget {
     );
   }
 
-  Future<void> _importCollection(
-    BuildContext context,
-    SolaraPlayerController player, {
-    required bool favorites,
-  }) async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: const ['json'],
-      );
-      if (result == null || result.files.isEmpty) {
-        return;
-      }
-      final path = result.files.single.path;
-      if (path == null) {
-        _showSnackBar(context, '未选择有效的文件', error: true);
-        return;
-      }
-      final content = await File(path).readAsString();
-      final songs = player.parseImportedSongs(content);
-      if (songs.isEmpty) {
-        _showSnackBar(context, '未找到可导入的歌曲', error: true);
-        return;
-      }
-      final added = favorites
-          ? player.addSongsToFavorites(songs)
-          : player.addSongsToQueue(songs);
-      final duplicates = songs.length - added;
-      if (added == 0) {
-        _showSnackBar(
-          context,
-          favorites ? '文件中的歌曲已在收藏列表中' : '文件中的歌曲已在播放列表中',
-        );
-      } else {
-        final duplicateHint = duplicates > 0 ? '，$duplicates 首已存在' : '';
-        _showSnackBar(
-          context,
-          '成功导入 $added 首歌曲$duplicateHint',
-          success: true,
-        );
-      }
-    } catch (_) {
-      _showSnackBar(context, '导入失败，请确认文件格式', error: true);
-    }
-  }
-
-  Future<void> _exportCollection(
-    BuildContext context,
-    SolaraPlayerController player, {
-    required bool favorites,
-  }) async {
-    final songs = favorites ? player.favorites : player.queue;
-    if (songs.isEmpty) {
-      _showSnackBar(
-        context,
-        favorites ? '收藏列表为空，无法导出' : '播放列表为空，无法导出',
-      );
-      return;
-    }
-    try {
-      final json = player.buildCollectionExportPayload(songs, favorites: favorites);
-      final directory = await getTemporaryDirectory();
-      final now = DateTime.now();
-      final formatted =
-          "${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}";
-      final label = favorites ? 'favorites' : 'playlist';
-      final fileName = 'solara-$label-$formatted.json';
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsString(json);
-      await Share.shareXFiles(
-        [XFile(file.path, mimeType: 'application/json', name: fileName)],
-        text: '导出的 Solara ${favorites ? '收藏列表' : '播放列表'}',
-      );
-      _showSnackBar(
-        context,
-        '已导出 ${songs.length} 首歌曲',
-        success: true,
-      );
-    } catch (_) {
-      _showSnackBar(context, '导出失败，请稍后重试', error: true);
-    }
-  }
-
   void _clearCollection(
     BuildContext context,
     SolaraPlayerController player, {
@@ -1177,31 +1317,6 @@ class _QueuePanel extends StatelessWidget {
     if (!launched) {
       _showSnackBar(context, '无法打开下载链接', error: true);
     }
-  }
-
-  void _showSnackBar(
-    BuildContext context,
-    String message, {
-    bool success = false,
-    bool error = false,
-  }) {
-    final theme = Theme.of(context);
-    Color? background;
-    if (error) {
-      background = Colors.redAccent;
-    } else if (success) {
-      background = theme.colorScheme.primary;
-    }
-    final textStyle = error || success
-        ? const TextStyle(color: Colors.white)
-        : null;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: textStyle),
-        backgroundColor: background,
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   List<_QueueTileAction> _buildQueueActions(
@@ -1296,6 +1411,7 @@ class _QueueActionsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final buttons = <Widget>[];
+    final isCupertino = Theme.of(context).platform == TargetPlatform.iOS;
     if (showFavorites && onAddAll != null) {
       buttons.add(
         _QueueActionButton(
@@ -1305,11 +1421,15 @@ class _QueueActionsBar extends StatelessWidget {
         ),
       );
     }
-    buttons.addAll([
-      _QueueActionButton(icon: Icons.file_download, label: '导入', onTap: onImport),
-      _QueueActionButton(icon: Icons.file_upload, label: '导出', onTap: onExport),
+    if (!isCupertino) {
+      buttons.addAll([
+        _QueueActionButton(icon: Icons.file_download, label: '导入', onTap: onImport),
+        _QueueActionButton(icon: Icons.file_upload, label: '导出', onTap: onExport),
+      ]);
+    }
+    buttons.add(
       _QueueActionButton(icon: Icons.delete_sweep, label: '清空', onTap: onClear),
-    ]);
+    );
     return Wrap(
       spacing: 12,
       runSpacing: 12,
@@ -1498,6 +1618,133 @@ class _QueueTileActionButton extends StatelessWidget {
     }
     return Tooltip(message: action.tooltip!, child: button);
   }
+}
+
+Future<void> _importCollection(
+  BuildContext context,
+  SolaraPlayerController player, {
+  required bool favorites,
+}) async {
+  try {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['json'],
+    );
+    if (result == null || result.files.isEmpty) {
+      return;
+    }
+    final path = result.files.single.path;
+    if (path == null) {
+      _showSnackBar(context, '未选择有效的文件', error: true);
+      return;
+    }
+    final content = await File(path).readAsString();
+    final songs = player.parseImportedSongs(content);
+    if (songs.isEmpty) {
+      _showSnackBar(context, '未找到可导入的歌曲', error: true);
+      return;
+    }
+    final added = favorites
+        ? player.addSongsToFavorites(songs)
+        : player.addSongsToQueue(songs);
+    final duplicates = songs.length - added;
+    if (added == 0) {
+      _showSnackBar(
+        context,
+        favorites ? '文件中的歌曲已在收藏列表中' : '文件中的歌曲已在播放列表中',
+      );
+    } else {
+      final duplicateHint = duplicates > 0 ? '，$duplicates 首已存在' : '';
+      _showSnackBar(
+        context,
+        '成功导入 $added 首歌曲$duplicateHint',
+        success: true,
+      );
+    }
+  } catch (_) {
+    _showSnackBar(context, '导入失败，请确认文件格式', error: true);
+  }
+}
+
+Future<void> _exportCollection(
+  BuildContext context,
+  SolaraPlayerController player, {
+  required bool favorites,
+}) async {
+  final songs = favorites ? player.favorites : player.queue;
+  if (songs.isEmpty) {
+    _showSnackBar(
+      context,
+      favorites ? '收藏列表为空，无法导出' : '播放列表为空，无法导出',
+    );
+    return;
+  }
+  try {
+    final json = player.buildCollectionExportPayload(songs, favorites: favorites);
+    final now = DateTime.now();
+    final formatted =
+        "${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}";
+    final label = favorites ? 'favorites' : 'playlist';
+    final fileName = 'solara-$label-$formatted.json';
+    if (Platform.isIOS) {
+      final savePath = await FilePicker.platform.saveFile(
+        fileName: fileName,
+        type: FileType.custom,
+        allowedExtensions: const ['json'],
+      );
+      if (savePath == null) {
+        return;
+      }
+      final file = File(savePath);
+      await file.create(recursive: true);
+      await file.writeAsString(json);
+      _showSnackBar(
+        context,
+        '已保存 ${songs.length} 首歌曲',
+        success: true,
+      );
+    } else {
+      final directory = await getTemporaryDirectory();
+      final file = File('${directory.path}/$fileName');
+      await file.writeAsString(json);
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'application/json', name: fileName)],
+        text: '导出的 Solara ${favorites ? '收藏列表' : '播放列表'}',
+      );
+      _showSnackBar(
+        context,
+        '已导出 ${songs.length} 首歌曲',
+        success: true,
+      );
+    }
+  } catch (_) {
+    _showSnackBar(context, '导出失败，请稍后重试', error: true);
+  }
+}
+
+void _showSnackBar(
+  BuildContext context,
+  String message, {
+  bool success = false,
+  bool error = false,
+}) {
+  final theme = Theme.of(context);
+  Color? background;
+  if (error) {
+    background = Colors.redAccent;
+  } else if (success) {
+    background = theme.colorScheme.primary;
+  }
+  final textStyle = error || success
+      ? const TextStyle(color: Colors.white)
+      : null;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message, style: textStyle),
+      backgroundColor: background,
+      duration: const Duration(seconds: 2),
+    ),
+  );
 }
 
 class _SearchOverlay extends StatefulWidget {
