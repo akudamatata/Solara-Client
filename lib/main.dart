@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -37,6 +38,9 @@ class SolaraApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
+          create: (_) => SolaraNotificationController(),
+        ),
+        ChangeNotifierProvider(
           create: (_) => SolaraPlayerController(api),
         ),
         ChangeNotifierProxyProvider<SolaraPlayerController, SolaraSearchController>(
@@ -71,6 +75,111 @@ class SolaraApp extends StatelessWidget {
   }
 }
 
+enum SolaraNotificationType { info, success, warning, error }
+
+class SolaraNotificationData {
+  const SolaraNotificationData({
+    required this.id,
+    required this.message,
+    required this.type,
+    required this.icon,
+    required this.background,
+    required this.foreground,
+  });
+
+  final int id;
+  final String message;
+  final SolaraNotificationType type;
+  final IconData icon;
+  final Color background;
+  final Color foreground;
+}
+
+class SolaraNotificationController extends ChangeNotifier {
+  final Queue<_PendingNotification> _queue = Queue<_PendingNotification>();
+  SolaraNotificationData? _current;
+  Timer? _timer;
+  int _counter = 0;
+
+  SolaraNotificationData? get current => _current;
+
+  void show(
+    String message, {
+    SolaraNotificationType type = SolaraNotificationType.info,
+  }) {
+    _queue.add(_PendingNotification(message, type));
+    if (_current == null) {
+      _displayNext();
+    }
+  }
+
+  void success(String message) => show(message, type: SolaraNotificationType.success);
+
+  void error(String message) => show(message, type: SolaraNotificationType.error);
+
+  void _displayNext() {
+    _timer?.cancel();
+    if (_queue.isEmpty) {
+      _current = null;
+      notifyListeners();
+      return;
+    }
+    final pending = _queue.removeFirst();
+    final data = _buildNotification(pending);
+    _current = data;
+    notifyListeners();
+    _timer = Timer(const Duration(milliseconds: 2600), _displayNext);
+  }
+
+  SolaraNotificationData _buildNotification(_PendingNotification pending) {
+    final theme = pending.type;
+    late final Color background;
+    late final IconData icon;
+    Color foreground = Colors.white;
+    switch (theme) {
+      case SolaraNotificationType.success:
+        background = const Color(0xFF1F3A2C);
+        icon = Icons.check_circle_rounded;
+        break;
+      case SolaraNotificationType.warning:
+        background = const Color(0xFF3A2F1F);
+        icon = Icons.warning_amber_rounded;
+        foreground = const Color(0xFFFFD87A);
+        break;
+      case SolaraNotificationType.error:
+        background = const Color(0xFF3A1F25);
+        icon = Icons.error_rounded;
+        break;
+      case SolaraNotificationType.info:
+        background = const Color(0xFF212530);
+        icon = Icons.info_rounded;
+        break;
+    }
+    final id = ++_counter;
+    return SolaraNotificationData(
+      id: id,
+      message: pending.message,
+      type: pending.type,
+      icon: icon,
+      background: background,
+      foreground: foreground,
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+}
+
+class _PendingNotification {
+  const _PendingNotification(this.message, this.type);
+
+  final String message;
+  final SolaraNotificationType type;
+}
+
 class SolaraHomePage extends StatefulWidget {
   const SolaraHomePage({super.key});
 
@@ -98,6 +207,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
           child: Stack(
             children: [
               const _BackgroundHalo(),
+              const _NotificationOverlay(),
               Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
@@ -284,8 +394,23 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
             icon: Icons.radar,
             tooltip: '探索雷达',
             isLoading: player.isExploring,
-            onTap:
-                player.isExploring ? null : () => player.exploreRadar(),
+            onTap: player.isExploring
+                ? null
+                : () {
+                    player.exploreRadar().then((added) {
+                      final notifications = context.read<SolaraNotificationController?>();
+                      if (notifications == null) {
+                        return;
+                      }
+                      if (added > 0) {
+                        notifications.success('为你探索到 $added 首新歌');
+                      } else if (added == 0) {
+                        notifications.show('没有找到新的歌曲，稍后再试试');
+                      } else {
+                        notifications.error('探索失败，请稍后重试');
+                      }
+                    });
+                  },
           ),
         ),
         Expanded(
@@ -393,6 +518,90 @@ class _BackgroundHalo extends StatelessWidget {
               stops: [0.1, 0.5, 1],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationOverlay extends StatelessWidget {
+  const _NotificationOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = context.watch<SolaraNotificationController>();
+    final notification = controller.current;
+    final padding = MediaQuery.of(context).padding.top;
+    final child = notification == null
+        ? const SizedBox.shrink()
+        : _NotificationChip(notification: notification);
+    return IgnorePointer(
+      ignoring: true,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 280),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            final offsetAnimation = Tween<Offset>(
+              begin: const Offset(0, -0.2),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(position: offsetAnimation, child: child),
+            );
+          },
+          child: notification == null
+              ? const SizedBox(key: ValueKey('empty'))
+              : Padding(
+                  key: ValueKey(notification.id),
+                  padding: EdgeInsets.fromLTRB(24, padding + 12, 24, 0),
+                  child: child,
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationChip extends StatelessWidget {
+  const _NotificationChip({required this.notification});
+
+  final SolaraNotificationData notification;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: notification.background.withOpacity(0.92),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x55000000),
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(notification.icon, size: 20, color: notification.foreground),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                notification.message,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: notification.foreground,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -678,7 +887,10 @@ class _QualityAndActions extends StatelessWidget {
                 ? null
                 : (value) {
                     if (value != null) {
-                      player.updateQuality(value);
+                      unawaited(player.updateQuality(value));
+                      final notifications =
+                          context.read<SolaraNotificationController?>();
+                      notifications?.success('已切换至${value.label}');
                     }
                   },
             items: SongQuality.values
@@ -745,20 +957,10 @@ class _SettingsSheet extends StatelessWidget {
                   title: '播放列表',
                   children: [
                     _SettingsActionTile(
-                      icon: Icons.file_download,
-                      label: '导入播放列表',
-                      subtitle: '支持 JSON 格式文件',
-                      onTap: () => _importCollection(
-                        context,
-                        player,
-                        favorites: false,
-                      ),
-                    ),
-                    _SettingsActionTile(
-                      icon: Icons.file_upload,
-                      label: '导出播放列表',
-                      subtitle: '当前 ${queueCount.toString()} 首歌曲',
-                      onTap: () => _exportCollection(
+                      icon: Icons.folder_shared,
+                      label: '导入或导出播放列表',
+                      subtitle: '支持 JSON 文件，当前 ${queueCount.toString()} 首',
+                      onTap: () => _showCollectionTransferSheet(
                         context,
                         player,
                         favorites: false,
@@ -771,20 +973,10 @@ class _SettingsSheet extends StatelessWidget {
                   title: '收藏列表',
                   children: [
                     _SettingsActionTile(
-                      icon: Icons.favorite_border,
-                      label: '导入收藏列表',
-                      subtitle: '支持 JSON 格式文件',
-                      onTap: () => _importCollection(
-                        context,
-                        player,
-                        favorites: true,
-                      ),
-                    ),
-                    _SettingsActionTile(
                       icon: Icons.favorite,
-                      label: '导出收藏列表',
-                      subtitle: '当前 ${favoritesCount.toString()} 首歌曲',
-                      onTap: () => _exportCollection(
+                      label: '导入或导出收藏列表',
+                      subtitle: '支持 JSON 文件，当前 ${favoritesCount.toString()} 首',
+                      onTap: () => _showCollectionTransferSheet(
                         context,
                         player,
                         favorites: true,
@@ -1125,124 +1317,119 @@ class _QueuePanel extends StatelessWidget {
               opacity: visible ? 1 : 0,
               child: Align(
                 alignment: Alignment.bottomCenter,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: size.height - safePadding.top,
-                  ),
-                  child: GestureDetector(
-                    onVerticalDragUpdate: (details) {
-                      if (details.primaryDelta != null && details.primaryDelta! > 14) {
-                        onClose();
-                      }
-                    },
-                    onVerticalDragEnd: (details) {
-                      if (details.primaryVelocity != null && details.primaryVelocity! > 400) {
-                        onClose();
-                      }
-                    },
-                    child: Material(
-                      color: const Color(0xFF101218).withOpacity(0.96),
-                      elevation: 30,
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(36)),
-                      child: SafeArea(
-                        top: true,
-                        bottom: true,
-                        minimum: const EdgeInsets.fromLTRB(24, 18, 24, 24),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 44,
-                              height: 5,
-                              decoration: BoxDecoration(
-                                color: Colors.white24,
-                                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: size.height - safePadding.top,
+                    ),
+                    child: GestureDetector(
+                      onVerticalDragUpdate: (details) {
+                        if (details.primaryDelta != null && details.primaryDelta! > 14) {
+                          onClose();
+                        }
+                      },
+                      onVerticalDragEnd: (details) {
+                        if (details.primaryVelocity != null && details.primaryVelocity! > 400) {
+                          onClose();
+                        }
+                      },
+                      child: Material(
+                        elevation: 30,
+                        color: const Color(0xFF101218).withOpacity(0.96),
+                        borderRadius:
+                            const BorderRadius.vertical(top: Radius.circular(36)),
+                        clipBehavior: Clip.antiAlias,
+                        child: SafeArea(
+                          top: false,
+                          bottom: true,
+                          minimum: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Center(
+                                child: Container(
+                                  width: 44,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white24,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 16),
-                            _QueueSurface(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                              const SizedBox(height: 16),
+                              Row(
                                 children: [
-                                  Row(
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            showFavorites ? '收藏列表' : '播放列表',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleMedium
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            '共 ${songs.length} 首歌曲',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.copyWith(
-                                                  color: Colors.white70,
-                                                ),
-                                          ),
-                                        ],
+                                      Text(
+                                        showFavorites ? '收藏列表' : '播放列表',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(fontWeight: FontWeight.w600),
                                       ),
-                                      const Spacer(),
-                                      _QueueCircleButton(
-                                        icon: Icons.play_arrow_rounded,
-                                        tooltip: '播放全部',
-                                        primary: true,
-                                        onTap: songs.isEmpty
-                                            ? null
-                                            : () => player.playFromCollection(
-                                                  songs,
-                                                  0,
-                                                ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '共 ${songs.length} 首歌曲',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(color: Colors.white70),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 20),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _QueueTabs(
-                                          showFavorites: showFavorites,
-                                          onToggle: onToggleTab,
-                                          playlistCount: player.queue.length,
-                                          favoritesCount:
-                                              player.favorites.length,
-                                        ),
+                                  const Spacer(),
+                                  FilledButton.icon(
+                                    onPressed: songs.isEmpty
+                                        ? null
+                                        : () => player.playFromCollection(
+                                              songs,
+                                              0,
+                                            ),
+                                    icon: const Icon(Icons.play_arrow_rounded),
+                                    label: const Text('播放全部'),
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 18,
+                                        vertical: 12,
                                       ),
-                                      const SizedBox(width: 12),
-                                      _QueueCircleButton(
-                                        icon: Icons.keyboard_arrow_down_rounded,
-                                        tooltip: '收起列表',
-                                        onTap: onClose,
-                                      ),
-                                    ],
+                                      backgroundColor:
+                                          Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                                      foregroundColor:
+                                          Theme.of(context).colorScheme.primary,
+                                      textStyle: Theme.of(context)
+                                          .textTheme
+                                          .labelLarge
+                                          ?.copyWith(fontWeight: FontWeight.w600),
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
-                            const SizedBox(height: 20),
-                            _QueueSurface(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
+                              const SizedBox(height: 20),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _QueueTabs(
+                                      showFavorites: showFavorites,
+                                      onToggle: onToggleTab,
+                                      playlistCount: player.queue.length,
+                                      favoritesCount: player.favorites.length,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  _QueueCircleButton(
+                                    icon: Icons.keyboard_arrow_down_rounded,
+                                    tooltip: '收起列表',
+                                    onTap: onClose,
+                                  ),
+                                ],
                               ),
-                              child: _QueueActionsBar(
+                              const SizedBox(height: 20),
+                              _QueueActionsBar(
                                 showFavorites: showFavorites,
-                                onImport: () => _importCollection(
-                                  context,
-                                  player,
-                                  favorites: showFavorites,
-                                ),
-                                onExport: () => _exportCollection(
+                                onManageCollection: () => _showCollectionTransferSheet(
                                   context,
                                   player,
                                   favorites: showFavorites,
@@ -1253,60 +1440,57 @@ class _QueuePanel extends StatelessWidget {
                                   favorites: showFavorites,
                                 ),
                                 onAddAll: showFavorites
-                                    ? () =>
-                                        _addFavoritesToQueue(context, player)
+                                    ? () => _addFavoritesToQueue(context, player)
                                     : null,
                               ),
-                            ),
-                            const SizedBox(height: 20),
-                            Expanded(
-                              child: _QueueSurface(
-                                padding: EdgeInsets.zero,
-                                child: songs.isEmpty
-                                    ? const Center(child: Text('暂无歌曲'))
-                                    : ListView.separated(
-                                        physics:
-                                            const BouncingScrollPhysics(),
-                                        padding: EdgeInsets.only(
-                                          left: 12,
-                                          right: 12,
-                                          top: 12,
-                                          bottom: safePadding.bottom + 20,
-                                        ),
-                                        itemCount: songs.length,
-                                        separatorBuilder: (_, __) =>
-                                            const SizedBox(height: 12),
-                                        itemBuilder: (context, index) {
-                                          final song = songs[index];
-                                          final isActive =
-                                              player.currentSong == song;
-                                          final actions = showFavorites
-                                              ? _buildFavoriteActions(
-                                                  context,
-                                                  player,
-                                                  song,
-                                                )
-                                              : _buildQueueActions(
-                                                  context,
-                                                  player,
-                                                  song,
+                              const SizedBox(height: 20),
+                              Expanded(
+                                child: _QueueSurface(
+                                  padding: EdgeInsets.zero,
+                                  child: songs.isEmpty
+                                      ? const Center(child: Text('暂无歌曲'))
+                                      : ListView.separated(
+                                          physics: const BouncingScrollPhysics(),
+                                          padding: EdgeInsets.only(
+                                            left: 12,
+                                            right: 12,
+                                            top: 12,
+                                            bottom: safePadding.bottom + 20,
+                                          ),
+                                          itemCount: songs.length,
+                                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                          itemBuilder: (context, index) {
+                                            final song = songs[index];
+                                            final isActive = player.currentSong == song;
+                                            final actions = showFavorites
+                                                ? _buildFavoriteActions(
+                                                    context,
+                                                    player,
+                                                    song,
+                                                  )
+                                                : _buildQueueActions(
+                                                    context,
+                                                    player,
+                                                    song,
+                                                  );
+                                            return _QueueTile(
+                                              song: song,
+                                              index: index,
+                                              isActive: isActive,
+                                              onTap: () {
+                                                unawaited(
+                                                  player.playFromCollection(songs, index),
                                                 );
-                                          return _QueueTile(
-                                            song: song,
-                                            index: index,
-                                            isActive: isActive,
-                                            onTap: () =>
-                                                player.playFromCollection(
-                                              songs,
-                                              index,
-                                            ),
-                                            actions: actions,
-                                          );
-                                        },
-                                      ),
+                                                onClose();
+                                              },
+                                              actions: actions,
+                                            );
+                                          },
+                                        ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1448,22 +1632,19 @@ class _QueuePanel extends StatelessWidget {
 class _QueueActionsBar extends StatelessWidget {
   const _QueueActionsBar({
     required this.showFavorites,
-    required this.onImport,
-    required this.onExport,
+    required this.onManageCollection,
     required this.onClear,
     this.onAddAll,
   });
 
   final bool showFavorites;
-  final VoidCallback onImport;
-  final VoidCallback onExport;
+  final VoidCallback onManageCollection;
   final VoidCallback onClear;
   final VoidCallback? onAddAll;
 
   @override
   Widget build(BuildContext context) {
     final buttons = <Widget>[];
-    final isCupertino = Theme.of(context).platform == TargetPlatform.iOS;
     if (showFavorites && onAddAll != null) {
       buttons.add(
         _QueueActionButton(
@@ -1473,14 +1654,19 @@ class _QueueActionsBar extends StatelessWidget {
         ),
       );
     }
-    if (!isCupertino) {
-      buttons.addAll([
-        _QueueActionButton(icon: Icons.file_download, label: '导入', onTap: onImport),
-        _QueueActionButton(icon: Icons.file_upload, label: '导出', onTap: onExport),
-      ]);
-    }
     buttons.add(
-      _QueueActionButton(icon: Icons.delete_sweep, label: '清空', onTap: onClear),
+      _QueueActionButton(
+        icon: Icons.folder_shared,
+        label: showFavorites ? '导入/导出收藏列表' : '导入/导出播放列表',
+        onTap: onManageCollection,
+      ),
+    );
+    buttons.add(
+      _QueuePlainButton(
+        icon: Icons.delete_sweep,
+        label: '清空',
+        onTap: onClear,
+      ),
     );
     return Wrap(
       spacing: 12,
@@ -1517,6 +1703,40 @@ class _QueueActionButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QueuePlainButton extends StatelessWidget {
+  const _QueuePlainButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.error;
+    return SizedBox(
+      height: 40,
+      child: TextButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18, color: color),
+        label: Text(label),
+        style: TextButton.styleFrom(
+          foregroundColor: color,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          textStyle: Theme.of(context)
+              .textTheme
+              .labelLarge
+              ?.copyWith(fontWeight: FontWeight.w600),
         ),
       ),
     );
@@ -1853,20 +2073,36 @@ Future<void> _exportCollection(
     final label = favorites ? 'favorites' : 'playlist';
     final fileName = 'solara-$label-$formatted.json';
     if (Platform.isIOS) {
-      final savePath = await FilePicker.platform.saveFile(
-        fileName: fileName,
-        type: FileType.custom,
-        allowedExtensions: const ['json'],
-      );
-      if (savePath == null) {
-        return;
+      try {
+        final savePath = await FilePicker.platform.saveFile(
+          fileName: fileName,
+          type: FileType.custom,
+          allowedExtensions: const ['json'],
+        );
+        if (savePath != null) {
+          final file = File(savePath);
+          await file.create(recursive: true);
+          await file.writeAsString(json);
+          _showSnackBar(
+            context,
+            '已保存 ${songs.length} 首歌曲',
+            success: true,
+          );
+          return;
+        }
+      } catch (_) {
+        // Ignore and fallback to share sheet.
       }
-      final file = File(savePath);
-      await file.create(recursive: true);
-      await file.writeAsString(json);
+      final directory = await getTemporaryDirectory();
+      final tempFile = File('${directory.path}/$fileName');
+      await tempFile.writeAsString(json);
+      await Share.shareXFiles(
+        [XFile(tempFile.path, mimeType: 'application/json', name: fileName)],
+        text: '导出的 Solara ${favorites ? '收藏列表' : '播放列表'}',
+      );
       _showSnackBar(
         context,
-        '已保存 ${songs.length} 首歌曲',
+        '已生成导出文件，可通过系统分享保存',
         success: true,
       );
     } else {
@@ -1895,6 +2131,16 @@ void _showSnackBar(
   bool error = false,
 }) {
   final theme = Theme.of(context);
+  final notificationController = context.read<SolaraNotificationController?>();
+  if (notificationController != null) {
+    if (error) {
+      notificationController.error(message);
+    } else if (success) {
+      notificationController.success(message);
+    } else {
+      notificationController.show(message);
+    }
+  }
   Color? background;
   if (error) {
     background = Colors.redAccent;
@@ -1910,6 +2156,92 @@ void _showSnackBar(
       backgroundColor: background,
       duration: const Duration(seconds: 2),
     ),
+  );
+}
+
+Future<void> _showCollectionTransferSheet(
+  BuildContext context,
+  SolaraPlayerController player, {
+  required bool favorites,
+}) async {
+  final rootContext = context;
+  final title = favorites ? '收藏列表' : '播放列表';
+  final itemCount = favorites ? player.favorites.length : player.queue.length;
+  await showModalBottomSheet<void>(
+    context: context,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withOpacity(0.6),
+    builder: (sheetContext) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF101218).withOpacity(0.96),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '导入或导出$title',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 20),
+                  _SettingsActionTile(
+                    icon: Icons.file_download,
+                    label: '导入$title',
+                    subtitle: '支持 JSON 格式文件',
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _importCollection(
+                        rootContext,
+                        player,
+                        favorites: favorites,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _SettingsActionTile(
+                    icon: Icons.file_upload,
+                    label: '导出$title',
+                    subtitle: '当前 $itemCount 首歌曲',
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _exportCollection(
+                        rootContext,
+                        player,
+                        favorites: favorites,
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    },
   );
 }
 
@@ -2987,9 +3319,9 @@ class SolaraPlayerController extends ChangeNotifier {
     }
   }
 
-  Future<void> exploreRadar() async {
+  Future<int> exploreRadar() async {
     if (_isExploring) {
-      return;
+      return 0;
     }
     _isExploring = true;
     notifyListeners();
@@ -2998,7 +3330,7 @@ class SolaraPlayerController extends ChangeNotifier {
       final source = _exploreSources[_random.nextInt(_exploreSources.length)];
       final results = await _api.search(genre, source: source, limit: 30, page: 1);
       if (results.isEmpty) {
-        return;
+        return 0;
       }
       final newSongs = <Song>[];
       for (final song in results) {
@@ -3007,16 +3339,18 @@ class SolaraPlayerController extends ChangeNotifier {
         }
       }
       if (newSongs.isEmpty) {
-        return;
+        return 0;
       }
       final wasEmpty = _queue.isEmpty;
-      addSongsToQueue(newSongs);
+      final added = addSongsToQueue(newSongs);
       if (wasEmpty && _queue.isNotEmpty) {
         await playSong(_queue.first);
       }
+      return added;
     } catch (error) {
       _errorMessage = error.toString();
       notifyListeners();
+      return -1;
     } finally {
       _isExploring = false;
       notifyListeners();
