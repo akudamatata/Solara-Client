@@ -394,9 +394,10 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
           width: buttonSize,
           child: _ToolbarCircleButton(
             icon: Icons.radar,
-            tooltip: '探索雷达',
+            tooltip:
+                player.enabledExploreGenres.isEmpty ? '请选择探索流派' : '探索雷达',
             isLoading: player.isExploring,
-            onTap: player.isExploring
+            onTap: player.isExploring || player.enabledExploreGenres.isEmpty
                 ? null
                 : () {
                     player.exploreRadar().then((added) {
@@ -620,6 +621,7 @@ class _PlayerArtwork extends StatefulWidget {
 class _PlayerArtworkState extends State<_PlayerArtwork>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  String? _lastSongIdentity;
 
   @override
   void initState() {
@@ -641,10 +643,8 @@ class _PlayerArtworkState extends State<_PlayerArtwork>
       if (!_controller.isAnimating) {
         _controller.repeat();
       }
-    } else {
-      if (_controller.isAnimating) {
-        _controller.stop(canceled: false);
-      }
+    } else if (_controller.isAnimating) {
+      _controller.stop(canceled: false);
     }
   }
 
@@ -654,6 +654,12 @@ class _PlayerArtworkState extends State<_PlayerArtwork>
     final song = player.currentSong;
     final cover = player.currentArtwork;
     final isPlaying = player.isPlaying && !player.isLoadingSong;
+    final identity = song?.identity;
+    if (identity != _lastSongIdentity) {
+      _lastSongIdentity = identity;
+      _controller.stop(canceled: false);
+      _controller.reset();
+    }
     _syncAnimation(isPlaying);
 
     final mediaSize = MediaQuery.of(context).size;
@@ -678,10 +684,12 @@ class _PlayerArtworkState extends State<_PlayerArtwork>
               ? _ArtworkPlaceholder(size: artworkSize)
               : Image.network(
                   cover,
+                  key: ValueKey(cover),
                   width: artworkSize,
                   height: artworkSize,
                   fit: BoxFit.cover,
                   filterQuality: FilterQuality.high,
+                  gaplessPlayback: true,
                   loadingBuilder: (context, child, progress) {
                     if (progress == null) {
                       return child;
@@ -927,6 +935,13 @@ class _SettingsSheet extends StatelessWidget {
     final player = context.watch<SolaraPlayerController>();
     final queueCount = player.queue.length;
     final favoritesCount = player.favorites.length;
+    final enabledGenres = player.enabledExploreGenres;
+    final totalGenres = player.availableExploreGenres.length;
+    final exploreSubtitle = enabledGenres.isEmpty
+        ? '已关闭所有流派'
+        : (enabledGenres.length == totalGenres
+            ? '探索所有流派'
+            : '探索 ${enabledGenres.length}/$totalGenres 个流派');
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Material(
@@ -986,6 +1001,18 @@ class _SettingsSheet extends StatelessWidget {
                         player,
                         mode: CollectionTransferMode.export,
                       ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+                _SettingsSection(
+                  title: '探索雷达',
+                  children: [
+                    _SettingsActionTile(
+                      icon: Icons.radar,
+                      label: '探索偏好',
+                      subtitle: exploreSubtitle,
+                      onTap: () => _showExplorePreferencesSheet(context, player),
                     ),
                   ],
                 ),
@@ -1389,10 +1416,19 @@ class _QueuePanel extends StatelessWidget {
                                   FilledButton.icon(
                                     onPressed: songs.isEmpty
                                         ? null
-                                        : () => player.playFromCollection(
-                                              songs,
-                                              0,
-                                            ),
+                                        : () async {
+                                            final success =
+                                                await player.playFromCollection(songs, 0);
+                                            if (!success) {
+                                              _showSnackBar(
+                                                context,
+                                                '无法播放该歌曲',
+                                                error: true,
+                                              );
+                                              return;
+                                            }
+                                            onClose();
+                                          },
                                     icon: const Icon(Icons.play_arrow_rounded),
                                     label: const Text('播放全部'),
                                     style: FilledButton.styleFrom(
@@ -1509,10 +1545,17 @@ class _QueuePanel extends StatelessWidget {
                                               song: song,
                                               index: index,
                                               isActive: isActive,
-                                              onTap: () {
-                                                unawaited(
-                                                  player.playFromCollection(songs, index),
-                                                );
+                                              onTap: () async {
+                                                final success = await player
+                                                    .playFromCollection(songs, index);
+                                                if (!success) {
+                                                  _showSnackBar(
+                                                    context,
+                                                    '无法播放该歌曲',
+                                                    error: true,
+                                                  );
+                                                  return;
+                                                }
                                                 onClose();
                                               },
                                               actions: actions,
@@ -2048,7 +2091,6 @@ void _showSnackBar(
   bool success = false,
   bool error = false,
 }) {
-  final theme = Theme.of(context);
   final notificationController = context.read<SolaraNotificationController?>();
   if (notificationController != null) {
     if (error) {
@@ -2059,22 +2101,6 @@ void _showSnackBar(
       notificationController.show(message);
     }
   }
-  Color? background;
-  if (error) {
-    background = Colors.redAccent;
-  } else if (success) {
-    background = theme.colorScheme.primary;
-  }
-  final textStyle = error || success
-      ? const TextStyle(color: Colors.white)
-      : null;
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(message, style: textStyle),
-      backgroundColor: background,
-      duration: const Duration(seconds: 2),
-    ),
-  );
 }
 
 Future<void> _showCollectionTransferSheet(
@@ -2187,6 +2213,175 @@ Future<void> _showCollectionTransferSheet(
       );
     },
   );
+}
+
+Future<void> _showExplorePreferencesSheet(
+  BuildContext context,
+  SolaraPlayerController player,
+) async {
+  final genres = player.availableExploreGenres;
+  final initial = player.enabledExploreGenres;
+  final updated = await showModalBottomSheet<Set<String>>(
+    context: context,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withOpacity(0.6),
+    builder: (sheetContext) {
+      return _ExplorePreferencesSheet(
+        genres: genres,
+        initialSelection: initial,
+      );
+    },
+  );
+  if (updated != null) {
+    await player.updateExploreGenreSelection(updated);
+    final notifications = context.read<SolaraNotificationController?>();
+    notifications?.success('探索雷达偏好已更新');
+  }
+}
+
+class _ExplorePreferencesSheet extends StatefulWidget {
+  const _ExplorePreferencesSheet({
+    required this.genres,
+    required this.initialSelection,
+  });
+
+  final List<String> genres;
+  final Set<String> initialSelection;
+
+  @override
+  State<_ExplorePreferencesSheet> createState() => _ExplorePreferencesSheetState();
+}
+
+class _ExplorePreferencesSheetState extends State<_ExplorePreferencesSheet> {
+  late Set<String> _selection = {...widget.initialSelection};
+
+  void _toggleGenre(String genre) {
+    setState(() {
+      if (_selection.contains(genre)) {
+        _selection.remove(genre);
+      } else {
+        _selection.add(genre);
+      }
+    });
+  }
+
+  void _selectAll() {
+    setState(() {
+      _selection = {...widget.genres};
+    });
+  }
+
+  void _clearAll() {
+    setState(() {
+      _selection.clear();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final height = min(MediaQuery.of(context).size.height * 0.6, 420.0);
+    final canConfirm = _selection.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF101218).withOpacity(0.96),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: SafeArea(
+            top: false,
+            minimum: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '探索雷达',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '选择希望探索的音乐流派，取消选择可避开对应流派。',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: _selectAll,
+                      child: const Text('全选'),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: _clearAll,
+                      child: const Text('全不选'),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: height),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemBuilder: (context, index) {
+                      final genre = widget.genres[index];
+                      final selected = _selection.contains(genre);
+                      return CheckboxListTile(
+                        value: selected,
+                        onChanged: (_) => _toggleGenre(genre),
+                        title: Text(genre),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        activeColor: theme.colorScheme.primary,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                      );
+                    },
+                    separatorBuilder: (_, __) => const Divider(height: 12, thickness: 0.2),
+                    itemCount: widget.genres.length,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: canConfirm
+                      ? () => Navigator.of(context).pop<Set<String>>({..._selection})
+                      : null,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    textStyle:
+                        theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  child: Text(canConfirm ? '保存偏好' : '请选择至少一个流派'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _SearchOverlay extends StatefulWidget {
@@ -2379,7 +2574,15 @@ class _SearchResultTile extends StatelessWidget {
             ),
             IconButton(
               icon: const Icon(Icons.play_arrow_rounded),
-              onPressed: () => context.read<SolaraPlayerController>().playFromCollection([song], 0),
+              onPressed: () async {
+                final player = context.read<SolaraPlayerController>();
+                final success = await player.playFromCollection([song], 0);
+                if (!success) {
+                  final notifications =
+                      context.read<SolaraNotificationController?>();
+                  notifications?.error('无法播放该歌曲');
+                }
+              },
             ),
           ],
         ),
@@ -2421,6 +2624,77 @@ class _ImportBar extends StatelessWidget {
   }
 }
 
+class SolaraLogRecorder {
+  SolaraLogRecorder._();
+
+  static final SolaraLogRecorder instance = SolaraLogRecorder._();
+
+  Directory? _directory;
+
+  Future<Directory?> _ensureDirectory() async {
+    if (!Platform.isIOS) {
+      return null;
+    }
+    if (_directory != null) {
+      return _directory;
+    }
+    try {
+      final base = await getApplicationDocumentsDirectory();
+      final directory = Directory('${base.path}/SolaraLogs');
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
+      _directory = directory;
+      return directory;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> record({
+    required Uri uri,
+    int? statusCode,
+    String? responseBody,
+    Object? error,
+  }) async {
+    try {
+      final directory = await _ensureDirectory();
+      if (directory == null) {
+        return;
+      }
+      final now = DateTime.now();
+      final file = File('${directory.path}/solara-${_dateLabel(now)}.log');
+      final timestamp = now.toIso8601String();
+      final buffer = StringBuffer()
+        ..writeln('[$timestamp]')
+        ..writeln('URL: ${uri.toString()}');
+      if (statusCode != null) {
+        buffer.writeln('Status: $statusCode');
+      }
+      if (error != null) {
+        buffer.writeln('Error: $error');
+      }
+      if (responseBody != null && responseBody.isNotEmpty) {
+        const maxLength = 4000;
+        final body = responseBody.length > maxLength
+            ? '${responseBody.substring(0, maxLength)}…'
+            : responseBody;
+        buffer.writeln('Response: $body');
+      }
+      buffer.writeln();
+      await file.writeAsString(buffer.toString(), mode: FileMode.append, flush: true);
+    } catch (_) {
+      // Ignore logging failures.
+    }
+  }
+
+  String _dateLabel(DateTime time) {
+    final month = time.month.toString().padLeft(2, '0');
+    final day = time.day.toString().padLeft(2, '0');
+    return '${time.year}$month$day';
+  }
+}
+
 class SolaraApi {
   SolaraApi({http.Client? client}) : _client = client ?? http.Client();
 
@@ -2446,15 +2720,47 @@ class SolaraApi {
       ...params,
       's': params['s'] ?? _signature(),
     });
-    final response = await _client.get(uri, headers: _headers);
-    if (response.statusCode >= 400) {
-      throw SolaraApiException('请求失败: ${response.statusCode}');
-    }
-    final body = response.body;
+    String? body;
+    int? status;
+    var logged = false;
     try {
-      return jsonDecode(body);
-    } catch (_) {
-      return body;
+      final response = await _client.get(uri, headers: _headers);
+      status = response.statusCode;
+      body = response.body;
+      if (status >= 400) {
+        throw SolaraApiException('请求失败: $status');
+      }
+      try {
+        return jsonDecode(body);
+      } catch (_) {
+        return body;
+      }
+    } on SolaraApiException catch (error) {
+      await SolaraLogRecorder.instance.record(
+        uri: uri,
+        statusCode: status,
+        responseBody: body,
+        error: error,
+      );
+      logged = true;
+      rethrow;
+    } catch (error) {
+      await SolaraLogRecorder.instance.record(
+        uri: uri,
+        statusCode: status,
+        responseBody: body,
+        error: error,
+      );
+      logged = true;
+      rethrow;
+    } finally {
+      if (!logged) {
+        await SolaraLogRecorder.instance.record(
+          uri: uri,
+          statusCode: status,
+          responseBody: body,
+        );
+      }
     }
   }
 
@@ -2881,12 +3187,15 @@ class SolaraPlayerController extends ChangeNotifier {
     SongSource.migu,
   ];
 
+  static const String _explorePrefsFile = 'explore_genres.json';
+
+  final Set<String> _disabledExploreGenres = <String>{};
+
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<PlayerState>? _stateSub;
   bool _remoteConfigured = false;
 
-  bool _isLoading = false;
   bool _isLoadingSong = false;
   bool _isExploring = false;
   Duration _position = Duration.zero;
@@ -2915,28 +3224,7 @@ class SolaraPlayerController extends ChangeNotifier {
       }
       notifyListeners();
     });
-    unawaited(_loadInitialQueue());
-  }
-
-  Future<void> _loadInitialQueue() async {
-    _isLoading = true;
-    notifyListeners();
-    try {
-      final songs = await _api.fetchPlaylist(limit: 30);
-      _queue
-        ..clear()
-        ..addAll(songs);
-      if (_queue.isNotEmpty) {
-        await playSong(_queue.first);
-      }
-    } catch (error) {
-      _errorMessage = error.toString();
-      notifyListeners();
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-      unawaited(_updateRemoteCommands());
-    }
+    await _loadExplorePreferences();
   }
 
   Future<void> _configureRemote() async {
@@ -2945,6 +3233,58 @@ class SolaraPlayerController extends ChangeNotifier {
       _remoteConfigured = true;
     } catch (_) {
       _remoteConfigured = false;
+    }
+  }
+
+  Future<void> _loadExplorePreferences() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/$_explorePrefsFile');
+      if (!await file.exists()) {
+        return;
+      }
+      final raw = await file.readAsString();
+      if (raw.trim().isEmpty) {
+        return;
+      }
+      final dynamic payload = jsonDecode(raw);
+      Iterable<dynamic>? enabledRaw;
+      if (payload is Map<String, dynamic>) {
+        enabledRaw = payload['enabled'] as Iterable<dynamic>?;
+      } else if (payload is List) {
+        enabledRaw = payload;
+      }
+      if (enabledRaw == null) {
+        return;
+      }
+      final enabled =
+          enabledRaw.whereType<String>().where(_exploreGenres.contains).toSet();
+      final newDisabled = _exploreGenres
+          .where((genre) => !enabled.contains(genre))
+          .toSet();
+      final unchanged = newDisabled.length == _disabledExploreGenres.length &&
+          _disabledExploreGenres.containsAll(newDisabled);
+      if (unchanged) {
+        return;
+      }
+      _disabledExploreGenres
+        ..clear()
+        ..addAll(newDisabled);
+      notifyListeners();
+    } catch (_) {
+      // Ignore persistence errors.
+    }
+  }
+
+  Future<void> _saveExplorePreferences() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/$_explorePrefsFile');
+      await file.create(recursive: true);
+      final enabled = enabledExploreGenres.toList();
+      await file.writeAsString(jsonEncode({'enabled': enabled}));
+    } catch (_) {
+      // Ignore persistence errors.
     }
   }
 
@@ -2990,7 +3330,6 @@ class SolaraPlayerController extends ChangeNotifier {
   List<Song> get favorites => _favorites.values.toList(growable: false);
   bool get hasQueue => _queue.isNotEmpty;
   bool get isPlaying => _player.playing;
-  bool get isLoading => _isLoading;
   bool get isBuffering => _player.playerState.processingState == ProcessingState.buffering;
   bool get isLoadingSong => _isLoadingSong;
   bool get isExploring => _isExploring;
@@ -3004,6 +3343,12 @@ class SolaraPlayerController extends ChangeNotifier {
   String? get currentArtwork => _currentArtwork;
   List<LyricLine> get currentLyrics => _currentLyrics;
   String? get errorMessage => _errorMessage;
+
+  List<String> get availableExploreGenres => List.unmodifiable(_exploreGenres);
+
+  Set<String> get enabledExploreGenres => _exploreGenres
+      .where((genre) => !_disabledExploreGenres.contains(genre))
+      .toSet();
 
   Future<void> playSong(Song song) async {
     if (song.id.isEmpty) {
@@ -3049,15 +3394,16 @@ class SolaraPlayerController extends ChangeNotifier {
     }
   }
 
-  Future<void> playFromCollection(List<Song> songs, int index) async {
+  Future<bool> playFromCollection(List<Song> songs, int index) async {
     if (songs.isEmpty || index < 0 || index >= songs.length) {
-      return;
+      return false;
     }
     final song = songs[index];
     if (!_queue.contains(song)) {
       addSongsToQueue(songs);
     }
     await playSong(song);
+    return _currentSong == song;
   }
 
   Future<void> playNext() async {
@@ -3263,14 +3609,36 @@ class SolaraPlayerController extends ChangeNotifier {
     }
   }
 
+  Future<void> updateExploreGenreSelection(Set<String> enabled) async {
+    final normalized = enabled.where(_exploreGenres.contains).toSet();
+    final newDisabled = _exploreGenres
+        .where((genre) => !normalized.contains(genre))
+        .toSet();
+    final unchanged =
+        newDisabled.length == _disabledExploreGenres.length &&
+            _disabledExploreGenres.containsAll(newDisabled);
+    if (unchanged) {
+      return;
+    }
+    _disabledExploreGenres
+      ..clear()
+      ..addAll(newDisabled);
+    notifyListeners();
+    await _saveExplorePreferences();
+  }
+
   Future<int> exploreRadar() async {
     if (_isExploring) {
+      return 0;
+    }
+    final enabledGenres = enabledExploreGenres.toList();
+    if (enabledGenres.isEmpty) {
       return 0;
     }
     _isExploring = true;
     notifyListeners();
     try {
-      final genre = _exploreGenres[_random.nextInt(_exploreGenres.length)];
+      final genre = enabledGenres[_random.nextInt(enabledGenres.length)];
       final source = _exploreSources[_random.nextInt(_exploreSources.length)];
       final results = await _api.search(genre, source: source, limit: 30, page: 1);
       if (results.isEmpty) {
