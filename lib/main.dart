@@ -256,8 +256,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
             children: [
               IconButton(
                 icon: const Icon(Icons.search),
-                onPressed:
-                    player.isLoading ? null : () => setState(() => _showSearch = true),
+                onPressed: () => setState(() => _showSearch = true),
               ),
               const SizedBox(width: 12),
               IconButton(
@@ -285,7 +284,8 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
             icon: Icons.radar,
             tooltip: '探索雷达',
             isLoading: player.isExploring,
-            onTap: player.isLoading ? null : () => player.exploreRadar(),
+            onTap:
+                player.isExploring ? null : () => player.exploreRadar(),
           ),
         ),
         Expanded(
@@ -309,13 +309,11 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
             SizedBox(
               height: buttonSize,
               width: buttonSize,
-              child: _ToolbarCircleButton(
-                icon: Icons.search,
-                tooltip: '搜索',
-                onTap: player.isLoading
-                    ? null
-                    : () => setState(() => _showSearch = true),
-              ),
+            child: _ToolbarCircleButton(
+              icon: Icons.search,
+              tooltip: '搜索',
+              onTap: () => setState(() => _showSearch = true),
+            ),
             ),
           ],
         ),
@@ -618,7 +616,7 @@ class _SongSummary extends StatelessWidget {
           child: Wrap(
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
+            spacing: 6,
             runSpacing: 8,
             children: [
               ConstrainedBox(
@@ -1162,97 +1160,151 @@ class _QueuePanel extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Text(
-                                  showFavorites ? '收藏列表' : '播放列表',
-                                  style: Theme.of(context).textTheme.titleMedium,
-                                ),
-                                const Spacer(),
-                                IconButton(
-                                  icon: const Icon(Icons.play_arrow_rounded),
-                                  onPressed: songs.isEmpty
-                                      ? null
-                                      : () =>
-                                          player.playFromCollection(songs, 0),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.close_rounded),
-                                  onPressed: onClose,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            _QueueTabs(
-                              showFavorites: showFavorites,
-                              onToggle: onToggleTab,
-                              playlistCount: player.queue.length,
-                              favoritesCount: player.favorites.length,
-                            ),
-                            const SizedBox(height: 16),
-                            _QueueActionsBar(
-                              showFavorites: showFavorites,
-                              onImport: () => _importCollection(
-                                context,
-                                player,
-                                favorites: showFavorites,
-                              ),
-                              onExport: () => _exportCollection(
-                                context,
-                                player,
-                                favorites: showFavorites,
-                              ),
-                              onClear: () => _clearCollection(
-                                context,
-                                player,
-                                favorites: showFavorites,
-                              ),
-                              onAddAll: showFavorites
-                                  ? () => _addFavoritesToQueue(context, player)
-                                  : null,
-                            ),
-                            const SizedBox(height: 16),
-                            Expanded(
-                              child: songs.isEmpty
-                                  ? const Center(child: Text('暂无歌曲'))
-                                  : ListView.separated(
-                                      physics: const BouncingScrollPhysics(),
-                                      padding: EdgeInsets.only(
-                                        top: 4,
-                                        bottom: safePadding.bottom + 16,
-                                      ),
-                                      itemCount: songs.length,
-                                      separatorBuilder: (_, __) => const Divider(
-                                        height: 16,
-                                        thickness: 0.2,
-                                      ),
-                                      itemBuilder: (context, index) {
-                                        final song = songs[index];
-                                        final isActive =
-                                            player.currentSong == song;
-                                        final actions = showFavorites
-                                            ? _buildFavoriteActions(
-                                                context,
-                                                player,
-                                                song,
-                                              )
-                                            : _buildQueueActions(
-                                                context,
-                                                player,
-                                                song,
-                                              );
-                                        return _QueueTile(
-                                          song: song,
-                                          index: index,
-                                          isActive: isActive,
-                                          onTap: () => player.playFromCollection(
-                                            songs,
-                                            index,
+                            _QueueSurface(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            showFavorites ? '收藏列表' : '播放列表',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                           ),
-                                          actions: actions,
-                                        );
-                                      },
-                                    ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '共 ${songs.length} 首歌曲',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.copyWith(
+                                                  color: Colors.white70,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                      const Spacer(),
+                                      _QueueCircleButton(
+                                        icon: Icons.play_arrow_rounded,
+                                        tooltip: '播放全部',
+                                        primary: true,
+                                        onTap: songs.isEmpty
+                                            ? null
+                                            : () => player.playFromCollection(
+                                                  songs,
+                                                  0,
+                                                ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _QueueTabs(
+                                          showFavorites: showFavorites,
+                                          onToggle: onToggleTab,
+                                          playlistCount: player.queue.length,
+                                          favoritesCount:
+                                              player.favorites.length,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      _QueueCircleButton(
+                                        icon: Icons.keyboard_arrow_down_rounded,
+                                        tooltip: '收起列表',
+                                        onTap: onClose,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            _QueueSurface(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                              child: _QueueActionsBar(
+                                showFavorites: showFavorites,
+                                onImport: () => _importCollection(
+                                  context,
+                                  player,
+                                  favorites: showFavorites,
+                                ),
+                                onExport: () => _exportCollection(
+                                  context,
+                                  player,
+                                  favorites: showFavorites,
+                                ),
+                                onClear: () => _clearCollection(
+                                  context,
+                                  player,
+                                  favorites: showFavorites,
+                                ),
+                                onAddAll: showFavorites
+                                    ? () =>
+                                        _addFavoritesToQueue(context, player)
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Expanded(
+                              child: _QueueSurface(
+                                padding: EdgeInsets.zero,
+                                child: songs.isEmpty
+                                    ? const Center(child: Text('暂无歌曲'))
+                                    : ListView.separated(
+                                        physics:
+                                            const BouncingScrollPhysics(),
+                                        padding: EdgeInsets.only(
+                                          left: 12,
+                                          right: 12,
+                                          top: 12,
+                                          bottom: safePadding.bottom + 20,
+                                        ),
+                                        itemCount: songs.length,
+                                        separatorBuilder: (_, __) =>
+                                            const SizedBox(height: 12),
+                                        itemBuilder: (context, index) {
+                                          final song = songs[index];
+                                          final isActive =
+                                              player.currentSong == song;
+                                          final actions = showFavorites
+                                              ? _buildFavoriteActions(
+                                                  context,
+                                                  player,
+                                                  song,
+                                                )
+                                              : _buildQueueActions(
+                                                  context,
+                                                  player,
+                                                  song,
+                                                );
+                                          return _QueueTile(
+                                            song: song,
+                                            index: index,
+                                            isActive: isActive,
+                                            onTap: () =>
+                                                player.playFromCollection(
+                                              songs,
+                                              index,
+                                            ),
+                                            actions: actions,
+                                          );
+                                        },
+                                      ),
+                              ),
                             ),
                           ],
                         ),
@@ -1449,11 +1501,23 @@ class _QueueActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 38,
-      child: FilledButton.tonalIcon(
+      height: 40,
+      child: FilledButton.icon(
         onPressed: onTap,
         icon: Icon(icon, size: 18),
         label: Text(label),
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          backgroundColor: Colors.white.withOpacity(0.08),
+          foregroundColor: Colors.white,
+          textStyle: Theme.of(context)
+              .textTheme
+              .labelLarge
+              ?.copyWith(fontWeight: FontWeight.w600),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
       ),
     );
   }
@@ -1476,10 +1540,11 @@ class _QueueTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(28),
         color: Colors.white.withOpacity(0.04),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       child: Row(
         children: [
           _QueueTabButton(
@@ -1487,6 +1552,7 @@ class _QueueTabs extends StatelessWidget {
             active: !showFavorites,
             onTap: () => onToggle(false),
           ),
+          const SizedBox(width: 6),
           _QueueTabButton(
             label: '收藏列表 ($favoritesCount)',
             active: showFavorites,
@@ -1514,14 +1580,20 @@ class _QueueTabButton extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            color: active ? const Color(0xFFFF6B5F) : Colors.transparent,
+            borderRadius: BorderRadius.circular(22),
+            gradient: active
+                ? const LinearGradient(
+                    colors: [Color(0xFFFF6B5F), Color(0xFFFF8C66)],
+                  )
+                : null,
+            color: active ? null : Colors.transparent,
           ),
           child: Center(
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: active ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                    color: active ? Colors.white : Colors.white70,
                   ),
             ),
           ),
@@ -1548,40 +1620,57 @@ class _QueueTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: [
-            Text('${index + 1}'.padLeft(2, '0'), style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    song.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    song.artist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54),
-                  ),
-                ],
+    return Material(
+      color: Colors.white.withOpacity(isActive ? 0.14 : 0.06),
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 30,
+                child: Text(
+                  '${index + 1}'.padLeft(2, '0'),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Colors.white70),
+                ),
               ),
-            ),
-            for (final action in actions)
-              _QueueTileActionButton(action: action),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      song.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight:
+                                isActive ? FontWeight.w700 : FontWeight.w500,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      song.artist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Colors.white54),
+                    ),
+                  ],
+                ),
+              ),
+              for (final action in actions)
+                _QueueTileActionButton(action: action),
+            ],
+          ),
         ),
       ),
     );
@@ -1610,13 +1699,90 @@ class _QueueTileActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final button = IconButton(
-      icon: Icon(action.icon, size: 20, color: action.color),
       onPressed: action.onTap,
+      icon: Icon(
+        action.icon,
+        size: 20,
+        color: action.color ?? Theme.of(context).iconTheme.color,
+      ),
+      style: IconButton.styleFrom(
+        backgroundColor: Colors.white.withOpacity(0.06),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        padding: const EdgeInsets.all(10),
+        minimumSize: const Size(40, 40),
+      ),
     );
     if (action.tooltip == null || action.tooltip!.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(left: 8),
+        child: button,
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: Tooltip(message: action.tooltip!, child: button),
+    );
+  }
+}
+
+class _QueueCircleButton extends StatelessWidget {
+  const _QueueCircleButton({
+    required this.icon,
+    this.onTap,
+    this.tooltip,
+    this.primary = false,
+  });
+
+  final IconData icon;
+  final VoidCallback? onTap;
+  final String? tooltip;
+  final bool primary;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final background = primary
+        ? theme.colorScheme.primary.withOpacity(0.2)
+        : Colors.white.withOpacity(0.08);
+    final foreground = primary
+        ? theme.colorScheme.primary
+        : theme.iconTheme.color ?? Colors.white;
+    final button = IconButton(
+      onPressed: onTap,
+      icon: Icon(icon, color: foreground),
+      style: IconButton.styleFrom(
+        backgroundColor: background,
+        shape: const CircleBorder(),
+        fixedSize: const Size(44, 44),
+      ),
+    );
+    if (tooltip == null || tooltip!.isEmpty) {
       return button;
     }
-    return Tooltip(message: action.tooltip!, child: button);
+    return Tooltip(message: tooltip!, child: button);
+  }
+}
+
+class _QueueSurface extends StatelessWidget {
+  const _QueueSurface({required this.child, this.padding});
+
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withOpacity(0.05),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(color: Colors.white.withOpacity(0.06)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(12),
+        child: child,
+      ),
+    );
   }
 }
 
