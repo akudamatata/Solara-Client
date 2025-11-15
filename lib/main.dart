@@ -1093,7 +1093,8 @@ class _QueuePanel extends StatelessWidget {
       final directory = await getTemporaryDirectory();
       final now = DateTime.now();
       final formatted =
-          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}'
+          '-${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
       final label = favorites ? 'favorites' : 'playlist';
       final fileName = 'solara-$label-$formatted.json';
       final file = File('${directory.path}/$fileName');
