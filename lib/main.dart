@@ -7,10 +7,16 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import 'package:provider/provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.solara.mobile.channel.audio',
+    androidNotificationChannelName: 'Solara Playback',
+    androidNotificationOngoing: true,
+  );
   final session = await AudioSession.instance;
   await session.configure(const AudioSessionConfiguration.music());
   runApp(const SolaraApp());
@@ -91,21 +97,60 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                   constraints: const BoxConstraints(maxWidth: 420),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    child: Column(
-                      children: [
-                        _buildToolbar(context),
-                        const SizedBox(height: 18),
-                        const _PlayerArtwork(),
-                        const SizedBox(height: 28),
-                        const _SongSummary(),
-                        const SizedBox(height: 20),
-                        const _QualityAndActions(),
-                        const SizedBox(height: 22),
-                        const _ProgressSection(),
-                        const SizedBox(height: 20),
-                        _buildControls(context),
-                        const SizedBox(height: 24),
-                      ],
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final media = MediaQuery.of(context);
+                        final safeHeight =
+                            media.size.height - media.padding.top - media.padding.bottom;
+                        final double availableHeight = constraints.hasBoundedHeight
+                            ? constraints.maxHeight
+                            : safeHeight;
+                        final bool isCompact = availableHeight < 720;
+                        final topSpacing = _clampSpacing(availableHeight * 0.025, 16, 28);
+                        final sectionSpacing = _clampSpacing(availableHeight * 0.032, 20, 36);
+                        final minorSpacing = _clampSpacing(availableHeight * 0.022, 14, 28);
+                        final bottomSpacing = _clampSpacing(availableHeight * 0.05, 18, 44);
+
+                        final topSection = <Widget>[
+                          _buildToolbar(context),
+                          SizedBox(height: topSpacing),
+                          const _PlayerArtwork(),
+                          SizedBox(height: sectionSpacing),
+                          const _SongSummary(),
+                          SizedBox(height: minorSpacing),
+                          const _QualityAndActions(),
+                          SizedBox(height: minorSpacing),
+                          const _ProgressSection(),
+                        ];
+
+                        if (isCompact) {
+                          return SingleChildScrollView(
+                            physics: const BouncingScrollPhysics(),
+                            padding: EdgeInsets.only(bottom: bottomSpacing),
+                            child: Column(
+                              children: [
+                                ...topSection,
+                                SizedBox(height: sectionSpacing),
+                                _buildControls(context),
+                              ],
+                            ),
+                          );
+                        }
+
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: topSection,
+                            ),
+                            Padding(
+                              padding: EdgeInsets.only(bottom: bottomSpacing),
+                              child: _buildControls(context),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -125,6 +170,12 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
         ),
       ),
     );
+  }
+
+  double _clampSpacing(double value, double min, double max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
   }
 
   Widget _buildToolbar(BuildContext context) {
@@ -210,21 +261,6 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                 onTap: player.isLoading
                     ? null
                     : () => setState(() => _showSearch = true),
-              ),
-            ),
-            const SizedBox(width: 12),
-            SizedBox(
-              height: buttonSize,
-              width: buttonSize,
-              child: _ToolbarCircleButton(
-                icon: Icons.queue_music,
-                tooltip: '播放列表',
-                onTap: () {
-                  setState(() {
-                    _showFavorites = false;
-                    _showQueue = true;
-                  });
-                },
               ),
             ),
           ],
@@ -1690,12 +1726,32 @@ class SolaraPlayerController extends ChangeNotifier {
     _isLoadingSong = true;
     notifyListeners();
     try {
-      final audio = await _api.resolveSongUrl(song, _quality);
-      await _player.setUrl(audio.url);
+      final audioFuture = _api.resolveSongUrl(song, _quality);
+      final artworkFuture = _loadArtwork(song);
+      final lyricsFuture = _loadLyrics(song);
+      final audio = await audioFuture;
+      final artwork = await artworkFuture;
+      final mediaItem = MediaItem(
+        id: song.identity,
+        title: song.name,
+        artist: song.artist,
+        album: song.album?.isNotEmpty == true ? song.album : null,
+        artUri: artwork != null ? Uri.tryParse(artwork) : null,
+        extras: {
+          'source': song.source.param,
+          'quality': _quality.label,
+        },
+      );
+      await _player.setAudioSource(
+        AudioSource.uri(
+          Uri.parse(audio.url),
+          tag: mediaItem,
+        ),
+      );
       await _player.play();
       _currentSong = song;
-      _currentArtwork = await _loadArtwork(song);
-      _currentLyrics = await _loadLyrics(song);
+      _currentArtwork = artwork;
+      _currentLyrics = await lyricsFuture;
       notifyListeners();
     } catch (error) {
       _errorMessage = error.toString();
