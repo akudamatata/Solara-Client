@@ -77,6 +77,8 @@ class SolaraApp extends StatelessWidget {
 
 enum SolaraNotificationType { info, success, warning, error }
 
+enum CollectionTransferMode { import, export }
+
 class SolaraNotificationData {
   const SolaraNotificationData({
     required this.id,
@@ -531,21 +533,21 @@ class _NotificationOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = context.watch<SolaraNotificationController>();
     final notification = controller.current;
-    final padding = MediaQuery.of(context).padding.top;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
     final child = notification == null
         ? const SizedBox.shrink()
         : _NotificationChip(notification: notification);
     return IgnorePointer(
       ignoring: true,
       child: Align(
-        alignment: Alignment.topCenter,
+        alignment: Alignment.bottomCenter,
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 280),
           switchInCurve: Curves.easeOutCubic,
           switchOutCurve: Curves.easeInCubic,
           transitionBuilder: (child, animation) {
             final offsetAnimation = Tween<Offset>(
-              begin: const Offset(0, -0.2),
+              begin: const Offset(0, 0.2),
               end: Offset.zero,
             ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
             return FadeTransition(
@@ -557,7 +559,7 @@ class _NotificationOverlay extends StatelessWidget {
               ? const SizedBox(key: ValueKey('empty'))
               : Padding(
                   key: ValueKey(notification.id),
-                  padding: EdgeInsets.fromLTRB(24, padding + 12, 24, 0),
+                  padding: EdgeInsets.fromLTRB(24, 0, 24, bottomPadding + 16),
                   child: child,
                 ),
         ),
@@ -821,27 +823,35 @@ class _SongSummary extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Center(
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 6,
-            runSpacing: 8,
+        SizedBox(
+          width: double.infinity,
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 260),
-                child: Text(
-                  title,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        height: 1.2,
-                      ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 56),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 260),
+                  child: Text(
+                    title,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          height: 1.2,
+                        ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
-              favoriteButton,
+              Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: favoriteButton,
+                ),
+              ),
             ],
           ),
         ),
@@ -954,32 +964,27 @@ class _SettingsSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 _SettingsSection(
-                  title: '播放列表',
+                  title: '列表管理',
                   children: [
                     _SettingsActionTile(
-                      icon: Icons.folder_shared,
-                      label: '导入或导出播放列表',
-                      subtitle: '支持 JSON 文件，当前 ${queueCount.toString()} 首',
+                      icon: Icons.file_download,
+                      label: '导入列表',
+                      subtitle: '导入播放列表或收藏列表',
                       onTap: () => _showCollectionTransferSheet(
                         context,
                         player,
-                        favorites: false,
+                        mode: CollectionTransferMode.import,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _SettingsSection(
-                  title: '收藏列表',
-                  children: [
                     _SettingsActionTile(
-                      icon: Icons.favorite,
-                      label: '导入或导出收藏列表',
-                      subtitle: '支持 JSON 文件，当前 ${favoritesCount.toString()} 首',
+                      icon: Icons.file_upload,
+                      label: '导出列表',
+                      subtitle:
+                          '播放列表 ${queueCount.toString()} 首 · 收藏列表 ${favoritesCount.toString()} 首',
                       onTap: () => _showCollectionTransferSheet(
                         context,
                         player,
-                        favorites: true,
+                        mode: CollectionTransferMode.export,
                       ),
                     ),
                   ],
@@ -1420,6 +1425,18 @@ class _QueuePanel extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 12),
                                   _QueueCircleButton(
+                                    icon: Icons.delete_sweep,
+                                    tooltip: showFavorites ? '清空收藏列表' : '清空播放列表',
+                                    onTap: songs.isEmpty
+                                        ? null
+                                        : () => _clearCollection(
+                                              context,
+                                              player,
+                                              favorites: showFavorites,
+                                            ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  _QueueCircleButton(
                                     icon: Icons.keyboard_arrow_down_rounded,
                                     tooltip: '收起列表',
                                     onTap: onClose,
@@ -1427,23 +1444,38 @@ class _QueuePanel extends StatelessWidget {
                                 ],
                               ),
                               const SizedBox(height: 20),
-                              _QueueActionsBar(
-                                showFavorites: showFavorites,
-                                onManageCollection: () => _showCollectionTransferSheet(
-                                  context,
-                                  player,
-                                  favorites: showFavorites,
+                              if (showFavorites) ...[
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: SizedBox(
+                                    height: 40,
+                                    child: FilledButton.icon(
+                                      onPressed: songs.isEmpty
+                                          ? null
+                                          : () => _addFavoritesToQueue(
+                                                context,
+                                                player,
+                                              ),
+                                      icon:
+                                          const Icon(Icons.playlist_add_check, size: 18),
+                                      label: const Text('全部添加到播放列表'),
+                                      style: FilledButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                                        backgroundColor: Colors.white.withOpacity(0.08),
+                                        foregroundColor: Colors.white,
+                                        textStyle: Theme.of(context)
+                                            .textTheme
+                                            .labelLarge
+                                            ?.copyWith(fontWeight: FontWeight.w600),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                                onClear: () => _clearCollection(
-                                  context,
-                                  player,
-                                  favorites: showFavorites,
-                                ),
-                                onAddAll: showFavorites
-                                    ? () => _addFavoritesToQueue(context, player)
-                                    : null,
-                              ),
-                              const SizedBox(height: 20),
+                                const SizedBox(height: 20),
+                              ],
                               Expanded(
                                 child: _QueueSurface(
                                   padding: EdgeInsets.zero,
@@ -1626,120 +1658,6 @@ class _QueuePanel extends StatelessWidget {
         },
       ),
     ];
-  }
-}
-
-class _QueueActionsBar extends StatelessWidget {
-  const _QueueActionsBar({
-    required this.showFavorites,
-    required this.onManageCollection,
-    required this.onClear,
-    this.onAddAll,
-  });
-
-  final bool showFavorites;
-  final VoidCallback onManageCollection;
-  final VoidCallback onClear;
-  final VoidCallback? onAddAll;
-
-  @override
-  Widget build(BuildContext context) {
-    final buttons = <Widget>[];
-    if (showFavorites && onAddAll != null) {
-      buttons.add(
-        _QueueActionButton(
-          icon: Icons.playlist_add_check,
-          label: '全部添加到播放列表',
-          onTap: onAddAll,
-        ),
-      );
-    }
-    buttons.add(
-      _QueueActionButton(
-        icon: Icons.folder_shared,
-        label: showFavorites ? '导入/导出收藏列表' : '导入/导出播放列表',
-        onTap: onManageCollection,
-      ),
-    );
-    buttons.add(
-      _QueuePlainButton(
-        icon: Icons.delete_sweep,
-        label: '清空',
-        onTap: onClear,
-      ),
-    );
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      alignment: WrapAlignment.center,
-      children: buttons,
-    );
-  }
-}
-
-class _QueueActionButton extends StatelessWidget {
-  const _QueueActionButton({required this.icon, required this.label, required this.onTap});
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      child: FilledButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 18),
-        label: Text(label),
-        style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          backgroundColor: Colors.white.withOpacity(0.08),
-          foregroundColor: Colors.white,
-          textStyle: Theme.of(context)
-              .textTheme
-              .labelLarge
-              ?.copyWith(fontWeight: FontWeight.w600),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _QueuePlainButton extends StatelessWidget {
-  const _QueuePlainButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = theme.colorScheme.error;
-    return SizedBox(
-      height: 40,
-      child: TextButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 18, color: color),
-        label: Text(label),
-        style: TextButton.styleFrom(
-          foregroundColor: color,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          textStyle: Theme.of(context)
-              .textTheme
-              .labelLarge
-              ?.copyWith(fontWeight: FontWeight.w600),
-        ),
-      ),
-    );
   }
 }
 
@@ -2162,11 +2080,12 @@ void _showSnackBar(
 Future<void> _showCollectionTransferSheet(
   BuildContext context,
   SolaraPlayerController player, {
-  required bool favorites,
+  required CollectionTransferMode mode,
 }) async {
   final rootContext = context;
-  final title = favorites ? '收藏列表' : '播放列表';
-  final itemCount = favorites ? player.favorites.length : player.queue.length;
+  final title = mode == CollectionTransferMode.import ? '导入列表' : '导出列表';
+  final helperText =
+      mode == CollectionTransferMode.import ? '请选择要导入的列表' : '请选择要导出的列表';
   await showModalBottomSheet<void>(
     context: context,
     useSafeArea: true,
@@ -2201,38 +2120,63 @@ Future<void> _showCollectionTransferSheet(
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    '导入或导出$title',
+                    title,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                   ),
+                  const SizedBox(height: 8),
+                  Text(
+                    helperText,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Colors.white70),
+                  ),
                   const SizedBox(height: 20),
                   _SettingsActionTile(
-                    icon: Icons.file_download,
-                    label: '导入$title',
-                    subtitle: '支持 JSON 格式文件',
+                    icon: Icons.queue_music,
+                    label: '播放列表',
+                    subtitle: '当前 ${player.queue.length} 首',
                     onTap: () {
                       Navigator.of(sheetContext).pop();
-                      _importCollection(
-                        rootContext,
-                        player,
-                        favorites: favorites,
-                      );
+                      if (mode == CollectionTransferMode.import) {
+                        _importCollection(
+                          rootContext,
+                          player,
+                          favorites: false,
+                        );
+                      } else {
+                        _exportCollection(
+                          rootContext,
+                          player,
+                          favorites: false,
+                        );
+                      }
                     },
                   ),
                   const SizedBox(height: 12),
                   _SettingsActionTile(
-                    icon: Icons.file_upload,
-                    label: '导出$title',
-                    subtitle: '当前 $itemCount 首歌曲',
+                    icon: Icons.favorite,
+                    label: '收藏列表',
+                    subtitle: '当前 ${player.favorites.length} 首',
                     onTap: () {
                       Navigator.of(sheetContext).pop();
-                      _exportCollection(
-                        rootContext,
-                        player,
-                        favorites: favorites,
-                      );
+                      if (mode == CollectionTransferMode.import) {
+                        _importCollection(
+                          rootContext,
+                          player,
+                          favorites: true,
+                        );
+                      } else {
+                        _exportCollection(
+                          rootContext,
+                          player,
+                          favorites: true,
+                        );
+                      }
                     },
                   ),
                 ],
