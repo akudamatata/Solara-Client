@@ -113,9 +113,31 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                             ? constraints.maxHeight
                             : safeHeight;
                         final bool isCompact = availableHeight < 720;
-                        final topSpacing = _clampSpacing(availableHeight * 0.025, 16, 28);
-                        final sectionSpacing = _clampSpacing(availableHeight * 0.032, 20, 36);
-                        final minorSpacing = _clampSpacing(availableHeight * 0.022, 14, 28);
+                        final bool isCupertino =
+                            Theme.of(context).platform == TargetPlatform.iOS;
+                        final double cupertinoBaseSpacing = isCupertino
+                            ? _clampSpacing(availableHeight * 0.04, 18, 56)
+                            : 0;
+                        final double cupertinoDetailSpacing = isCupertino
+                            ? _clampSpacing(availableHeight * 0.024, 12, 36)
+                            : 0;
+                        final topSpacing = _clampSpacing(
+                          availableHeight * 0.025 + cupertinoBaseSpacing,
+                          16,
+                          isCupertino ? 72 : 28,
+                        );
+                        final sectionSpacing = _clampSpacing(
+                          availableHeight * 0.032 + cupertinoBaseSpacing,
+                          20,
+                          isCupertino ? 76 : 36,
+                        );
+                        final minorSpacing = _clampSpacing(
+                          availableHeight * 0.022 + cupertinoDetailSpacing,
+                          14,
+                          isCupertino ? 48 : 28,
+                        );
+                        final controlSpacing = sectionSpacing +
+                            (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
                         final bottomSpacing = _clampSpacing(availableHeight * 0.05, 18, 44);
 
                         final topSection = <Widget>[
@@ -137,14 +159,12 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                             child: Column(
                               children: [
                                 ...topSection,
-                                SizedBox(height: sectionSpacing),
+                                SizedBox(height: controlSpacing),
                                 _buildControls(context),
                               ],
                             ),
                           );
                         }
-
-                        final isCupertino = Theme.of(context).platform == TargetPlatform.iOS;
 
                         if (isCupertino) {
                           return SizedBox(
@@ -153,8 +173,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 ...topSection,
-                                SizedBox(height: sectionSpacing),
-                                const Spacer(),
+                                SizedBox(height: controlSpacing),
                                 _buildControls(context),
                                 SizedBox(height: bottomSpacing),
                               ],
@@ -166,7 +185,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             ...topSection,
-                            SizedBox(height: sectionSpacing),
+                            SizedBox(height: controlSpacing),
                             _buildControls(context),
                             SizedBox(height: bottomSpacing),
                           ],
@@ -700,49 +719,45 @@ class _ProgressSection extends StatelessWidget {
     final duration = player.duration;
     final position = player.position;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          width: 56,
-          child: Text(
-            player.positionLabel,
-            style: Theme.of(context).textTheme.labelSmall,
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: const Color(0xFFFF6B5F),
+            inactiveTrackColor: Colors.white10,
+            trackHeight: 4,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+            overlayShape: SliderComponentShape.noOverlay,
+            trackShape: const _EdgeToEdgeSliderTrackShape(),
+          ),
+          child: Slider(
+            value: duration.inMilliseconds == 0
+                ? 0
+                : position.inMilliseconds
+                    .clamp(0, duration.inMilliseconds)
+                    .toDouble(),
+            min: 0,
+            max: duration.inMilliseconds == 0 ? 1 : duration.inMilliseconds.toDouble(),
+            onChanged: duration.inMilliseconds == 0
+                ? null
+                : (value) => player.seek(Duration(milliseconds: value.round())),
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              activeTrackColor: const Color(0xFFFF6B5F),
-              inactiveTrackColor: Colors.white10,
-              trackHeight: 4,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-              overlayShape: SliderComponentShape.noOverlay,
-              trackShape: const _EdgeToEdgeSliderTrackShape(),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              player.positionLabel,
+              style: Theme.of(context).textTheme.labelSmall,
             ),
-            child: Slider(
-              value: duration.inMilliseconds == 0
-                  ? 0
-                  : position.inMilliseconds
-                      .clamp(0, duration.inMilliseconds)
-                      .toDouble(),
-              min: 0,
-              max: duration.inMilliseconds == 0 ? 1 : duration.inMilliseconds.toDouble(),
-              onChanged: duration.inMilliseconds == 0
-                  ? null
-                  : (value) => player.seek(Duration(milliseconds: value.round())),
+            Text(
+              player.durationLabel,
+              style: Theme.of(context).textTheme.labelSmall,
+              textAlign: TextAlign.right,
             ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        SizedBox(
-          width: 56,
-          child: Text(
-            player.durationLabel,
-            style: Theme.of(context).textTheme.labelSmall,
-            textAlign: TextAlign.right,
-          ),
+          ],
         ),
       ],
     );
