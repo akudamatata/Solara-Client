@@ -1018,6 +1018,7 @@ class _QueuePanel extends StatelessWidget {
                             ),
                           ],
                         ),
+                      ),
                     ),
                   ),
                 ),
