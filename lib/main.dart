@@ -104,8 +104,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         const _ProgressSection(),
                         const SizedBox(height: 20),
                         _buildControls(context),
-                        const Spacer(),
-                        _buildMiniQueueToggle(context),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
@@ -199,15 +198,36 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
             ),
           ),
         ),
-        SizedBox(
-          height: buttonSize,
-          width: buttonSize,
-          child: _ToolbarCircleButton(
-            icon: Icons.search,
-            tooltip: '搜索',
-            onTap:
-                player.isLoading ? null : () => setState(() => _showSearch = true),
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: buttonSize,
+              width: buttonSize,
+              child: _ToolbarCircleButton(
+                icon: Icons.search,
+                tooltip: '搜索',
+                onTap: player.isLoading
+                    ? null
+                    : () => setState(() => _showSearch = true),
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              height: buttonSize,
+              width: buttonSize,
+              child: _ToolbarCircleButton(
+                icon: Icons.queue_music,
+                tooltip: '播放列表',
+                onTap: () {
+                  setState(() {
+                    _showFavorites = false;
+                    _showQueue = true;
+                  });
+                },
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -252,6 +272,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
         _ControlButton(
           icon: Icons.queue_music,
           tooltip: '播放列表',
+          isActive: _showQueue && !_showFavorites,
           onTap: () {
             setState(() {
               _showFavorites = false;
@@ -261,39 +282,6 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
           iconTheme: iconTheme,
         ),
       ],
-    );
-  }
-
-  Widget _buildMiniQueueToggle(BuildContext context) {
-    final player = context.watch<SolaraPlayerController>();
-    if (!player.hasQueue) {
-      return const SizedBox.shrink();
-    }
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _showFavorites = false;
-          _showQueue = true;
-        });
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.04),
-          borderRadius: BorderRadius.circular(22),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.keyboard_arrow_up_rounded, size: 20),
-            const SizedBox(width: 6),
-            Text(
-              '${player.queue.length} 首歌曲 · 播放列表',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -778,91 +766,112 @@ class _QueuePanel extends StatelessWidget {
     final player = context.watch<SolaraPlayerController>();
     final songs = showFavorites ? player.favorites : player.queue;
 
+    final size = MediaQuery.of(context).size;
     return IgnorePointer(
       ignoring: !visible,
-      child: AnimatedPositioned(
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOutCubic,
-        left: 0,
-        right: 0,
-        bottom: visible ? 0 : -MediaQuery.of(context).size.height,
-        child: Material(
-          color: const Color(0xFF101218).withOpacity(0.98),
-          elevation: 30,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
-              child: Column(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Text(
-                        showFavorites ? '收藏列表' : '播放列表',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.play_arrow_rounded),
-                        onPressed: songs.isEmpty
-                            ? null
-                            : () => player.playFromCollection(songs, 0),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded),
-                        onPressed: onClose,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _QueueTabs(
-                    showFavorites: showFavorites,
-                    onToggle: onToggleTab,
-                    playlistCount: player.queue.length,
-                    favoritesCount: player.favorites.length,
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: songs.isEmpty
-                        ? const Center(child: Text('暂无歌曲'))
-                        : ListView.separated(
-                            itemCount: songs.length,
-                            separatorBuilder: (_, __) =>
-                                const Divider(height: 16, thickness: 0.2),
-                            itemBuilder: (context, index) {
-                              final song = songs[index];
-                              final isActive = player.currentSong == song;
-                              return _QueueTile(
-                                song: song,
-                                index: index,
-                                isActive: isActive,
-                                onTap: () =>
-                                    player.playFromCollection(songs, index),
-                                onFavoriteToggle: () =>
-                                    player.toggleFavorite(song),
-                                isFavorite: player.isFavorite(song),
-                                onRemove: showFavorites
-                                    ? () => player.toggleFavorite(song)
-                                    : () => player.removeFromQueue(song),
-                              );
-                            },
-                          ),
-                  ),
-                ],
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              opacity: visible ? 0.6 : 0,
+              child: GestureDetector(
+                onTap: onClose,
+                child: Container(color: Colors.black),
               ),
             ),
           ),
-        ),
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            left: 0,
+            right: 0,
+            bottom: visible ? 0 : -size.height,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              opacity: visible ? 1 : 0,
+              child: Material(
+                color: const Color(0xFF101218).withOpacity(0.96),
+                elevation: 30,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Text(
+                              showFavorites ? '收藏列表' : '播放列表',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              icon: const Icon(Icons.play_arrow_rounded),
+                              onPressed: songs.isEmpty
+                                  ? null
+                                  : () => player.playFromCollection(songs, 0),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded),
+                              onPressed: onClose,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _QueueTabs(
+                          showFavorites: showFavorites,
+                          onToggle: onToggleTab,
+                          playlistCount: player.queue.length,
+                          favoritesCount: player.favorites.length,
+                        ),
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: songs.isEmpty
+                              ? const Center(child: Text('暂无歌曲'))
+                              : ListView.separated(
+                                  itemCount: songs.length,
+                                  separatorBuilder: (_, __) =>
+                                      const Divider(height: 16, thickness: 0.2),
+                                  itemBuilder: (context, index) {
+                                    final song = songs[index];
+                                    final isActive = player.currentSong == song;
+                                    return _QueueTile(
+                                      song: song,
+                                      index: index,
+                                      isActive: isActive,
+                                      onTap: () =>
+                                          player.playFromCollection(songs, index),
+                                      onFavoriteToggle: () =>
+                                          player.toggleFavorite(song),
+                                      isFavorite: player.isFavorite(song),
+                                      onRemove: showFavorites
+                                          ? () => player.toggleFavorite(song)
+                                          : () => player.removeFromQueue(song),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
