@@ -121,7 +121,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         final topSection = <Widget>[
                           _buildToolbar(context),
                           SizedBox(height: topSpacing),
-                          const _PlayerArtwork(),
+                          const Center(child: _PlayerArtwork()),
                           SizedBox(height: sectionSpacing),
                           const _SongSummary(),
                           SizedBox(height: minorSpacing),
@@ -139,6 +139,24 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                                 ...topSection,
                                 SizedBox(height: sectionSpacing),
                                 _buildControls(context),
+                              ],
+                            ),
+                          );
+                        }
+
+                        final isCupertino = Theme.of(context).platform == TargetPlatform.iOS;
+
+                        if (isCupertino) {
+                          return SizedBox(
+                            height: availableHeight,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                ...topSection,
+                                SizedBox(height: sectionSpacing),
+                                const Spacer(),
+                                _buildControls(context),
+                                SizedBox(height: bottomSpacing),
                               ],
                             ),
                           );
@@ -873,122 +891,133 @@ class _QueuePanel extends StatelessWidget {
                 alignment: Alignment.bottomCenter,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxHeight: size.height - safePadding.top + 24,
+                    maxHeight: size.height - safePadding.top,
                   ),
-                  child: Material(
-                    color: const Color(0xFF101218).withOpacity(0.96),
-                    elevation: 30,
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(36)),
-                    child: SafeArea(
-                      top: true,
-                      bottom: true,
-                      minimum: const EdgeInsets.fromLTRB(24, 18, 24, 24),
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 44,
-                            height: 5,
-                            decoration: BoxDecoration(
-                              color: Colors.white24,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Text(
-                                showFavorites ? '收藏列表' : '播放列表',
-                                style: Theme.of(context).textTheme.titleMedium,
+                  child: GestureDetector(
+                    onVerticalDragUpdate: (details) {
+                      if (details.primaryDelta != null && details.primaryDelta! > 14) {
+                        onClose();
+                      }
+                    },
+                    onVerticalDragEnd: (details) {
+                      if (details.primaryVelocity != null && details.primaryVelocity! > 400) {
+                        onClose();
+                      }
+                    },
+                    child: Material(
+                      color: const Color(0xFF101218).withOpacity(0.96),
+                      elevation: 30,
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(36)),
+                      child: SafeArea(
+                        top: true,
+                        bottom: true,
+                        minimum: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: Colors.white24,
+                                borderRadius: BorderRadius.circular(6),
                               ),
-                              const Spacer(),
-                              IconButton(
-                                icon: const Icon(Icons.play_arrow_rounded),
-                                onPressed: songs.isEmpty
-                                    ? null
-                                    : () =>
-                                        player.playFromCollection(songs, 0),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Text(
+                                  showFavorites ? '收藏列表' : '播放列表',
+                                  style: Theme.of(context).textTheme.titleMedium,
+                                ),
+                                const Spacer(),
+                                IconButton(
+                                  icon: const Icon(Icons.play_arrow_rounded),
+                                  onPressed: songs.isEmpty
+                                      ? null
+                                      : () =>
+                                          player.playFromCollection(songs, 0),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close_rounded),
+                                  onPressed: onClose,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            _QueueTabs(
+                              showFavorites: showFavorites,
+                              onToggle: onToggleTab,
+                              playlistCount: player.queue.length,
+                              favoritesCount: player.favorites.length,
+                            ),
+                            const SizedBox(height: 16),
+                            _QueueActionsBar(
+                              showFavorites: showFavorites,
+                              onImport: () => _importCollection(
+                                context,
+                                player,
+                                favorites: showFavorites,
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.close_rounded),
-                                onPressed: onClose,
+                              onExport: () => _exportCollection(
+                                context,
+                                player,
+                                favorites: showFavorites,
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          _QueueTabs(
-                            showFavorites: showFavorites,
-                            onToggle: onToggleTab,
-                            playlistCount: player.queue.length,
-                            favoritesCount: player.favorites.length,
-                          ),
-                          const SizedBox(height: 16),
-                          _QueueActionsBar(
-                            showFavorites: showFavorites,
-                            onImport: () => _importCollection(
-                              context,
-                              player,
-                              favorites: showFavorites,
+                              onClear: () => _clearCollection(
+                                context,
+                                player,
+                                favorites: showFavorites,
+                              ),
+                              onAddAll: showFavorites
+                                  ? () => _addFavoritesToQueue(context, player)
+                                  : null,
                             ),
-                            onExport: () => _exportCollection(
-                              context,
-                              player,
-                              favorites: showFavorites,
-                            ),
-                            onClear: () => _clearCollection(
-                              context,
-                              player,
-                              favorites: showFavorites,
-                            ),
-                            onAddAll: showFavorites
-                                ? () => _addFavoritesToQueue(context, player)
-                                : null,
-                          ),
-                          const SizedBox(height: 16),
-                          Expanded(
-                            child: songs.isEmpty
-                                ? const Center(child: Text('暂无歌曲'))
-                                : ListView.separated(
-                                    physics: const BouncingScrollPhysics(),
-                                    padding: EdgeInsets.only(
-                                      top: 4,
-                                      bottom: safePadding.bottom + 16,
+                            const SizedBox(height: 16),
+                            Expanded(
+                              child: songs.isEmpty
+                                  ? const Center(child: Text('暂无歌曲'))
+                                  : ListView.separated(
+                                      physics: const BouncingScrollPhysics(),
+                                      padding: EdgeInsets.only(
+                                        top: 4,
+                                        bottom: safePadding.bottom + 16,
+                                      ),
+                                      itemCount: songs.length,
+                                      separatorBuilder: (_, __) => const Divider(
+                                        height: 16,
+                                        thickness: 0.2,
+                                      ),
+                                      itemBuilder: (context, index) {
+                                        final song = songs[index];
+                                        final isActive =
+                                            player.currentSong == song;
+                                        final actions = showFavorites
+                                            ? _buildFavoriteActions(
+                                                context,
+                                                player,
+                                                song,
+                                              )
+                                            : _buildQueueActions(
+                                                context,
+                                                player,
+                                                song,
+                                              );
+                                        return _QueueTile(
+                                          song: song,
+                                          index: index,
+                                          isActive: isActive,
+                                          onTap: () => player.playFromCollection(
+                                            songs,
+                                            index,
+                                          ),
+                                          actions: actions,
+                                        );
+                                      },
                                     ),
-                                    itemCount: songs.length,
-                                    separatorBuilder: (_, __) => const Divider(
-                                      height: 16,
-                                      thickness: 0.2,
-                                    ),
-                                    itemBuilder: (context, index) {
-                                      final song = songs[index];
-                                      final isActive =
-                                          player.currentSong == song;
-                                      final actions = showFavorites
-                                          ? _buildFavoriteActions(
-                                              context,
-                                              player,
-                                              song,
-                                            )
-                                          : _buildQueueActions(
-                                              context,
-                                              player,
-                                              song,
-                                            );
-                                      return _QueueTile(
-                                        song: song,
-                                        index: index,
-                                        isActive: isActive,
-                                        onTap: () => player.playFromCollection(
-                                          songs,
-                                          index,
-                                        ),
-                                        actions: actions,
-                                      );
-                                    },
-                                  ),
-                          ),
-                        ],
-                      ),
+                            ),
+                          ],
+                        ),
                     ),
                   ),
                 ),
