@@ -538,21 +538,22 @@ class _NotificationOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = context.watch<SolaraNotificationController>();
     final notification = controller.current;
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final mediaQuery = MediaQuery.of(context);
+    final topPadding = mediaQuery.padding.top;
     final child = notification == null
         ? const SizedBox.shrink()
         : _NotificationChip(notification: notification);
     return IgnorePointer(
       ignoring: true,
       child: Align(
-        alignment: Alignment.bottomCenter,
+        alignment: Alignment.topCenter,
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 280),
           switchInCurve: Curves.easeOutCubic,
           switchOutCurve: Curves.easeInCubic,
           transitionBuilder: (child, animation) {
             final offsetAnimation = Tween<Offset>(
-              begin: const Offset(0, 0.2),
+              begin: const Offset(0, -0.2),
               end: Offset.zero,
             ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
             return FadeTransition(
@@ -564,7 +565,7 @@ class _NotificationOverlay extends StatelessWidget {
               ? const SizedBox(key: ValueKey('empty'))
               : Padding(
                   key: ValueKey(notification.id),
-                  padding: EdgeInsets.fromLTRB(24, 0, 24, bottomPadding + 16),
+                  padding: EdgeInsets.fromLTRB(24, topPadding + 56, 24, 0),
                   child: child,
                 ),
         ),
@@ -835,15 +836,14 @@ class _SongSummary extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 56),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 260),
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 320),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Flexible(
                   child: Text(
                     title,
                     style: theme.textTheme.headlineSmall?.copyWith(
@@ -855,16 +855,10 @@ class _SongSummary extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                 ),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: favoriteButton,
-                ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                SizedBox(width: 40, height: 40, child: favoriteButton),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 8),
@@ -2376,7 +2370,7 @@ class _ExplorePreferencesSheetState extends State<_ExplorePreferencesSheet> {
                     const SizedBox(width: 8),
                     TextButton.icon(
                       onPressed: _clearAll,
-                      icon: const Icon(Icons.close_small),
+                      icon: const Icon(Icons.clear_rounded),
                       label: const Text('清空'),
                     ),
                     const Spacer(),
@@ -2455,6 +2449,7 @@ class _ExplorePreferencesSheetState extends State<_ExplorePreferencesSheet> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -2602,35 +2597,45 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '全网搜索',
-                                style: theme.textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
+                    SizedBox(
+                      height: 72,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Align(
+                            alignment: Alignment.center,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '全网搜索',
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '从网易云、酷我、JOOX 捕捉灵感',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: Colors.white70,
+                                const SizedBox(height: 4),
+                                Text(
+                                  '从网易云、酷我、JOOX 捕捉灵感',
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: Colors.white70,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded),
-                          onPressed: widget.onClose,
-                        ),
-                      ],
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: IconButton(
+                              icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                              tooltip: '收起搜索',
+                              onPressed: widget.onClose,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Container(
@@ -2643,10 +2648,19 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                       child: TextField(
                         controller: _controller,
                         textInputAction: TextInputAction.search,
+                        textAlignVertical: TextAlignVertical.center,
                         onSubmitted: (_) => _submitSearch(search),
                         decoration: InputDecoration(
                           hintText: '搜索歌曲或歌手',
                           border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          isDense: true,
+                          contentPadding:
+                              const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
+                          hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                            color: Colors.white60,
+                          ),
                           prefixIcon: const Icon(Icons.search_rounded),
                           suffixIconConstraints:
                               const BoxConstraints(minHeight: 0, minWidth: 0),
@@ -2760,6 +2774,9 @@ class _SearchSourceSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Wrap(
+      alignment: WrapAlignment.center,
+      runAlignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
       spacing: 10,
       runSpacing: 8,
       children: [
@@ -3434,15 +3451,32 @@ class Song {
     final artists = artistField is List
         ? artistField.whereType<String>().join(' / ')
         : artistField?.toString() ?? '未知艺术家';
+    final picId = json['pic_id'] ??
+        json['picId'] ??
+        json['pic'] ??
+        json['picStr'] ??
+        json['picUrl'] ??
+        json['cover'] ??
+        json['coverImgId'] ??
+        json['albummid'] ??
+        json['image'];
+    final urlId = json['url_id'] ??
+        json['urlId'] ??
+        json['rid'] ??
+        json['sid'] ??
+        json['hash'] ??
+        json['songId'] ??
+        id;
+    final lyricId = json['lyric_id'] ?? json['lyricId'] ?? json['lrc'] ?? id;
     return Song(
       id: id.toString(),
       source: _parseSource(json['source'] as String?),
       name: name.toString(),
       artist: artists.isEmpty ? '未知艺术家' : artists,
       album: json['album']?.toString(),
-      picId: json['pic_id']?.toString(),
-      urlId: json['url_id']?.toString(),
-      lyricId: json['lyric_id']?.toString(),
+      picId: picId?.toString(),
+      urlId: urlId?.toString(),
+      lyricId: lyricId?.toString(),
     );
   }
 
