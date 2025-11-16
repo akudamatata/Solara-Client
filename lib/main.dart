@@ -209,7 +209,6 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
           child: Stack(
             children: [
               const _BackgroundHalo(),
-              const _NotificationOverlay(),
               Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
@@ -250,11 +249,11 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         );
                         final controlSpacing = sectionSpacing +
                             (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
-                        final double notificationReserve =
-                            media.padding.bottom + (isCupertino ? 56 : 32);
-                        final bottomSpacing = isCupertino
-                            ? notificationReserve
-                            : _clampSpacing(availableHeight * 0.05, 18, 44);
+                        final double notificationReserve = media.padding.bottom +
+                            (isCupertino ? 120 : 88);
+                        final baseBottomSpacing =
+                            _clampSpacing(availableHeight * 0.05, 18, 48);
+                        final bottomSpacing = max(notificationReserve, baseBottomSpacing);
 
                         final topSection = <Widget>[
                           _buildToolbar(context),
@@ -321,6 +320,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                 visible: _showSearch,
                 onClose: () => setState(() => _showSearch = false),
               ),
+              const _NotificationOverlay(),
             ],
           ),
         ),
@@ -1014,7 +1014,7 @@ class _SettingsSheet extends StatelessWidget {
                   children: [
                     _SettingsActionTile(
                       icon: Icons.radar,
-                      label: '探索偏好',
+                      label: '探索雷达',
                       subtitle: exploreSubtitle,
                       onTap: () => _showExplorePreferencesSheet(context, player),
                     ),
@@ -2282,19 +2282,40 @@ class _ExplorePreferencesSheetState extends State<_ExplorePreferencesSheet> {
     });
   }
 
+  void _closeSheet() => Navigator.of(context).pop();
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final height = min(MediaQuery.of(context).size.height * 0.6, 420.0);
-    final canConfirm = _selection.isNotEmpty;
+    final height = min(MediaQuery.of(context).size.height * 0.65, 460.0);
+    final totalGenres = widget.genres.length;
+    final bool hasSelection = _selection.isNotEmpty;
+    final bool hasChanges =
+        !const SetEquality<String>().equals(_selection, widget.initialSelection);
+    final summary = hasSelection
+        ? '探索 ${_selection.length}/$totalGenres 个流派'
+        : '未选择任何流派';
+    final bool canApply = hasSelection && hasChanges;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Material(
         color: Colors.transparent,
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF101218).withOpacity(0.96),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF171C25), Color(0xFF090B11)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x66000000),
+                blurRadius: 28,
+                offset: Offset(0, -12),
+              ),
+            ],
           ),
           child: SafeArea(
             top: false,
@@ -2313,75 +2334,187 @@ class _ExplorePreferencesSheetState extends State<_ExplorePreferencesSheet> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  '探索雷达',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '选择希望探索的音乐流派，取消选择可避开对应流派。',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 Row(
                   children: [
-                    TextButton(
-                      onPressed: _selectAll,
-                      child: const Text('全选'),
+                    const Icon(Icons.radar, size: 20, color: Color(0xFFFF6B5F)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '探索雷达',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '选择喜爱的流派作为探索范围，Solara 会定向挖掘。',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: _clearAll,
-                      child: const Text('全不选'),
-                    ),
-                    const Spacer(),
                     IconButton(
                       icon: const Icon(Icons.close_rounded),
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: _closeSheet,
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    TextButton.icon(
+                      onPressed: _selectAll,
+                      icon: const Icon(Icons.select_all_rounded),
+                      label: const Text('全选'),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton.icon(
+                      onPressed: _clearAll,
+                      icon: const Icon(Icons.close_small),
+                      label: const Text('清空'),
+                    ),
+                    const Spacer(),
+                    Text(
+                      summary,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 ConstrainedBox(
                   constraints: BoxConstraints(maxHeight: height),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemBuilder: (context, index) {
-                      final genre = widget.genres[index];
-                      final selected = _selection.contains(genre);
-                      return CheckboxListTile(
-                        value: selected,
-                        onChanged: (_) => _toggleGenre(genre),
-                        title: Text(genre),
-                        controlAffinity: ListTileControlAffinity.leading,
-                        activeColor: theme.colorScheme.primary,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                      );
-                    },
-                    separatorBuilder: (_, __) => const Divider(height: 12, thickness: 0.2),
-                    itemCount: widget.genres.length,
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        for (final genre in widget.genres)
+                          _GenreToggleChip(
+                            label: genre,
+                            selected: _selection.contains(genre),
+                            onTap: () => _toggleGenre(genre),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: canConfirm
-                      ? () => Navigator.of(context).pop<Set<String>>({..._selection})
-                      : null,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    textStyle:
-                        theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.03),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white12),
                   ),
-                  child: Text(canConfirm ? '保存偏好' : '请选择至少一个流派'),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              summary,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '点击应用后探索雷达将按此偏好匹配推荐。',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      FilledButton.icon(
+                        onPressed: canApply
+                            ? () => Navigator.of(context)
+                                .pop<Set<String>>({..._selection})
+                            : null,
+                        icon: const Icon(Icons.check_circle_outline_rounded),
+                        label: const Text('应用'),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GenreToggleChip extends StatelessWidget {
+  const _GenreToggleChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.primary;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: selected ? color.withOpacity(0.2) : Colors.white.withOpacity(0.04),
+          border: Border.all(
+            color: selected ? color : Colors.white24,
+            width: 1.2,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: color.withOpacity(0.3),
+                    blurRadius: 18,
+                    offset: const Offset(0, 10),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              selected ? Icons.check_circle : Icons.circle_outlined,
+              size: 16,
+              color: selected ? color : Colors.white54,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ],
         ),
       ),
     );
@@ -2406,99 +2539,213 @@ class _SearchOverlayState extends State<_SearchOverlay> {
     super.initState();
     final search = context.read<SolaraSearchController>();
     _controller = TextEditingController(text: search.query);
+    _controller.addListener(_handleTextChanged);
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_handleTextChanged);
     _controller.dispose();
     super.dispose();
+  }
+
+  void _handleTextChanged() {
+    setState(() {});
+  }
+
+  void _submitSearch(SolaraSearchController search) {
+    final keyword = _controller.text.trim();
+    if (keyword.isEmpty) {
+      search.reset();
+      return;
+    }
+    search.search(keyword);
+  }
+
+  Future<void> _playFromResult(Song song) async {
+    final player = context.read<SolaraPlayerController>();
+    final notifications = context.read<SolaraNotificationController?>();
+    final success = await player.playFromCollection([song], 0);
+    if (!success) {
+      notifications?.error('无法播放该歌曲');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final search = context.watch<SolaraSearchController>();
+    final size = MediaQuery.of(context).size;
+    final theme = Theme.of(context);
     return AnimatedPositioned(
-      duration: const Duration(milliseconds: 280),
+      duration: const Duration(milliseconds: 320),
       curve: Curves.easeOutCubic,
       left: 0,
       right: 0,
-      top: widget.visible ? 0 : -MediaQuery.of(context).size.height,
-      height: MediaQuery.of(context).size.height,
-      child: Material(
-        color: const Color(0xFF0E0F13).withOpacity(0.98),
-        child: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+      top: widget.visible ? 0 : -size.height,
+      height: size.height,
+      child: IgnorePointer(
+        ignoring: !widget.visible,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xF016181F), Color(0xF0080A10)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            child: SafeArea(
+              bottom: true,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(22, 18, 22, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '全网搜索',
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '从网易云、酷我、JOOX 捕捉灵感',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: widget.onClose,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.06),
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: TextField(
                         controller: _controller,
                         textInputAction: TextInputAction.search,
-                        onSubmitted: (value) => search.search(value),
+                        onSubmitted: (_) => _submitSearch(search),
                         decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white.withOpacity(0.07),
-                          prefixIcon: const Icon(Icons.search),
                           hintText: '搜索歌曲或歌手',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(28),
-                            borderSide: BorderSide.none,
+                          border: InputBorder.none,
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          suffixIconConstraints:
+                              const BoxConstraints(minHeight: 0, minWidth: 0),
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_controller.text.isNotEmpty)
+                                IconButton(
+                                  icon: const Icon(Icons.close_rounded),
+                                  tooltip: '清除',
+                                  onPressed: () {
+                                    _controller.clear();
+                                    search.reset();
+                                  },
+                                ),
+                              IconButton(
+                                icon: const Icon(Icons.arrow_outward_rounded),
+                                tooltip: '搜索',
+                                onPressed: () => _submitSearch(search),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: widget.onClose,
+                    const SizedBox(height: 16),
+                    _SearchSourceSelector(
+                      selected: search.source,
+                      onSelected: search.changeSource,
+                    ),
+                    const SizedBox(height: 18),
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        child: _buildResultsPane(context, search),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _ImportBar(
+                      selectedCount: search.selectedCount,
+                      onImport: search.selectedCount == 0
+                          ? null
+                          : () async {
+                              await search.importSelection();
+                              widget.onClose();
+                            },
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                _SearchSourceSelector(
-                  selected: search.source,
-                  onSelected: search.changeSource,
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: search.isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : search.results.isEmpty
-                          ? const Center(child: Text('暂无搜索结果'))
-                          : ListView.separated(
-                              itemCount: search.results.length,
-                              separatorBuilder: (_, __) => const Divider(height: 18, thickness: 0.2),
-                              itemBuilder: (context, index) {
-                                final song = search.results[index];
-                                final isSelected = search.isSelected(song);
-                                return _SearchResultTile(
-                                  song: song,
-                                  isSelected: isSelected,
-                                  onSelect: () => search.toggleSelection(song),
-                                );
-                              },
-                            ),
-                ),
-                const SizedBox(height: 12),
-                _ImportBar(
-                  selectedCount: search.selectedCount,
-                  onImport: search.selectedCount == 0
-                      ? null
-                      : () async {
-                          await search.importSelection();
-                          widget.onClose();
-                        },
-                ),
-              ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildResultsPane(BuildContext context, SolaraSearchController search) {
+    if (search.isLoading) {
+      return const _SearchStateCard(
+        icon: Icons.radar_rounded,
+        title: '正在搜索',
+        subtitle: '正在向音源请求歌曲…',
+        child: Padding(
+          padding: EdgeInsets.only(top: 16),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    if (search.query.isEmpty) {
+      return const _SearchStateCard(
+        icon: Icons.travel_explore,
+        title: '开始探索',
+        subtitle: '输入关键字，或切换音源获取不同灵感',
+      );
+    }
+    if (search.results.isEmpty) {
+      return const _SearchStateCard(
+        icon: Icons.sentiment_dissatisfied_rounded,
+        title: '没有找到匹配的歌曲',
+        subtitle: '尝试更换关键词或切换音源',
+      );
+    }
+    return ListView.separated(
+      key: ValueKey('${search.source.param}-${search.results.length}-${search.selectedCount}'),
+      padding: const EdgeInsets.only(bottom: 12),
+      physics: const BouncingScrollPhysics(),
+      itemCount: search.results.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final song = search.results[index];
+        final isSelected = search.isSelected(song);
+        return _SearchResultTile(
+          song: song,
+          isSelected: isSelected,
+          onSelect: () => search.toggleSelection(song),
+          onPlay: () => _playFromResult(song),
+        );
+      },
     );
   }
 }
@@ -2511,23 +2758,72 @@ class _SearchSourceSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 42,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemBuilder: (context, index) {
-          final source = SongSource.values[index];
-          final active = selected == source;
-          return ChoiceChip(
-            selected: active,
-            onSelected: (_) => onSelected(source),
-            label: Text(source.label),
-          );
-        },
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemCount: SongSource.values.length,
-      ),
+    final theme = Theme.of(context);
+    return Wrap(
+      spacing: 10,
+      runSpacing: 8,
+      children: [
+        for (final source in SongSource.values)
+          GestureDetector(
+            onTap: () => onSelected(source),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: selected == source
+                      ? theme.colorScheme.primary
+                      : Colors.white24,
+                  width: 1.2,
+                ),
+                color: selected == source
+                    ? theme.colorScheme.primary.withOpacity(0.18)
+                    : Colors.white.withOpacity(0.03),
+                boxShadow: selected == source
+                    ? [
+                        BoxShadow(
+                          color: theme.colorScheme.primary.withOpacity(0.25),
+                          blurRadius: 16,
+                          offset: const Offset(0, 10),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _iconForSource(source),
+                    size: 16,
+                    color: selected == source
+                        ? theme.colorScheme.primary
+                        : Colors.white70,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    source.label,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
+  }
+
+  IconData _iconForSource(SongSource source) {
+    switch (source) {
+      case SongSource.netease:
+        return Icons.cloud_queue_rounded;
+      case SongSource.kuwo:
+        return Icons.graphic_eq_rounded;
+      case SongSource.joox:
+        return Icons.waves_rounded;
+    }
   }
 }
 
@@ -2536,24 +2832,59 @@ class _SearchResultTile extends StatelessWidget {
     required this.song,
     required this.isSelected,
     required this.onSelect,
+    required this.onPlay,
   });
 
   final Song song;
   final bool isSelected;
   final VoidCallback onSelect;
+  final VoidCallback onPlay;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasAlbum = song.album?.isNotEmpty == true;
     return InkWell(
       onTap: onSelect,
-      borderRadius: BorderRadius.circular(18),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+      borderRadius: BorderRadius.circular(22),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          color: Colors.white.withOpacity(0.03),
+          border: Border.all(
+            color: isSelected ? theme.colorScheme.primary : Colors.white12,
+            width: 1.2,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: theme.colorScheme.primary.withOpacity(0.25),
+                    blurRadius: 18,
+                    offset: const Offset(0, 10),
+                  ),
+                ]
+              : null,
+        ),
         child: Row(
           children: [
-            Icon(
-              isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: isSelected ? const Color(0xFFFF6B5F) : Colors.white54,
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected
+                    ? theme.colorScheme.primary.withOpacity(0.2)
+                    : Colors.white.withOpacity(0.03),
+                border: Border.all(
+                  color: isSelected ? theme.colorScheme.primary : Colors.white24,
+                ),
+              ),
+              child: Icon(
+                isSelected ? Icons.check_rounded : Icons.add_rounded,
+                size: 16,
+                color: isSelected ? theme.colorScheme.primary : Colors.white60,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -2564,32 +2895,101 @@ class _SearchResultTile extends StatelessWidget {
                     song.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyLarge,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     song.artist,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _buildBadge(
+                        context,
+                        icon: Icons.source_rounded,
+                        label: song.source.label,
+                      ),
+                      if (hasAlbum) ...[
+                        const SizedBox(width: 8),
+                        _buildBadge(
+                          context,
+                          icon: Icons.album_outlined,
+                          label: song.album!,
+                          subtle: true,
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.play_arrow_rounded),
-              onPressed: () async {
-                final player = context.read<SolaraPlayerController>();
-                final success = await player.playFromCollection([song], 0);
-                if (!success) {
-                  final notifications =
-                      context.read<SolaraNotificationController?>();
-                  notifications?.error('无法播放该歌曲');
-                }
-              },
+            const SizedBox(width: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.colorScheme.primary.withOpacity(0.4),
+                    blurRadius: 16,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.play_arrow_rounded),
+                color: Colors.white,
+                onPressed: onPlay,
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBadge(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    bool subtle = false,
+  }) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: subtle ? Colors.white.withOpacity(0.02) : Colors.white.withOpacity(0.06),
+        border: Border.all(
+          color: subtle ? Colors.white12 : theme.colorScheme.primary.withOpacity(0.4),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: subtle ? Colors.white60 : theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2603,26 +3003,106 @@ class _ImportBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          Text('导入已选 ($selectedCount)'),
-          const Spacer(),
-          ElevatedButton(
-            onPressed: onImport,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF6B5F),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+    final theme = Theme.of(context);
+    final bool enabled = onImport != null;
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
+      opacity: enabled ? 1 : 0.6,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '已选 $selectedCount 首歌曲',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '可多选后一次导入到播放列表',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: const Text('添加到播放列表'),
-          ),
-        ],
+            const SizedBox(width: 12),
+            FilledButton.icon(
+              onPressed: onImport,
+              icon: const Icon(Icons.playlist_add_rounded),
+              label: const Text('导入'),
+              style: FilledButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchStateCard extends StatelessWidget {
+  const _SearchStateCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.child,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          color: Colors.white.withOpacity(0.03),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 32, color: theme.colorScheme.primary),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white70,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (child != null) child!,
+          ],
+        ),
       ),
     );
   }
@@ -3387,10 +3867,16 @@ class SolaraPlayerController extends ChangeNotifier {
       await _player.play();
       _currentSong = song;
       _currentArtwork = artwork;
-      _currentLyrics = await lyricsFuture;
+      _currentLyrics = const [];
       _errorMessage = null;
       unawaited(_updateRemoteCommands());
       notifyListeners();
+      unawaited(lyricsFuture.then((lyrics) {
+        if (_currentSong == song) {
+          _currentLyrics = lyrics;
+          notifyListeners();
+        }
+      }));
     } catch (error) {
       _errorMessage = error.toString();
       notifyListeners();
@@ -3813,6 +4299,17 @@ class SolaraSearchController extends ChangeNotifier {
     } else {
       _selection.add(song.identity);
     }
+    notifyListeners();
+  }
+
+  void reset() {
+    if (_results.isEmpty && _selection.isEmpty && _query.isEmpty && !_isLoading) {
+      return;
+    }
+    _results = const [];
+    _selection.clear();
+    _query = '';
+    _isLoading = false;
     notifyListeners();
   }
 
