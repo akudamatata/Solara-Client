@@ -228,10 +228,10 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         final bool isCupertino =
                             Theme.of(context).platform == TargetPlatform.iOS;
                         final double cupertinoBaseSpacing = isCupertino
-                            ? _clampSpacing(availableHeight * 0.04, 18, 56)
+                            ? _clampSpacing(availableHeight * 0.06, 24, 84)
                             : 0;
                         final double cupertinoDetailSpacing = isCupertino
-                            ? _clampSpacing(availableHeight * 0.024, 12, 36)
+                            ? _clampSpacing(availableHeight * 0.036, 16, 48)
                             : 0;
                         final topSpacing = _clampSpacing(
                           availableHeight * 0.025 + cupertinoBaseSpacing,
@@ -250,7 +250,11 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         );
                         final controlSpacing = sectionSpacing +
                             (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
-                        final bottomSpacing = _clampSpacing(availableHeight * 0.05, 18, 44);
+                        final double notificationReserve =
+                            media.padding.bottom + (isCupertino ? 56 : 32);
+                        final bottomSpacing = isCupertino
+                            ? notificationReserve
+                            : _clampSpacing(availableHeight * 0.05, 18, 44);
 
                         final topSection = <Widget>[
                           _buildToolbar(context),
@@ -2860,19 +2864,17 @@ class SolaraApiException implements Exception {
   String toString() => message;
 }
 
-enum SongSource { netease, tencent, kugou, migu }
+enum SongSource { netease, kuwo, joox }
 
 extension on SongSource {
   String get label {
     switch (this) {
       case SongSource.netease:
         return '网易云音乐';
-      case SongSource.tencent:
-        return 'QQ音乐';
-      case SongSource.kugou:
-        return '酷狗音乐';
-      case SongSource.migu:
-        return '咪咕音乐';
+      case SongSource.kuwo:
+        return '酷我音乐';
+      case SongSource.joox:
+        return 'JOOX音乐';
     }
   }
 
@@ -2880,12 +2882,10 @@ extension on SongSource {
     switch (this) {
       case SongSource.netease:
         return 'netease';
-      case SongSource.tencent:
-        return 'tencent';
-      case SongSource.kugou:
-        return 'kugou';
-      case SongSource.migu:
-        return 'migu';
+      case SongSource.kuwo:
+        return 'kuwo';
+      case SongSource.joox:
+        return 'joox';
     }
   }
 }
@@ -3182,9 +3182,8 @@ class SolaraPlayerController extends ChangeNotifier {
 
   static const List<SongSource> _exploreSources = [
     SongSource.netease,
-    SongSource.tencent,
-    SongSource.kugou,
-    SongSource.migu,
+    SongSource.kuwo,
+    SongSource.joox,
   ];
 
   static const String _explorePrefsFile = 'explore_genres.json';
@@ -3355,11 +3354,17 @@ class SolaraPlayerController extends ChangeNotifier {
       return;
     }
     _isLoadingSong = true;
+    _currentSong = song;
+    _currentArtwork = _artworkCache[song.identity];
     notifyListeners();
     try {
       final audioFuture = _api.resolveSongUrl(song, _quality);
-      final artworkFuture = _loadArtwork(song);
-      final lyricsFuture = _loadLyrics(song);
+      final artworkFuture = _loadArtwork(song).catchError<String?>(
+        (_) => null,
+      );
+      final lyricsFuture = _loadLyrics(song).catchError<List<LyricLine>>(
+        (_) => const <LyricLine>[],
+      );
       final audio = await audioFuture;
       final artwork = await artworkFuture;
       final mediaItem = MediaItem(
@@ -3383,6 +3388,7 @@ class SolaraPlayerController extends ChangeNotifier {
       _currentSong = song;
       _currentArtwork = artwork;
       _currentLyrics = await lyricsFuture;
+      _errorMessage = null;
       unawaited(_updateRemoteCommands());
       notifyListeners();
     } catch (error) {
