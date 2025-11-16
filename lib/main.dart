@@ -3359,10 +3359,10 @@ class SolaraPlayerController extends ChangeNotifier {
     notifyListeners();
     try {
       final audioFuture = _api.resolveSongUrl(song, _quality);
-      final artworkFuture = _loadArtwork(song).catchError<String?>(
+      final artworkFuture = _loadArtwork(song).catchError(
         (_) => null,
       );
-      final lyricsFuture = _loadLyrics(song).catchError<List<LyricLine>>(
+      final lyricsFuture = _loadLyrics(song).catchError(
         (_) => const <LyricLine>[],
       );
       final audio = await audioFuture;
