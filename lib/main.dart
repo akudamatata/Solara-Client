@@ -2376,7 +2376,7 @@ class _ExplorePreferencesSheetState extends State<_ExplorePreferencesSheet> {
                     const SizedBox(width: 8),
                     TextButton.icon(
                       onPressed: _clearAll,
-                      icon: const Icon(Icons.close_small),
+                      icon: const Icon(Icons.clear_rounded),
                       label: const Text('清空'),
                     ),
                     const Spacer(),
