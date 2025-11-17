@@ -17,6 +17,29 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+Future<Directory?> _ensureSolaraDirectory({String? child}) async {
+  if (!Platform.isIOS) {
+    return null;
+  }
+  try {
+    final base = await getApplicationDocumentsDirectory();
+    final root = Directory('${base.path}/Solara');
+    if (!await root.exists()) {
+      await root.create(recursive: true);
+    }
+    if (child == null || child.isEmpty) {
+      return root;
+    }
+    final directory = Directory('${root.path}/$child');
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
+    }
+    return directory;
+  } catch (_) {
+    return null;
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await JustAudioBackground.init(
@@ -2592,7 +2615,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
         child: Material(
           color: Colors.transparent,
           child: Container(
-            clipBehavior: Clip.antiAlias,
+            clipBehavior: Clip.hardEdge,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF16181F), Color(0xFF0B0D12)],
@@ -2759,23 +2782,36 @@ class _SearchOverlayState extends State<_SearchOverlay> {
         subtitle: '尝试更换关键词或切换音源',
       );
     }
-    return ListView.separated(
-      key: ValueKey('${search.source.param}-${search.results.length}-${search.selectedCount}'),
-      padding: const EdgeInsets.only(bottom: 12),
-      physics: const BouncingScrollPhysics(),
-      itemCount: search.results.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final song = search.results[index];
-        final isSelected = search.isSelected(song);
-        return _SearchResultTile(
-          song: song,
-          isSelected: isSelected,
-          onSelect: () => search.toggleSelection(song),
-          onPlay: () => _playFromResult(song),
-        );
-      },
+    return ScrollConfiguration(
+      behavior: const _SearchScrollBehavior(),
+      child: ListView.separated(
+        key: ValueKey('${search.source.param}-${search.results.length}-${search.selectedCount}'),
+        padding: const EdgeInsets.only(bottom: 12),
+        physics: const BouncingScrollPhysics(),
+        itemCount: search.results.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final song = search.results[index];
+          final isSelected = search.isSelected(song);
+          return _SearchResultTile(
+            song: song,
+            isSelected: isSelected,
+            onSelect: () => search.toggleSelection(song),
+            onPlay: () => _playFromResult(song),
+          );
+        },
+      ),
     );
+  }
+}
+
+class _SearchScrollBehavior extends ScrollBehavior {
+  const _SearchScrollBehavior();
+
+  @override
+  Widget buildOverscrollIndicator(
+      BuildContext context, Widget child, ScrollableDetails details) {
+    return child;
   }
 }
 
@@ -3115,23 +3151,8 @@ class SolaraLogRecorder {
   Directory? _directory;
 
   Future<Directory?> _ensureDirectory() async {
-    if (!Platform.isIOS) {
-      return null;
-    }
-    if (_directory != null) {
-      return _directory;
-    }
-    try {
-      final base = await getApplicationDocumentsDirectory();
-      final directory = Directory('${base.path}/SolaraLogs');
-      if (!await directory.exists()) {
-        await directory.create(recursive: true);
-      }
-      _directory = directory;
-      return directory;
-    } catch (_) {
-      return null;
-    }
+    _directory ??= await _ensureSolaraDirectory(child: 'Logs');
+    return _directory;
   }
 
   Future<void> record({
@@ -3683,6 +3704,7 @@ class SolaraPlayerController extends ChangeNotifier {
   ];
 
   static const String _explorePrefsFile = 'explore_genres.json';
+  static const String _playerStateFile = 'player_state.json';
 
   final Set<String> _disabledExploreGenres = <String>{};
 
@@ -3690,6 +3712,7 @@ class SolaraPlayerController extends ChangeNotifier {
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<PlayerState>? _stateSub;
   bool _remoteConfigured = false;
+  Timer? _saveDebounce;
 
   bool _isLoadingSong = false;
   bool _isExploring = false;
@@ -3707,10 +3730,12 @@ class SolaraPlayerController extends ChangeNotifier {
     await _configureRemote();
     _positionSub = _player.positionStream.listen((value) {
       _position = value;
+      _scheduleStateSave();
       notifyListeners();
     });
     _durationSub = _player.durationStream.listen((value) {
       _duration = value ?? Duration.zero;
+      _scheduleStateSave();
       notifyListeners();
     });
     _stateSub = _player.playerStateStream.listen((state) {
@@ -3719,6 +3744,7 @@ class SolaraPlayerController extends ChangeNotifier {
       }
       notifyListeners();
     });
+    await _loadPersistentState();
     await _loadExplorePreferences();
   }
 
@@ -3733,10 +3759,15 @@ class SolaraPlayerController extends ChangeNotifier {
 
   Future<void> _loadExplorePreferences() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/$_explorePrefsFile');
-      if (!await file.exists()) {
-        return;
+      final directory = await _ensureSolaraDirectory();
+      File? file = directory != null ? File('${directory.path}/$_explorePrefsFile') : null;
+      if (file == null || !await file.exists()) {
+        final legacyDir = await getApplicationDocumentsDirectory();
+        final legacyFile = File('${legacyDir.path}/$_explorePrefsFile');
+        if (!await legacyFile.exists()) {
+          return;
+        }
+        file = legacyFile;
       }
       final raw = await file.readAsString();
       if (raw.trim().isEmpty) {
@@ -3773,7 +3804,10 @@ class SolaraPlayerController extends ChangeNotifier {
 
   Future<void> _saveExplorePreferences() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
+      final directory = await _ensureSolaraDirectory();
+      if (directory == null) {
+        return;
+      }
       final file = File('${directory.path}/$_explorePrefsFile');
       await file.create(recursive: true);
       final enabled = enabledExploreGenres.toList();
@@ -3781,6 +3815,112 @@ class SolaraPlayerController extends ChangeNotifier {
     } catch (_) {
       // Ignore persistence errors.
     }
+  }
+
+  Future<File?> _resolvePlayerStateFile() async {
+    final directory = await _ensureSolaraDirectory();
+    if (directory == null) {
+      return null;
+    }
+    return File('${directory.path}/$_playerStateFile');
+  }
+
+  Future<void> _loadPersistentState() async {
+    try {
+      final file = await _resolvePlayerStateFile();
+      if (file == null || !await file.exists()) {
+        return;
+      }
+      final raw = await file.readAsString();
+      if (raw.trim().isEmpty) {
+        return;
+      }
+      final dynamic payload = jsonDecode(raw);
+      if (payload is! Map<String, dynamic>) {
+        return;
+      }
+      final queueRaw = payload['queue'] as List<dynamic>? ?? const [];
+      _queue
+        ..clear()
+        ..addAll(queueRaw
+            .whereType<Map<String, dynamic>>()
+            .map(Song.fromSerialized)
+            .whereNotNull());
+      final favoritesRaw = payload['favorites'] as List<dynamic>? ?? const [];
+      _favorites
+        ..clear()
+        ..addEntries(favoritesRaw.whereType<Map<String, dynamic>>().map((raw) {
+          final song = Song.fromSerialized(raw);
+          if (song == null) return null;
+          return MapEntry(song.identity, song);
+        }).whereType<MapEntry<String, Song>>());
+      final currentId = payload['current'] as String?;
+      final currentSerialized =
+          payload['currentSong'] as Map<String, dynamic>?;
+      _currentSong =
+          _queue.firstWhereOrNull((song) => song.identity == currentId) ??
+              Song.fromSerialized(currentSerialized ?? const {});
+      _currentArtwork = payload['artwork'] as String? ?? _currentArtwork;
+      if (_currentSong != null && _currentArtwork != null) {
+        _artworkCache[_currentSong!.identity] = _currentArtwork!;
+      }
+      final quality = payload['quality'] as String?;
+      if (quality != null) {
+        _quality = SongQuality.values
+            .firstWhereOrNull((candidate) => candidate.name == quality) ??
+            _quality;
+      }
+      final playMode = payload['playMode'] as String?;
+      if (playMode != null) {
+        _playMode =
+            PlayMode.values.firstWhereOrNull((mode) => mode.name == playMode) ??
+                _playMode;
+      }
+      final positionMs = payload['positionMs'] as int?;
+      if (positionMs != null) {
+        _position = Duration(milliseconds: max(0, positionMs));
+      }
+      final durationMs = payload['durationMs'] as int?;
+      if (durationMs != null) {
+        _duration = Duration(milliseconds: max(0, durationMs));
+      }
+      notifyListeners();
+      unawaited(_updateRemoteCommands());
+    } catch (_) {
+      // Ignore persistence errors.
+    }
+  }
+
+  Future<void> _savePersistentState() async {
+    try {
+      final file = await _resolvePlayerStateFile();
+      if (file == null) {
+        return;
+      }
+      await file.create(recursive: true);
+      final payload = {
+        'queue': _queue.map((song) => song.toJson()).toList(),
+        'favorites': _favorites.values.map((song) => song.toJson()).toList(),
+        'current': _currentSong?.identity,
+        'currentSong': _currentSong?.toJson(),
+        'playMode': _playMode.name,
+        'quality': _quality.name,
+        'positionMs': _position.inMilliseconds,
+        'durationMs': _duration.inMilliseconds,
+        'artwork': _currentArtwork,
+      };
+      await file.writeAsString(jsonEncode(payload), flush: true);
+    } catch (_) {
+      // Ignore persistence errors.
+    }
+  }
+
+  void _scheduleStateSave() {
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(const Duration(seconds: 2), () {
+      _saveDebounce = null;
+      unawaited(_savePersistentState());
+    });
   }
 
   Future<void> _handleRemoteCommand(MethodCall call) async {
@@ -3851,7 +3991,12 @@ class SolaraPlayerController extends ChangeNotifier {
     }
     _isLoadingSong = true;
     _currentSong = song;
-    _currentArtwork = _artworkCache[song.identity];
+    final initialArtwork =
+        _artworkCache[song.identity] ?? _normalizeArtworkUrl(song.picId);
+    if (initialArtwork != null) {
+      _artworkCache[song.identity] = initialArtwork;
+    }
+    _currentArtwork = initialArtwork;
     notifyListeners();
     try {
       final audioFuture = _api.resolveSongUrl(song, _quality);
@@ -3890,6 +4035,7 @@ class SolaraPlayerController extends ChangeNotifier {
       _currentLyrics = const [];
       _errorMessage = null;
       unawaited(_updateRemoteCommands());
+      unawaited(_savePersistentState());
       notifyListeners();
       unawaited(lyricsFuture.then((lyrics) {
         if (_currentSong == song) {
@@ -3994,6 +4140,7 @@ class SolaraPlayerController extends ChangeNotifier {
     }
     notifyListeners();
     unawaited(_updateRemoteCommands());
+    _scheduleStateSave();
   }
 
   Future<void> pause() async {
@@ -4030,6 +4177,7 @@ class SolaraPlayerController extends ChangeNotifier {
     if (added > 0) {
       notifyListeners();
       unawaited(_updateRemoteCommands());
+      _scheduleStateSave();
     }
     return added;
   }
@@ -4052,6 +4200,7 @@ class SolaraPlayerController extends ChangeNotifier {
     }
     notifyListeners();
     unawaited(_updateRemoteCommands());
+    _scheduleStateSave();
     return true;
   }
 
@@ -4067,6 +4216,7 @@ class SolaraPlayerController extends ChangeNotifier {
     unawaited(_player.stop());
     notifyListeners();
     unawaited(_updateRemoteCommands());
+    _scheduleStateSave();
     return removed;
   }
 
@@ -4077,6 +4227,7 @@ class SolaraPlayerController extends ChangeNotifier {
       _favorites[song.identity] = song;
     }
     notifyListeners();
+    _scheduleStateSave();
   }
 
   int addSongsToFavorites(List<Song> songs) {
@@ -4088,6 +4239,7 @@ class SolaraPlayerController extends ChangeNotifier {
     }
     if (added > 0) {
       notifyListeners();
+      _scheduleStateSave();
     }
     return added;
   }
@@ -4099,6 +4251,7 @@ class SolaraPlayerController extends ChangeNotifier {
     final removed = _favorites.length;
     _favorites.clear();
     notifyListeners();
+    _scheduleStateSave();
     return removed;
   }
 
@@ -4116,6 +4269,7 @@ class SolaraPlayerController extends ChangeNotifier {
     if (_quality == quality) return;
     _quality = quality;
     notifyListeners();
+    _scheduleStateSave();
     if (_currentSong != null) {
       await playSong(_currentSong!);
     }
@@ -4276,6 +4430,7 @@ class SolaraPlayerController extends ChangeNotifier {
     _positionSub?.cancel();
     _durationSub?.cancel();
     _stateSub?.cancel();
+    _saveDebounce?.cancel();
     _player.dispose();
     _api.dispose();
     super.dispose();
