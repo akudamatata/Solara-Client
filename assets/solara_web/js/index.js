@@ -77,6 +77,8 @@ const dom = {
     importFavoritesInput: document.getElementById("importFavoritesInput"),
     clearFavoritesBtn: document.getElementById("clearFavoritesBtn"),
     currentFavoriteToggle: document.getElementById("currentFavoriteToggle"),
+    turntableCover: document.querySelector(".mobile-turntable .album-cover img") ||
+        document.querySelector(".mobile-turntable .album-cover"),
 };
 
 window.SolaraDom = dom;
@@ -801,6 +803,40 @@ const state = {
 
 let importSelectedMenuOutsideHandler = null;
 
+// 只负责更新「旋转唱片盘」上的封面
+function updateTurntableArtwork(url) {
+    const el = dom.turntableCover;
+    if (!el) return;
+
+    const isImg = el.tagName && el.tagName.toUpperCase() === "IMG";
+
+    if (!url) {
+        if (el.classList) {
+            el.classList.add("is-placeholder");
+        }
+
+        if (isImg) {
+            el.src = "/favicon.png";
+        } else {
+            el.style.backgroundImage = "";
+            if (el === dom.albumCover) {
+                el.innerHTML = PLACEHOLDER_HTML;
+            }
+        }
+        return;
+    }
+
+    if (el.classList) {
+        el.classList.remove("is-placeholder");
+    }
+
+    if (isImg) {
+        el.src = url;
+    } else {
+        el.style.backgroundImage = `url("${url}")`;
+    }
+}
+
 async function updateArtworkForCurrentSong(options = {}) {
     const { skipPalette = false } = options;
     const song = state.currentSong;
@@ -817,6 +853,7 @@ async function updateArtworkForCurrentSong(options = {}) {
         albumCover.classList.remove("loading");
         state.currentArtworkUrl = null;
         state.currentPaletteImage = null;
+        updateTurntableArtwork(null);
         if (!skipPalette) {
             queueDefaultPalette();
         }
@@ -843,6 +880,8 @@ async function updateArtworkForCurrentSong(options = {}) {
     }
 
     state.currentArtworkUrl = finalUrl;
+
+    updateTurntableArtwork(finalUrl);
 
     const img = new Image();
     img.decoding = "async";
@@ -882,6 +921,7 @@ async function updateArtworkForCurrentSong(options = {}) {
         if (!skipPalette) {
             queueDefaultPalette();
         }
+        updateTurntableArtwork(null);
     };
 }
 
@@ -2874,7 +2914,10 @@ function setupInteractions() {
     dom.audioPlayer.addEventListener("loadedmetadata", handleLoadedMetadata);
     dom.audioPlayer.addEventListener("play", updatePlayPauseButton);
     dom.audioPlayer.addEventListener("pause", updatePlayPauseButton);
-    dom.audioPlayer.addEventListener("play", () => setPlayingUI(true));
+    dom.audioPlayer.addEventListener("play", () => {
+        updateArtworkForCurrentSong();
+        setPlayingUI(true);
+    });
     dom.audioPlayer.addEventListener("pause", () => setPlayingUI(false));
     dom.audioPlayer.addEventListener("ended", () => {
         setPlayingUI(false);
