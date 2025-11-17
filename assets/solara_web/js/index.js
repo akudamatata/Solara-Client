@@ -801,6 +801,90 @@ const state = {
 
 let importSelectedMenuOutsideHandler = null;
 
+async function updateArtworkForCurrentSong(options = {}) {
+    const { skipPalette = false } = options;
+    const song = state.currentSong;
+    const albumCover = dom.albumCover;
+
+    if (!albumCover) {
+        return;
+    }
+
+    cancelDeferredPaletteUpdate();
+
+    if (!song || !song.pic_id) {
+        albumCover.innerHTML = PLACEHOLDER_HTML;
+        albumCover.classList.remove("loading");
+        state.currentArtworkUrl = null;
+        state.currentPaletteImage = null;
+        if (!skipPalette) {
+            queueDefaultPalette();
+        }
+        if (typeof window.__SOLARA_UPDATE_MEDIA_METADATA === "function") {
+            window.__SOLARA_UPDATE_MEDIA_METADATA();
+        } else {
+            updateMediaMetadata();
+        }
+        return;
+    }
+
+    albumCover.classList.add("loading");
+
+    const picUrl = API.getPicUrl(song);
+    let finalUrl = preferHttpsUrl(toAbsoluteUrl(picUrl));
+
+    try {
+        const data = await API.fetchJson(picUrl);
+        if (data && data.url) {
+            finalUrl = preferHttpsUrl(toAbsoluteUrl(data.url));
+        }
+    } catch (error) {
+        console.warn("解析封面地址失败:", error);
+    }
+
+    state.currentArtworkUrl = finalUrl;
+
+    const img = new Image();
+    img.decoding = "async";
+    img.loading = "lazy";
+    img.src = finalUrl;
+
+    img.onload = () => {
+        if (!state.currentSong || state.currentArtworkUrl !== finalUrl) {
+            return;
+        }
+
+        albumCover.classList.remove("loading");
+        albumCover.innerHTML = "";
+        albumCover.appendChild(img);
+
+        const immediatePalette = paletteCache.has(finalUrl) ||
+            (state.currentPaletteImage === finalUrl && state.dynamicPalette);
+
+        if (!skipPalette) {
+            scheduleDeferredPaletteUpdate(finalUrl, { immediate: immediatePalette });
+        }
+
+        if (typeof window.__SOLARA_UPDATE_MEDIA_METADATA === "function") {
+            window.__SOLARA_UPDATE_MEDIA_METADATA();
+        } else {
+            updateMediaMetadata();
+        }
+    };
+
+    img.onerror = () => {
+        if (state.currentArtworkUrl !== finalUrl) {
+            return;
+        }
+        albumCover.classList.remove("loading");
+        albumCover.innerHTML = PLACEHOLDER_HTML;
+        state.currentPaletteImage = null;
+        if (!skipPalette) {
+            queueDefaultPalette();
+        }
+    };
+}
+
 if (state.currentList === "favorite" && (!Array.isArray(state.favoriteSongs) || state.favoriteSongs.length === 0)) {
     state.currentList = "playlist";
 }
@@ -1916,14 +2000,26 @@ function formatTime(seconds) {
     return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
+function setPlayingUI(isPlaying) {
+    const playing = Boolean(isPlaying);
+    const body = document.body;
+    if (body) {
+        body.classList.toggle("is-playing", playing);
+    }
+
+    if (dom.playPauseBtn) {
+        dom.playPauseBtn.setAttribute("aria-pressed", playing ? "true" : "false");
+        dom.playPauseBtn.innerHTML = `<i class="fas ${playing ? "fa-pause" : "fa-play"}"></i>`;
+    }
+
+    invokeMobileHook("setPlaying", playing);
+}
+
 function updatePlayPauseButton() {
     if (!dom.playPauseBtn) return;
     const isPlaying = !dom.audioPlayer.paused && !dom.audioPlayer.ended;
-    dom.playPauseBtn.innerHTML = `<i class="fas ${isPlaying ? "fa-pause" : "fa-play"}"></i>`;
+    setPlayingUI(isPlaying);
     dom.playPauseBtn.title = isPlaying ? "暂停" : "播放";
-    if (document.body) {
-        document.body.classList.toggle("is-playing", isPlaying);
-    }
 }
 
 function updateProgressBarBackground(value = Number(dom.progressBar.value), max = Number(dom.progressBar.max)) {
@@ -2778,6 +2874,11 @@ function setupInteractions() {
     dom.audioPlayer.addEventListener("loadedmetadata", handleLoadedMetadata);
     dom.audioPlayer.addEventListener("play", updatePlayPauseButton);
     dom.audioPlayer.addEventListener("pause", updatePlayPauseButton);
+    dom.audioPlayer.addEventListener("play", () => setPlayingUI(true));
+    dom.audioPlayer.addEventListener("pause", () => setPlayingUI(false));
+    dom.audioPlayer.addEventListener("ended", () => {
+        setPlayingUI(false);
+    });
     dom.audioPlayer.addEventListener("volumechange", onAudioVolumeChange);
 
     dom.progressBar.addEventListener("input", handleProgressInput);
@@ -3155,59 +3256,7 @@ function updateCurrentSongInfo(song, options = {}) {
         return Promise.resolve();
     }
 
-    // 加载封面
-    if (song.pic_id) {
-        cancelDeferredPaletteUpdate();
-        dom.albumCover.classList.add("loading");
-        const picUrl = API.getPicUrl(song);
-
-        API.fetchJson(picUrl)
-            .then(data => {
-                if (!data || !data.url) {
-                    throw new Error("封面地址缺失");
-                }
-
-                const img = new Image();
-                const imageUrl = preferHttpsUrl(data.url);
-                const absoluteImageUrl = toAbsoluteUrl(imageUrl);
-                if (state.currentSong === song) {
-                    state.currentArtworkUrl = absoluteImageUrl;
-                    if (typeof window.__SOLARA_UPDATE_MEDIA_METADATA === 'function') {
-                        window.__SOLARA_UPDATE_MEDIA_METADATA();
-                    }
-                }
-                img.crossOrigin = "anonymous";
-                img.onload = () => {
-                    if (state.currentSong !== song) {
-                        return;
-                    }
-                    setAlbumCoverImage(imageUrl);
-                    const shouldApplyImmediately = paletteCache.has(imageUrl) ||
-                        (state.currentPaletteImage === imageUrl && state.dynamicPalette);
-                    scheduleDeferredPaletteUpdate(imageUrl, { immediate: shouldApplyImmediately });
-                };
-                img.onerror = () => {
-                    if (state.currentSong !== song) {
-                        return;
-                    }
-                    cancelDeferredPaletteUpdate();
-                    showAlbumCoverPlaceholder();
-                };
-                img.src = imageUrl;
-            })
-            .catch(error => {
-                console.error("加载封面失败:", error);
-                if (state.currentSong === song) {
-                    cancelDeferredPaletteUpdate();
-                    showAlbumCoverPlaceholder();
-                }
-            });
-    } else {
-        cancelDeferredPaletteUpdate();
-        showAlbumCoverPlaceholder();
-    }
-
-    return Promise.resolve();
+    return updateArtworkForCurrentSong();
 }
 
 // 搜索功能 - 修复搜索下拉框显示问题
@@ -3814,47 +3863,43 @@ async function downloadWithQuality(event, index, type, quality) {
     }
 }
 
-// 修复：播放搜索结果 - 添加到播放列表而不是清空
+// 修复：播放搜索结果入口缺少封面和播放状态同步
 async function playSearchResult(index) {
     const song = state.searchResults[index];
     if (!song) return;
 
+    state.currentPlaylist = "search";
+    state.currentList = "playlist";
+    state.currentTrackIndex = index;
+    state.currentSong = song;
+
+    if (dom.currentSongTitle) dom.currentSongTitle.textContent = song.name || "";
+    if (dom.currentSongArtist) dom.currentSongArtist.textContent = song.artist || "";
+
+    await updateArtworkForCurrentSong();
+
+    const url = API.getSongUrl(song, state.playbackQuality);
+    dom.audioPlayer.src = buildAudioProxyUrl(url);
+
     try {
-        // 立即隐藏搜索结果，显示播放界面
+        await dom.audioPlayer.play();
+        setPlayingUI(true);
+    } catch (err) {
+        console.error(err);
+        setPlayingUI(false);
+    }
+
+    if (typeof window.__SOLARA_UPDATE_MEDIA_METADATA === "function") {
+        window.__SOLARA_UPDATE_MEDIA_METADATA();
+    } else {
+        updateMediaMetadata();
+    }
+
+    if (typeof hideSearchResults === "function") {
         hideSearchResults();
-        dom.searchInput.value = "";
-        if (isMobileView) {
-            closeMobileSearch();
-        }
-
-        // 检查歌曲是否已在播放列表中
-        const existingIndex = state.playlistSongs.findIndex(s => s.id === song.id && s.source === song.source);
-
-        if (existingIndex !== -1) {
-            // 如果歌曲已存在，直接播放
-            state.currentTrackIndex = existingIndex;
-            state.currentPlaylist = "playlist";
-            state.currentList = "playlist";
-        } else {
-            // 如果歌曲不存在，添加到播放列表
-            state.playlistSongs.push(song);
-            state.currentTrackIndex = state.playlistSongs.length - 1;
-            state.currentPlaylist = "playlist";
-            state.currentList = "playlist";
-        }
-
-        // 更新播放列表显示
-        renderPlaylist();
-
-        // 播放歌曲
-        await playSong(song);
-        updatePlayModeUI();
-
-        showNotification(`正在播放: ${song.name}`);
-
-    } catch (error) {
-        console.error("播放失败:", error);
-        showNotification("播放失败，请稍后重试", "error");
+    }
+    if (typeof closeMobileSearch === "function") {
+        closeMobileSearch();
     }
 }
 
