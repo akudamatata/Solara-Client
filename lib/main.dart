@@ -859,30 +859,33 @@ class _SongSummary extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 320),
-            child: Row(
-              mainAxisSize: MainAxisSize.max,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(width: 40),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          height: 1.2,
-                        ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
+        SizedBox(
+          height: 76,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 320),
+              child: Row(
+                mainAxisSize: MainAxisSize.max,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(width: 40),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            height: 1.2,
+                          ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(width: 40, height: 40, child: favoriteButton),
-              ],
+                  const SizedBox(width: 8),
+                  SizedBox(width: 40, height: 40, child: favoriteButton),
+                ],
+              ),
             ),
           ),
         ),
@@ -893,6 +896,8 @@ class _SongSummary extends StatelessWidget {
                 color: Colors.white70,
               ),
           textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );
@@ -2593,7 +2598,9 @@ class _SearchOverlayState extends State<_SearchOverlay> {
     final player = context.read<SolaraPlayerController>();
     final notifications = context.read<SolaraNotificationController?>();
     final success = await player.playFromCollection([song], 0);
-    if (!success) {
+    if (success) {
+      widget.onClose();
+    } else {
       notifications?.error('无法播放该歌曲');
     }
   }
