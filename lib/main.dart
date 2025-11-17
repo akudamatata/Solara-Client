@@ -840,10 +840,12 @@ class _SongSummary extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 320),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: MainAxisSize.max,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Flexible(
+                const SizedBox(width: 40),
+                const SizedBox(width: 8),
+                Expanded(
                   child: Text(
                     title,
                     style: theme.textTheme.headlineSmall?.copyWith(
@@ -2295,6 +2297,7 @@ class _ExplorePreferencesSheetState extends State<_ExplorePreferencesSheet> {
       child: Material(
         color: Colors.transparent,
         child: Container(
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF171C25), Color(0xFF090B11)],
@@ -2313,7 +2316,7 @@ class _ExplorePreferencesSheetState extends State<_ExplorePreferencesSheet> {
           ),
           child: SafeArea(
             top: false,
-            minimum: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+            minimum: const EdgeInsets.fromLTRB(24, 18, 24, 28),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2529,6 +2532,10 @@ class _SearchOverlay extends StatefulWidget {
 class _SearchOverlayState extends State<_SearchOverlay> {
   late final TextEditingController _controller;
 
+  void _dismissKeyboard() {
+    FocusScope.of(context).unfocus();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -2549,6 +2556,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
   }
 
   void _submitSearch(SolaraSearchController search) {
+    _dismissKeyboard();
     final keyword = _controller.text.trim();
     if (keyword.isEmpty) {
       search.reset();
@@ -2558,6 +2566,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
   }
 
   Future<void> _playFromResult(Song song) async {
+    _dismissKeyboard();
     final player = context.read<SolaraPlayerController>();
     final notifications = context.read<SolaraNotificationController?>();
     final success = await player.playFromCollection([song], 0);
@@ -2583,17 +2592,19 @@ class _SearchOverlayState extends State<_SearchOverlay> {
         child: Material(
           color: Colors.transparent,
           child: Container(
+            clipBehavior: Clip.antiAlias,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xF016181F), Color(0xF0080A10)],
+                colors: [Color(0xFF16181F), Color(0xFF0B0D12)],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
             ),
             child: SafeArea(
               bottom: true,
+              minimum: const EdgeInsets.fromLTRB(22, 18, 22, 28),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(22, 18, 22, 20),
+                padding: const EdgeInsets.fromLTRB(22, 18, 22, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -2631,7 +2642,10 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                             child: IconButton(
                               icon: const Icon(Icons.keyboard_arrow_down_rounded),
                               tooltip: '收起搜索',
-                              onPressed: widget.onClose,
+                              onPressed: () {
+                                _dismissKeyboard();
+                                widget.onClose();
+                              },
                             ),
                           ),
                         ],
@@ -2674,6 +2688,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                                   onPressed: () {
                                     _controller.clear();
                                     search.reset();
+                                    _dismissKeyboard();
                                   },
                                 ),
                               IconButton(
@@ -2925,25 +2940,29 @@ class _SearchResultTile extends StatelessWidget {
                       color: Colors.white70,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _buildBadge(
-                        context,
-                        icon: Icons.source_rounded,
-                        label: song.source.label,
-                      ),
-                      if (hasAlbum) ...[
-                        const SizedBox(width: 8),
-                        _buildBadge(
-                          context,
-                          icon: Icons.album_outlined,
-                          label: song.album!,
-                          subtle: true,
+                  if (hasAlbum) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.album_outlined,
+                          size: 14,
+                          color: Colors.white60,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            song.album!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: Colors.white70,
+                            ),
+                          ),
                         ),
                       ],
-                    ],
-                  ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -2971,45 +2990,6 @@ class _SearchResultTile extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildBadge(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    bool subtle = false,
-  }) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: subtle ? Colors.white.withOpacity(0.02) : Colors.white.withOpacity(0.06),
-        border: Border.all(
-          color: subtle ? Colors.white12 : theme.colorScheme.primary.withOpacity(0.4),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 14,
-            color: subtle ? Colors.white60 : theme.colorScheme.primary,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _ImportBar extends StatelessWidget {
@@ -3025,47 +3005,49 @@ class _ImportBar extends StatelessWidget {
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 200),
       opacity: enabled ? 1 : 0.6,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.04),
-          borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: Colors.white12),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '已选 $selectedCount 首歌曲',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(26),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.04),
+            borderRadius: BorderRadius.circular(26),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '已选 $selectedCount 首歌曲',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '可多选后一次导入到播放列表',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white70,
+                    const SizedBox(height: 4),
+                    Text(
+                      '可多选后一次导入到播放列表',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white70,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            FilledButton.icon(
-              onPressed: onImport,
-              icon: const Icon(Icons.playlist_add_rounded),
-              label: const Text('导入'),
-              style: FilledButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+              const SizedBox(width: 12),
+              FilledButton.icon(
+                onPressed: onImport,
+                icon: const Icon(Icons.playlist_add_rounded),
+                label: const Text('导入'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -3881,12 +3863,16 @@ class SolaraPlayerController extends ChangeNotifier {
       );
       final audio = await audioFuture;
       final artwork = await artworkFuture;
+      final resolvedArtwork = artwork ?? _normalizeArtworkUrl(song.picId);
+      if (resolvedArtwork != null) {
+        _artworkCache[song.identity] = resolvedArtwork;
+      }
       final mediaItem = MediaItem(
         id: song.identity,
         title: song.name,
         artist: song.artist,
         album: song.album?.isNotEmpty == true ? song.album : null,
-        artUri: artwork != null ? Uri.tryParse(artwork) : null,
+        artUri: resolvedArtwork != null ? Uri.tryParse(resolvedArtwork) : null,
         extras: {
           'source': song.source.param,
           'quality': _quality.label,
@@ -3900,7 +3886,7 @@ class SolaraPlayerController extends ChangeNotifier {
       );
       await _player.play();
       _currentSong = song;
-      _currentArtwork = artwork;
+      _currentArtwork = resolvedArtwork;
       _currentLyrics = const [];
       _errorMessage = null;
       unawaited(_updateRemoteCommands());
@@ -4166,7 +4152,9 @@ class SolaraPlayerController extends ChangeNotifier {
     try {
       final genre = enabledGenres[_random.nextInt(enabledGenres.length)];
       final source = _exploreSources[_random.nextInt(_exploreSources.length)];
-      final results = await _api.search(genre, source: source, limit: 30, page: 1);
+      final results = await _api
+          .search(genre, source: source, limit: 30, page: 1)
+          .timeout(const Duration(seconds: 12));
       if (results.isEmpty) {
         return 0;
       }
@@ -4185,6 +4173,10 @@ class SolaraPlayerController extends ChangeNotifier {
         await playSong(_queue.first);
       }
       return added;
+    } on TimeoutException {
+      _errorMessage = '探索超时，请稍后重试';
+      notifyListeners();
+      return -1;
     } catch (error) {
       _errorMessage = error.toString();
       notifyListeners();
@@ -4247,6 +4239,17 @@ class SolaraPlayerController extends ChangeNotifier {
       _artworkCache[key] = url;
     }
     return url;
+  }
+
+  String? _normalizeArtworkUrl(String? candidate) {
+    if (candidate == null) {
+      return null;
+    }
+    final value = candidate.trim();
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+    return null;
   }
 
   Future<List<LyricLine>> _loadLyrics(Song song) async {
