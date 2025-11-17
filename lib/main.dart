@@ -840,10 +840,12 @@ class _SongSummary extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 320),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: MainAxisSize.max,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Flexible(
+                const SizedBox(width: 40),
+                const SizedBox(width: 8),
+                Expanded(
                   child: Text(
                     title,
                     style: theme.textTheme.headlineSmall?.copyWith(
@@ -2295,6 +2297,7 @@ class _ExplorePreferencesSheetState extends State<_ExplorePreferencesSheet> {
       child: Material(
         color: Colors.transparent,
         child: Container(
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF171C25), Color(0xFF090B11)],
@@ -2313,7 +2316,7 @@ class _ExplorePreferencesSheetState extends State<_ExplorePreferencesSheet> {
           ),
           child: SafeArea(
             top: false,
-            minimum: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+            minimum: const EdgeInsets.fromLTRB(24, 18, 24, 28),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2583,17 +2586,19 @@ class _SearchOverlayState extends State<_SearchOverlay> {
         child: Material(
           color: Colors.transparent,
           child: Container(
+            clipBehavior: Clip.antiAlias,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xF016181F), Color(0xF0080A10)],
+                colors: [Color(0xFF16181F), Color(0xFF0B0D12)],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
             ),
             child: SafeArea(
               bottom: true,
+              minimum: const EdgeInsets.fromLTRB(22, 18, 22, 28),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(22, 18, 22, 20),
+                padding: const EdgeInsets.fromLTRB(22, 18, 22, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -4166,7 +4171,9 @@ class SolaraPlayerController extends ChangeNotifier {
     try {
       final genre = enabledGenres[_random.nextInt(enabledGenres.length)];
       final source = _exploreSources[_random.nextInt(_exploreSources.length)];
-      final results = await _api.search(genre, source: source, limit: 30, page: 1);
+      final results = await _api
+          .search(genre, source: source, limit: 30, page: 1)
+          .timeout(const Duration(seconds: 12));
       if (results.isEmpty) {
         return 0;
       }
@@ -4185,6 +4192,10 @@ class SolaraPlayerController extends ChangeNotifier {
         await playSong(_queue.first);
       }
       return added;
+    } on TimeoutException {
+      _errorMessage = '探索超时，请稍后重试';
+      notifyListeners();
+      return -1;
     } catch (error) {
       _errorMessage = error.toString();
       notifyListeners();
