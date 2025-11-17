@@ -89,7 +89,7 @@ body.mobile-view .container {
     position: relative;
     overflow: visible;
     flex: 1 1 auto;
-    min-height: calc(var(--mobile-vh, 100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    min-height: max(100vh, calc(var(--mobile-vh, 100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
     box-sizing: border-box;
 }
 
@@ -160,6 +160,10 @@ body.mobile-view .main-content {
     flex: 1 1 auto;
     justify-content: flex-start;
     min-height: 0;
+    align-items: center;
+    overflow-y: auto;
+    padding: 0 24px 96px;
+    box-sizing: border-box;
 }
 
 body.mobile-view .cover-area {
@@ -173,14 +177,15 @@ body.mobile-view .cover-area {
 }
 
 body.mobile-view .mobile-turntable {
-    margin-bottom: 0;
+    margin-top: 32px;
+    margin-bottom: 24px;
     position: relative;
     display: flex;
     justify-content: center;
 }
 
 body.mobile-view .mobile-turntable__platter {
-    width: min(78vw, 320px);
+    width: min(68vw, 320px);
     aspect-ratio: 1 / 1;
     border-radius: 50%;
     background: radial-gradient(circle at 48% 50%, #1a1d25 0%, #05070c 65%, #000 100%);
@@ -353,11 +358,22 @@ body.mobile-view .current-song-title {
     font-weight: 600;
     color: #ffffff;
     letter-spacing: 0.02em;
+    max-width: 80%;
+    margin: 12px auto 4px;
+    text-align: center;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 body.mobile-view .current-song-artist {
     font-size: 0.95rem;
     color: rgba(255, 255, 255, 0.7);
+    margin-top: 4px;
+    margin-bottom: 16px;
 }
 
 body.mobile-view .mobile-quality-chip {
@@ -405,10 +421,11 @@ body.mobile-view .controls {
     border: none;
     box-shadow: none;
     margin: 0;
-    padding: 0;
+    padding: 12px 24px 24px;
     gap: clamp(16px, 5vw, 24px);
     align-items: stretch;
     margin-top: auto;
+    flex-shrink: 0;
     grid-template-columns: unset;
     grid-template-areas: unset;
 }
@@ -426,6 +443,8 @@ body.mobile-view .progress-container {
     row-gap: 8px;
     column-gap: 10px;
     align-items: center;
+    margin-top: 16px;
+    margin-bottom: 24px;
 }
 
 body.mobile-view .progress-container input[type="range"] {
