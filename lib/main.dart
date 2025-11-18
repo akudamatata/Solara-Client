@@ -251,42 +251,54 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         final bool isCupertino =
                             Theme.of(context).platform == TargetPlatform.iOS;
                         final double cupertinoBaseSpacing = isCupertino
-                            ? _clampSpacing(availableHeight * 0.02, 8, 36)
+                            ? _clampSpacing(availableHeight * 0.02, 8, 32)
                             : 0;
                         final double cupertinoDetailSpacing = isCupertino
-                            ? _clampSpacing(availableHeight * 0.015, 6, 20)
+                            ? _clampSpacing(availableHeight * 0.015, 6, 18)
                             : 0;
-                        final topSpacing = _clampSpacing(
-                          availableHeight * 0.01 + cupertinoBaseSpacing,
-                          8,
-                          isCupertino ? 36 : 16,
-                        );
-                        final sectionSpacing = _clampSpacing(
-                          availableHeight * 0.015 + cupertinoBaseSpacing,
-                          10,
-                          isCupertino ? 36 : 24,
-                        );
-                        final minorSpacing = _clampSpacing(
-                          availableHeight * 0.01 + cupertinoDetailSpacing,
-                          6,
-                          isCupertino ? 20 : 16,
-                        );
-                        final controlSpacing = sectionSpacing +
-                            (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
-                        // 调整底部间距计算，确保至少有 16 像素的 Home Indicator 间距
-                        final double minBottomPadding =
-                            isCupertino ? media.padding.bottom : 0;
-                        final double notificationReserve = minBottomPadding +
-                            (isCupertino ? 40 : 88);
-                        final baseBottomSpacing =
-                            _clampSpacing(availableHeight * 0.05, 18, 48);
-                        final bottomSpacing = max(notificationReserve, baseBottomSpacing);
+                        final double cupertinoMidSpacing = isCupertino
+                            ? _clampSpacing(availableHeight * 0.01, 6, 18)
+                            : 0;
 
+                        final topSpacing = _clampSpacing(
+                          availableHeight * 0.012 + cupertinoBaseSpacing * 0.4,
+                          10,
+                          isCupertino ? 28 : 16,
+                        );
+
+                        final bodySectionSpacing = _clampSpacing(
+                          availableHeight * 0.018 +
+                              cupertinoBaseSpacing * 0.8 +
+                              cupertinoMidSpacing,
+                          14,
+                          isCupertino ? 42 : 24,
+                        );
+
+                        final minorSpacing = _clampSpacing(
+                          availableHeight * 0.012 +
+                              cupertinoDetailSpacing +
+                              cupertinoMidSpacing * 0.6,
+                          10,
+                          isCupertino ? 26 : 16,
+                        );
+                        final controlSpacing = bodySectionSpacing +
+                            (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
+                        // 统一上下边缘留白，让内容在垂直方向更均衡
+                        final double safeTop = media.padding.top;
+
+                        // 以屏幕高度为基准，给出一个在大屏上稍微拉开的边缘留白
+                        final double edgeSpacing = _clampSpacing(
+                          availableHeight * 0.04,
+                          safeTop + 12, // 至少包含状态栏 + 一点额外间距
+                          safeTop + 40,
+                        );
+
+                        // 仅使用工具栏自身的安全区处理，不再额外插入 toolbarTopInset 间距。
                         final topSection = <Widget>[
                           _buildToolbar(context),
                           SizedBox(height: topSpacing),
                           const Center(child: _PlayerArtwork()),
-                          SizedBox(height: sectionSpacing),
+                          SizedBox(height: bodySectionSpacing),
                           const _SongSummary(),
                           SizedBox(height: minorSpacing),
                           const _QualityAndActions(),
@@ -297,8 +309,9 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         if (isCompact) {
                           return SingleChildScrollView(
                             physics: const BouncingScrollPhysics(),
-                            padding:
-                                EdgeInsets.only(bottom: bottomSpacing + media.padding.bottom),
+                            // 调整底部填充，使用较小的固定值，并保留 media.padding.bottom
+                            padding: EdgeInsets.only(
+                                bottom: 16.0 + media.padding.bottom),
                             child: Column(
                               children: [
                                 ...topSection,
@@ -315,10 +328,13 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                // 顶部边缘留白，与底部对称
+                                SizedBox(height: edgeSpacing),
                                 ...topSection,
                                 SizedBox(height: controlSpacing),
                                 _buildControls(context),
-                                SizedBox(height: bottomSpacing + media.padding.bottom),
+                                // 底部边缘留白，与顶部对称
+                                SizedBox(height: edgeSpacing),
                               ],
                             ),
                           );
@@ -330,7 +346,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                             ...topSection,
                             SizedBox(height: controlSpacing),
                             _buildControls(context),
-                            SizedBox(height: bottomSpacing + media.padding.bottom),
+                            SizedBox(height: media.padding.bottom + 16),
                           ],
                         );
                       },
@@ -563,7 +579,7 @@ class _BackgroundHalo extends StatelessWidget {
     return IgnorePointer(
       ignoring: true,
       child: Align(
-        alignment: const Alignment(0, -0.9),
+        alignment: const Alignment(0, -0.35),
         child: Container(
           width: 460,
           height: 460,
@@ -692,16 +708,6 @@ class _PlayerArtworkState extends State<_PlayerArtwork>
     super.dispose();
   }
 
-  void _syncAnimation(bool isPlaying) {
-    if (isPlaying) {
-      if (!_controller.isAnimating) {
-        _controller.repeat();
-      }
-    } else if (_controller.isAnimating) {
-      _controller.stop(canceled: false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final player = context.watch<SolaraPlayerController>();
@@ -714,11 +720,16 @@ class _PlayerArtworkState extends State<_PlayerArtwork>
       _controller.stop(canceled: false);
       _controller.reset();
     }
-    _syncAnimation(isPlaying);
+
+    if (isPlaying && cover != null && !_controller.isAnimating) {
+      _controller.repeat();
+    } else if ((!isPlaying || cover == null) && _controller.isAnimating) {
+      _controller.stop(canceled: false);
+    }
 
     final mediaSize = MediaQuery.of(context).size;
-    final double maxDiameter = min(mediaSize.width * 0.7, 260);
-    final double diameter = max(180.0, maxDiameter);
+    final double maxDiameter = min(mediaSize.width * 0.78, 300);
+    final double diameter = max(200.0, maxDiameter);
     final double framePadding = diameter * 0.12;
     final double innerPadding = diameter * 0.06;
     final double artworkSize = max(0.0, diameter - framePadding * 2 - innerPadding * 2);
@@ -4361,11 +4372,11 @@ class SolaraPlayerController extends ChangeNotifier {
       }
       return added;
     } on TimeoutException {
-      _errorMessage = '探索超时，请稍后重试';
+      _errorMessage = '探索雷达超时，请检查网络或稍后重试';
       notifyListeners();
       return -1;
-    } catch (error) {
-      _errorMessage = error.toString();
+    } catch (e) {
+      _errorMessage = e.toString();
       notifyListeners();
       return -1;
     } finally {
