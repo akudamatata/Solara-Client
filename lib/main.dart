@@ -297,8 +297,9 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         if (isCompact) {
                           return SingleChildScrollView(
                             physics: const BouncingScrollPhysics(),
-                            padding:
-                                EdgeInsets.only(bottom: bottomSpacing + media.padding.bottom),
+                            // 调整底部填充，使用较小的固定值，并保留 media.padding.bottom
+                            padding: EdgeInsets.only(
+                                bottom: 16.0 + media.padding.bottom),
                             child: Column(
                               children: [
                                 ...topSection,
@@ -4355,9 +4356,11 @@ class SolaraPlayerController extends ChangeNotifier {
         await playSong(_queue.first);
       }
       return added;
-    } catch (error) {
-      _errorMessage = '探索雷达失败: ${error.toString()}';
-      notifyListeners();
+    } on TimeoutException {
+      _notifications.error('探索雷达超时，请检查网络或稍后重试');
+      return 0;
+    } catch (e) {
+      _notifications.error('探索雷达失败: ${e.toString()}');
       return 0;
     } finally {
       _isExploring = false;
