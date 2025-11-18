@@ -283,18 +283,14 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         );
                         final controlSpacing = bodySectionSpacing +
                             (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
-                        // 调整底部间距计算，避免重复叠加安全区域并减少留白
-                        final double minBottomPadding =
-                            isCupertino ? media.padding.bottom : 0;
-                        // 仅在大屏上额外加一点视觉缓冲，不再叠加两次 safe area
-                        final double extraBottomSpacing = isCupertino
-                            ? _clampSpacing(availableHeight * 0.015, 8, 24)
-                            : 0;
-                        // 将底部留白与顶部安全区/页边距保持一致，避免再次叠加 toolbar 高度
-                        final double topEdgeSpacing = toolbarTopInset;
-                        final double bottomSpacing = max(
-                          topEdgeSpacing,
-                          minBottomPadding + extraBottomSpacing,
+                        // 统一上下边缘留白，让内容在垂直方向更均衡
+                        final double safeTop = media.padding.top;
+
+                        // 以屏幕高度为基准，给出一个在大屏上稍微拉开的边缘留白
+                        final double edgeSpacing = _clampSpacing(
+                          availableHeight * 0.04,
+                          safeTop + 12, // 至少包含状态栏 + 一点额外间距
+                          safeTop + 40,
                         );
 
                         // 仅使用工具栏自身的安全区处理，不再额外插入 toolbarTopInset 间距。
@@ -334,10 +330,13 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                // 顶部边缘留白，与底部对称
+                                SizedBox(height: edgeSpacing),
                                 ...topSection,
                                 SizedBox(height: controlSpacing),
                                 _buildControls(context),
-                                SizedBox(height: bottomSpacing),
+                                // 底部边缘留白，与顶部对称
+                                SizedBox(height: edgeSpacing),
                               ],
                             ),
                           );
@@ -587,7 +586,7 @@ class _BackgroundHalo extends StatelessWidget {
     return IgnorePointer(
       ignoring: true,
       child: Align(
-        alignment: const Alignment(0, -0.9),
+        alignment: const Alignment(0, -0.35),
         child: Container(
           width: 460,
           height: 460,
