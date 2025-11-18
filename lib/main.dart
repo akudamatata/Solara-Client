@@ -4357,11 +4357,13 @@ class SolaraPlayerController extends ChangeNotifier {
       }
       return added;
     } on TimeoutException {
-      _notifications.error('探索雷达超时，请检查网络或稍后重试');
-      return 0;
+      _errorMessage = '探索雷达超时，请检查网络或稍后重试';
+      notifyListeners();
+      return -1;
     } catch (e) {
-      _notifications.error('探索雷达失败: ${e.toString()}');
-      return 0;
+      _errorMessage = e.toString();
+      notifyListeners();
+      return -1;
     } finally {
       _isExploring = false;
       notifyListeners();
