@@ -298,6 +298,8 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         );
 
                         final topSection = <Widget>[
+                          if (toolbarTopInset > 0)
+                            SizedBox(height: toolbarTopInset),
                           _buildToolbar(context),
                           SizedBox(height: topSpacing),
                           const Center(child: _PlayerArtwork()),
