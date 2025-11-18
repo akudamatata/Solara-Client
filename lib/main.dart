@@ -279,7 +279,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         final double notificationReserve = minBottomPadding +
                             (isCupertino ? 40 : 88);
                         final baseBottomSpacing =
-                            _clampSpacing(availableHeight * 0.05, 18, 48);
+                            _clampSpacing(availableHeight * 0.03, 18, 36);
                         final bottomSpacing = max(notificationReserve, baseBottomSpacing);
 
                         final topSection = <Widget>[
@@ -330,7 +330,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                             ...topSection,
                             SizedBox(height: controlSpacing),
                             _buildControls(context),
-                            SizedBox(height: bottomSpacing + media.padding.bottom),
+                            SizedBox(height: media.padding.bottom + 16),
                           ],
                         );
                       },
@@ -692,16 +692,6 @@ class _PlayerArtworkState extends State<_PlayerArtwork>
     super.dispose();
   }
 
-  void _syncAnimation(bool isPlaying) {
-    if (isPlaying) {
-      if (!_controller.isAnimating) {
-        _controller.repeat();
-      }
-    } else if (_controller.isAnimating) {
-      _controller.stop(canceled: false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final player = context.watch<SolaraPlayerController>();
@@ -714,7 +704,12 @@ class _PlayerArtworkState extends State<_PlayerArtwork>
       _controller.stop(canceled: false);
       _controller.reset();
     }
-    _syncAnimation(isPlaying);
+
+    if (isPlaying && cover != null && !_controller.isAnimating) {
+      _controller.repeat();
+    } else if ((!isPlaying || cover == null) && _controller.isAnimating) {
+      _controller.stop(canceled: false);
+    }
 
     final mediaSize = MediaQuery.of(context).size;
     final double maxDiameter = min(mediaSize.width * 0.7, 260);
@@ -4360,14 +4355,10 @@ class SolaraPlayerController extends ChangeNotifier {
         await playSong(_queue.first);
       }
       return added;
-    } on TimeoutException {
-      _errorMessage = '探索超时，请稍后重试';
-      notifyListeners();
-      return -1;
     } catch (error) {
-      _errorMessage = error.toString();
+      _errorMessage = '探索雷达失败: ${error.toString()}';
       notifyListeners();
-      return -1;
+      return 0;
     } finally {
       _isExploring = false;
       notifyListeners();
