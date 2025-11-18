@@ -256,27 +256,30 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         final double cupertinoDetailSpacing = isCupertino
                             ? _clampSpacing(availableHeight * 0.015, 6, 18)
                             : 0;
-                        final double cupertinoMidSpacingBoost = isCupertino
+                        final double cupertinoMidSpacing = isCupertino
                             ? _clampSpacing(availableHeight * 0.01, 6, 18)
                             : 0;
-                        final double midSpacingBoost = isCupertino
-                            ? _clampSpacing(availableHeight * 0.01, 6, 18)
-                            : 0;
-                        final double midSpacingBoost = isCupertino
-                            ? _clampSpacing(availableHeight * 0.01, 6, 18)
-                            : 0;
-                        final double spacingBoost =
-                            isCupertino && !isCompact
-                                ? _clampSpacing(
-                                    availableHeight * 0.01,
-                                    6,
-                                    20,
-                                  )
-                                : 0;
+
                         final topSpacing = _clampSpacing(
                           availableHeight * 0.012 + cupertinoBaseSpacing * 0.4,
                           10,
                           isCupertino ? 28 : 16,
+                        );
+
+                        final sectionSpacing = _clampSpacing(
+                          availableHeight * 0.018 +
+                              cupertinoBaseSpacing * 0.8 +
+                              cupertinoMidSpacing,
+                          14,
+                          isCupertino ? 42 : 24,
+                        );
+
+                        final minorSpacing = _clampSpacing(
+                          availableHeight * 0.012 +
+                              cupertinoDetailSpacing +
+                              cupertinoMidSpacing * 0.6,
+                          10,
+                          isCupertino ? 26 : 16,
                         );
                           final sectionSpacing = _clampSpacing(
                             availableHeight * 0.018 +
