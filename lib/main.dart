@@ -256,23 +256,38 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         final double cupertinoDetailSpacing = isCupertino
                             ? _clampSpacing(availableHeight * 0.015, 6, 20)
                             : 0;
+                        final double spacingBoost =
+                            isCupertino && !isCompact
+                                ? _clampSpacing(
+                                    availableHeight * 0.01,
+                                    6,
+                                    20,
+                                  )
+                                : 0;
                         final topSpacing = _clampSpacing(
-                          availableHeight * 0.01 + cupertinoBaseSpacing,
+                          availableHeight * 0.01 +
+                              cupertinoBaseSpacing +
+                              spacingBoost,
                           8,
-                          isCupertino ? 36 : 16,
+                          isCupertino ? 40 : 16,
                         );
                         final sectionSpacing = _clampSpacing(
-                          availableHeight * 0.015 + cupertinoBaseSpacing,
+                          availableHeight * 0.015 +
+                              cupertinoBaseSpacing +
+                              spacingBoost,
                           10,
-                          isCupertino ? 36 : 24,
+                          isCupertino ? 40 : 24,
                         );
                         final minorSpacing = _clampSpacing(
-                          availableHeight * 0.01 + cupertinoDetailSpacing,
+                          availableHeight * 0.01 +
+                              cupertinoDetailSpacing +
+                              spacingBoost * 0.6,
                           6,
-                          isCupertino ? 20 : 16,
+                          isCupertino ? 24 : 16,
                         );
                         final controlSpacing = sectionSpacing +
-                            (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
+                            (isCupertino ? cupertinoDetailSpacing * 0.5 : 0) +
+                            (isCupertino ? spacingBoost * 0.4 : 0);
                         // 调整底部间距计算，避免重复叠加安全区域并减少留白
                         final double minBottomPadding =
                             isCupertino ? media.padding.bottom : 0;
