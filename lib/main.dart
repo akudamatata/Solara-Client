@@ -281,6 +281,20 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                           10,
                           isCupertino ? 26 : 16,
                         );
+                          final sectionSpacing = _clampSpacing(
+                            availableHeight * 0.018 +
+                                cupertinoBaseSpacing * 0.8 +
+                                cupertinoMidSpacingBoost,
+                            14,
+                            isCupertino ? 42 : 24,
+                          );
+                          final minorSpacing = _clampSpacing(
+                            availableHeight * 0.012 +
+                                cupertinoDetailSpacing +
+                                cupertinoMidSpacingBoost * 0.6,
+                            10,
+                            isCupertino ? 26 : 16,
+                          );
                         final controlSpacing = sectionSpacing +
                             (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
                         // 调整底部间距计算，避免重复叠加安全区域并减少留白
@@ -298,6 +312,8 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         );
 
                         final topSection = <Widget>[
+                          if (toolbarTopInset > 0)
+                            SizedBox(height: toolbarTopInset),
                           _buildToolbar(context),
                           SizedBox(height: topSpacing),
                           const Center(child: _PlayerArtwork()),
