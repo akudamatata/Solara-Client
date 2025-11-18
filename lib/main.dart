@@ -251,25 +251,25 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         final bool isCupertino =
                             Theme.of(context).platform == TargetPlatform.iOS;
                         final double cupertinoBaseSpacing = isCupertino
-                            ? _clampSpacing(availableHeight * 0.06, 24, 84)
+                            ? _clampSpacing(availableHeight * 0.02, 8, 36)
                             : 0;
                         final double cupertinoDetailSpacing = isCupertino
-                            ? _clampSpacing(availableHeight * 0.036, 16, 48)
+                            ? _clampSpacing(availableHeight * 0.015, 6, 20)
                             : 0;
                         final topSpacing = _clampSpacing(
-                          availableHeight * 0.025 + cupertinoBaseSpacing,
-                          16,
-                          isCupertino ? 72 : 28,
+                          availableHeight * 0.01 + cupertinoBaseSpacing,
+                          8,
+                          isCupertino ? 36 : 16,
                         );
                         final sectionSpacing = _clampSpacing(
-                          availableHeight * 0.032 + cupertinoBaseSpacing,
-                          20,
-                          isCupertino ? 76 : 36,
+                          availableHeight * 0.015 + cupertinoBaseSpacing,
+                          10,
+                          isCupertino ? 36 : 24,
                         );
                         final minorSpacing = _clampSpacing(
-                          availableHeight * 0.022 + cupertinoDetailSpacing,
-                          14,
-                          isCupertino ? 48 : 28,
+                          availableHeight * 0.01 + cupertinoDetailSpacing,
+                          6,
+                          isCupertino ? 20 : 16,
                         );
                         final controlSpacing = sectionSpacing +
                             (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
@@ -277,7 +277,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         final double minBottomPadding =
                             isCupertino ? media.padding.bottom : 0;
                         final double notificationReserve = minBottomPadding +
-                            (isCupertino ? 120 : 88);
+                            (isCupertino ? 40 : 88);
                         final baseBottomSpacing =
                             _clampSpacing(availableHeight * 0.05, 18, 48);
                         final bottomSpacing = max(notificationReserve, baseBottomSpacing);
@@ -347,7 +347,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                   builder: (context) {
                     final media = MediaQuery.of(context);
                     return Container(
-                      height: media.padding.bottom + 60,
+                      height: media.padding.bottom + 30,
                       decoration: const BoxDecoration(
                         gradient: LinearGradient(
                           colors: [Color(0x00050608), Color(0xFF050608)],
@@ -886,7 +886,7 @@ class _SongSummary extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          height: 76,
+          height: 60,
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 320),
