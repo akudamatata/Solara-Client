@@ -273,14 +273,15 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         );
                         final controlSpacing = sectionSpacing +
                             (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
-                        // 调整底部间距计算，确保至少有 16 像素的 Home Indicator 间距
+                        // 调整底部间距计算，避免重复叠加安全区域并减少留白
                         final double minBottomPadding =
                             isCupertino ? media.padding.bottom : 0;
-                        final double notificationReserve = minBottomPadding +
-                            (isCupertino ? 40 : 88);
-                        final baseBottomSpacing =
-                            _clampSpacing(availableHeight * 0.03, 18, 36);
-                        final bottomSpacing = max(notificationReserve, baseBottomSpacing);
+                        // 仅在大屏上额外加一点视觉缓冲，不再叠加两次 safe area
+                        final double extraBottomSpacing = isCupertino
+                            ? _clampSpacing(availableHeight * 0.015, 8, 24)
+                            : 0;
+                        final double bottomSpacing =
+                            minBottomPadding + extraBottomSpacing;
 
                         final topSection = <Widget>[
                           _buildToolbar(context),
@@ -319,7 +320,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                                 ...topSection,
                                 SizedBox(height: controlSpacing),
                                 _buildControls(context),
-                                SizedBox(height: bottomSpacing + media.padding.bottom),
+                                SizedBox(height: bottomSpacing),
                               ],
                             ),
                           );
