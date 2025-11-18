@@ -295,6 +295,8 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
 
                         // 仅使用工具栏自身的安全区处理，不再额外插入 toolbarTopInset 间距。
                         final topSection = <Widget>[
+                          if (toolbarTopInset > 0)
+                            SizedBox(height: toolbarTopInset),
                           _buildToolbar(context),
                           SizedBox(height: topSpacing),
                           const Center(child: _PlayerArtwork()),
@@ -401,6 +403,11 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
       backgroundColor: Colors.transparent,
       builder: (context) => const _SettingsSheet(),
     );
+  }
+
+  double get toolbarTopInset {
+    final media = MediaQuery.of(context);
+    return media.padding.top + 12;
   }
 
   double _clampSpacing(double value, double min, double max) {
