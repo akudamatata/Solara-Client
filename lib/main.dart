@@ -251,10 +251,13 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         final bool isCupertino =
                             Theme.of(context).platform == TargetPlatform.iOS;
                         final double cupertinoBaseSpacing = isCupertino
-                            ? _clampSpacing(availableHeight * 0.02, 8, 36)
+                            ? _clampSpacing(availableHeight * 0.02, 8, 32)
                             : 0;
                         final double cupertinoDetailSpacing = isCupertino
-                            ? _clampSpacing(availableHeight * 0.015, 6, 20)
+                            ? _clampSpacing(availableHeight * 0.015, 6, 18)
+                            : 0;
+                        final double midSpacingBoost = isCupertino
+                            ? _clampSpacing(availableHeight * 0.01, 6, 18)
                             : 0;
                         final double spacingBoost =
                             isCupertino && !isCompact
@@ -265,29 +268,26 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                                   )
                                 : 0;
                         final topSpacing = _clampSpacing(
-                          availableHeight * 0.01 +
-                              cupertinoBaseSpacing +
-                              spacingBoost,
-                          8,
-                          isCupertino ? 40 : 16,
+                          availableHeight * 0.012 + cupertinoBaseSpacing * 0.4,
+                          10,
+                          isCupertino ? 28 : 16,
                         );
                         final sectionSpacing = _clampSpacing(
-                          availableHeight * 0.015 +
-                              cupertinoBaseSpacing +
-                              spacingBoost,
-                          10,
-                          isCupertino ? 40 : 24,
+                          availableHeight * 0.018 +
+                              cupertinoBaseSpacing * 0.8 +
+                              midSpacingBoost,
+                          14,
+                          isCupertino ? 42 : 24,
                         );
                         final minorSpacing = _clampSpacing(
-                          availableHeight * 0.01 +
+                          availableHeight * 0.012 +
                               cupertinoDetailSpacing +
-                              spacingBoost * 0.6,
-                          6,
-                          isCupertino ? 24 : 16,
+                              midSpacingBoost * 0.6,
+                          10,
+                          isCupertino ? 26 : 16,
                         );
                         final controlSpacing = sectionSpacing +
-                            (isCupertino ? cupertinoDetailSpacing * 0.5 : 0) +
-                            (isCupertino ? spacingBoost * 0.4 : 0);
+                            (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
                         // 调整底部间距计算，避免重复叠加安全区域并减少留白
                         final double minBottomPadding =
                             isCupertino ? media.padding.bottom : 0;
@@ -301,8 +301,6 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                           edgeSpacing,
                           minBottomPadding + extraBottomSpacing,
                         );
-                        final double toolbarTopInset =
-                            max(0, bottomSpacing - edgeSpacing);
 
                         final topSection = <Widget>[
                           if (toolbarTopInset > 0)
@@ -737,8 +735,8 @@ class _PlayerArtworkState extends State<_PlayerArtwork>
     }
 
     final mediaSize = MediaQuery.of(context).size;
-    final double maxDiameter = min(mediaSize.width * 0.7, 260);
-    final double diameter = max(180.0, maxDiameter);
+    final double maxDiameter = min(mediaSize.width * 0.78, 300);
+    final double diameter = max(200.0, maxDiameter);
     final double framePadding = diameter * 0.12;
     final double innerPadding = diameter * 0.06;
     final double artworkSize = max(0.0, diameter - framePadding * 2 - innerPadding * 2);
