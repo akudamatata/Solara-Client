@@ -259,6 +259,9 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         final double midSpacingBoost = isCupertino
                             ? _clampSpacing(availableHeight * 0.01, 6, 18)
                             : 0;
+                        final double midSpacingBoost = isCupertino
+                            ? _clampSpacing(availableHeight * 0.01, 6, 18)
+                            : 0;
                         final double spacingBoost =
                             isCupertino && !isCompact
                                 ? _clampSpacing(
@@ -295,10 +298,10 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         final double extraBottomSpacing = isCupertino
                             ? _clampSpacing(availableHeight * 0.015, 8, 24)
                             : 0;
-                        // 将底部间距与顶部安全区对齐，确保上下留白一致
-                        final double edgeSpacing = media.padding.top + 12;
+                        // 将底部留白与顶部安全区/页边距保持一致，避免再次叠加 toolbar 高度
+                        final double topEdgeSpacing = media.padding.top + 12;
                         final double bottomSpacing = max(
-                          edgeSpacing,
+                          topEdgeSpacing,
                           minBottomPadding + extraBottomSpacing,
                         );
 
