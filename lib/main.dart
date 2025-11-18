@@ -259,6 +259,17 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         final double midSpacingBoost = isCupertino
                             ? _clampSpacing(availableHeight * 0.01, 6, 18)
                             : 0;
+                        final double midSpacingBoost = isCupertino
+                            ? _clampSpacing(availableHeight * 0.01, 6, 18)
+                            : 0;
+                        final double spacingBoost =
+                            isCupertino && !isCompact
+                                ? _clampSpacing(
+                                    availableHeight * 0.01,
+                                    6,
+                                    20,
+                                  )
+                                : 0;
                         final topSpacing = _clampSpacing(
                           availableHeight * 0.012 + cupertinoBaseSpacing * 0.4,
                           10,
@@ -295,6 +306,8 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         );
 
                         final topSection = <Widget>[
+                          if (toolbarTopInset > 0)
+                            SizedBox(height: toolbarTopInset),
                           _buildToolbar(context),
                           SizedBox(height: topSpacing),
                           const Center(child: _PlayerArtwork()),
