@@ -299,6 +299,8 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
 
                         // 仅使用工具栏自身的安全区处理，不再额外插入 toolbarTopInset 间距。
                         final topSection = <Widget>[
+                          if (toolbarTopInset > 0)
+                            SizedBox(height: toolbarTopInset),
                           _buildToolbar(context),
                           SizedBox(height: topSpacing),
                           const Center(child: _PlayerArtwork()),
