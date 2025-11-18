@@ -228,11 +228,12 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              const _BackgroundHalo(),
-              Align(
+        child: Stack(
+          children: [
+            const _BackgroundHalo(),
+            SafeArea(
+              bottom: false,
+              child: Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 420),
@@ -272,7 +273,10 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         );
                         final controlSpacing = sectionSpacing +
                             (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
-                        final double notificationReserve = media.padding.bottom +
+                        // 调整底部间距计算，确保至少有 16 像素的 Home Indicator 间距
+                        final double minBottomPadding =
+                            isCupertino ? media.padding.bottom : 0;
+                        final double notificationReserve = minBottomPadding +
                             (isCupertino ? 120 : 88);
                         final baseBottomSpacing =
                             _clampSpacing(availableHeight * 0.05, 18, 48);
@@ -293,7 +297,8 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         if (isCompact) {
                           return SingleChildScrollView(
                             physics: const BouncingScrollPhysics(),
-                            padding: EdgeInsets.only(bottom: bottomSpacing),
+                            padding:
+                                EdgeInsets.only(bottom: bottomSpacing + media.padding.bottom),
                             child: Column(
                               children: [
                                 ...topSection,
@@ -313,7 +318,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                                 ...topSection,
                                 SizedBox(height: controlSpacing),
                                 _buildControls(context),
-                                SizedBox(height: bottomSpacing),
+                                SizedBox(height: bottomSpacing + media.padding.bottom),
                               ],
                             ),
                           );
@@ -325,7 +330,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                             ...topSection,
                             SizedBox(height: controlSpacing),
                             _buildControls(context),
-                            SizedBox(height: bottomSpacing),
+                            SizedBox(height: bottomSpacing + media.padding.bottom),
                           ],
                         );
                       },
@@ -333,17 +338,39 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                   ),
                 ),
               ),
-              _QueuePanel(
-                visible: _showQueue,
-                showFavorites: _showFavorites,
-                onClose: () => setState(() => _showQueue = false),
-                onToggleTab: (favorites) => setState(() => _showFavorites = favorites),
+            ),
+            // 添加底部渐变层
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: IgnorePointer(
+                child: Builder(
+                  builder: (context) {
+                    final media = MediaQuery.of(context);
+                    return Container(
+                      height: media.padding.bottom + 60,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0x00050608), Color(0xFF050608)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
-              _SearchOverlay(
-                visible: _showSearch,
-                onClose: () => setState(() => _showSearch = false),
-              ),
-              const _NotificationOverlay(),
+            ),
+            _QueuePanel(
+              visible: _showQueue,
+              showFavorites: _showFavorites,
+              onClose: () => setState(() => _showQueue = false),
+              onToggleTab: (favorites) => setState(() => _showFavorites = favorites),
+            ),
+            _SearchOverlay(
+              visible: _showSearch,
+              onClose: () => setState(() => _showSearch = false),
+            ),
+            const _NotificationOverlay(),
             ],
           ),
         ),
