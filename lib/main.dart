@@ -291,7 +291,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                             ? _clampSpacing(availableHeight * 0.015, 8, 24)
                             : 0;
                         // 将底部留白与顶部安全区/页边距保持一致，避免再次叠加 toolbar 高度
-                        final double topEdgeSpacing = media.padding.top + 12;
+                        final double topEdgeSpacing = toolbarTopInset;
                         final double bottomSpacing = max(
                           topEdgeSpacing,
                           minBottomPadding + extraBottomSpacing,
@@ -404,6 +404,11 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
       backgroundColor: Colors.transparent,
       builder: (context) => const _SettingsSheet(),
     );
+  }
+
+  double get toolbarTopInset {
+    final media = MediaQuery.of(context);
+    return media.padding.top + 12;
   }
 
   double _clampSpacing(double value, double min, double max) {
