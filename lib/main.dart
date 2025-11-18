@@ -373,7 +373,6 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
             const _NotificationOverlay(),
             ],
           ),
-        ),
       ),
     );
   }
