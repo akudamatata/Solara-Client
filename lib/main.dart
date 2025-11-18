@@ -266,7 +266,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                           isCupertino ? 28 : 16,
                         );
 
-                        final sectionSpacing = _clampSpacing(
+                        final bodySectionSpacing = _clampSpacing(
                           availableHeight * 0.018 +
                               cupertinoBaseSpacing * 0.8 +
                               cupertinoMidSpacing,
@@ -281,21 +281,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                           10,
                           isCupertino ? 26 : 16,
                         );
-                          final sectionSpacing = _clampSpacing(
-                            availableHeight * 0.018 +
-                                cupertinoBaseSpacing * 0.8 +
-                                cupertinoMidSpacingBoost,
-                            14,
-                            isCupertino ? 42 : 24,
-                          );
-                          final minorSpacing = _clampSpacing(
-                            availableHeight * 0.012 +
-                                cupertinoDetailSpacing +
-                                cupertinoMidSpacingBoost * 0.6,
-                            10,
-                            isCupertino ? 26 : 16,
-                          );
-                        final controlSpacing = sectionSpacing +
+                        final controlSpacing = bodySectionSpacing +
                             (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
                         // 调整底部间距计算，避免重复叠加安全区域并减少留白
                         final double minBottomPadding =
@@ -317,7 +303,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                           _buildToolbar(context),
                           SizedBox(height: topSpacing),
                           const Center(child: _PlayerArtwork()),
-                          SizedBox(height: sectionSpacing),
+                          SizedBox(height: bodySectionSpacing),
                           const _SongSummary(),
                           SizedBox(height: minorSpacing),
                           const _QualityAndActions(),
