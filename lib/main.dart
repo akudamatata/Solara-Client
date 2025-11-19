@@ -335,14 +335,14 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    ...topSection,
-                                    const Spacer(),
-                                  ],
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  ...topSection,
+                                  SizedBox(height: bodySectionSpacing * 1.2),
+                                ],
                               ),
+                            ),
                               SizedBox(height: controlSpacing),
                               controlsSection,
                             ],
@@ -363,7 +363,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 ...topSection,
-                                const Spacer(),
+                                SizedBox(height: bodySectionSpacing * 1.2),
                               ],
                             ),
                           ),
