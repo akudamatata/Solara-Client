@@ -806,7 +806,7 @@ class _PlayerArtworkState extends State<_PlayerArtwork>
         gradient: RadialGradient(
           colors: [Color(0x55202932), Color(0xFF0F1118)],
           radius: 0.88,
-          center: Alignment(-0.1, -0.1),
+          center: Alignment.center,
         ),
         boxShadow: [
           BoxShadow(
@@ -1549,21 +1549,32 @@ class _QueuePanel extends StatelessWidget {
                                   FilledButton.icon(
                                     onPressed: songs.isEmpty
                                         ? null
-                                        : () async {
-                                            final success =
-                                                await player.playFromCollection(songs, 0);
-                                            if (!success) {
-                                              _showSnackBar(
-                                                context,
-                                                '无法播放该歌曲',
-                                                error: true,
-                                              );
-                                              return;
-                                            }
-                                            onClose();
-                                          },
-                                    icon: const Icon(Icons.play_arrow_rounded),
-                                    label: const Text('播放全部'),
+                                        : (showFavorites
+                                            ? () => _addFavoritesToQueue(
+                                                  context,
+                                                  player,
+                                                )
+                                            : () async {
+                                                final success = await player
+                                                    .playFromCollection(songs, 0);
+                                                if (!success) {
+                                                  _showSnackBar(
+                                                    context,
+                                                    '无法播放该歌曲',
+                                                    error: true,
+                                                  );
+                                                  return;
+                                                }
+                                                onClose();
+                                              }),
+                                    icon: Icon(
+                                      showFavorites
+                                          ? Icons.playlist_add_check
+                                          : Icons.play_arrow_rounded,
+                                    ),
+                                    label: Text(
+                                      showFavorites ? '全部添加到播放列表' : '播放全部',
+                                    ),
                                     style: FilledButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 18,
@@ -1613,38 +1624,6 @@ class _QueuePanel extends StatelessWidget {
                                 ],
                               ),
                               const SizedBox(height: 20),
-                              if (showFavorites) ...[
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: SizedBox(
-                                    height: 40,
-                                    child: FilledButton.icon(
-                                      onPressed: songs.isEmpty
-                                          ? null
-                                          : () => _addFavoritesToQueue(
-                                                context,
-                                                player,
-                                              ),
-                                      icon:
-                                          const Icon(Icons.playlist_add_check, size: 18),
-                                      label: const Text('全部添加到播放列表'),
-                                      style: FilledButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                                        backgroundColor: Colors.white.withOpacity(0.08),
-                                        foregroundColor: Colors.white,
-                                        textStyle: Theme.of(context)
-                                            .textTheme
-                                            .labelLarge
-                                            ?.copyWith(fontWeight: FontWeight.w600),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                              ],
                               Expanded(
                                 child: _QueueSurface(
                                   padding: EdgeInsets.zero,
