@@ -231,128 +231,153 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
         child: Stack(
           children: [
             const _BackgroundHalo(),
-            SafeArea(
-              bottom: false,
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final media = MediaQuery.of(context);
-                        final safeHeight =
-                            media.size.height - media.padding.top - media.padding.bottom;
-                        final double availableHeight = constraints.hasBoundedHeight
-                            ? constraints.maxHeight
-                            : safeHeight;
-                        final bool isCompact = availableHeight < 720;
-                        final bool isCupertino =
-                            Theme.of(context).platform == TargetPlatform.iOS;
-                        final double cupertinoBaseSpacing = isCupertino
-                            ? _clampSpacing(availableHeight * 0.02, 8, 32)
-                            : 0;
-                        final double cupertinoDetailSpacing = isCupertino
-                            ? _clampSpacing(availableHeight * 0.015, 6, 18)
-                            : 0;
-                        final double cupertinoMidSpacing = isCupertino
-                            ? _clampSpacing(availableHeight * 0.01, 6, 18)
-                            : 0;
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final media = MediaQuery.of(context);
+                      final safeHeight =
+                          media.size.height - media.padding.top - media.padding.bottom;
+                      final double availableHeight = constraints.hasBoundedHeight
+                          ? constraints.maxHeight
+                          : safeHeight;
+                      final bool isCompact = availableHeight < 720;
+                      final bool isCupertino =
+                          Theme.of(context).platform == TargetPlatform.iOS;
+                      final double cupertinoBaseSpacing = isCupertino
+                          ? _clampSpacing(availableHeight * 0.02, 8, 32)
+                          : 0;
+                      final double cupertinoDetailSpacing = isCupertino
+                          ? _clampSpacing(availableHeight * 0.015, 6, 18)
+                          : 0;
+                      final double cupertinoMidSpacing = isCupertino
+                          ? _clampSpacing(availableHeight * 0.01, 6, 18)
+                          : 0;
 
-                        final topSpacing = _clampSpacing(
-                          availableHeight * 0.012 + cupertinoBaseSpacing * 0.4,
-                          10,
-                          isCupertino ? 28 : 16,
+                      final bodySectionSpacing = _clampSpacing(
+                        availableHeight * 0.018 +
+                            cupertinoBaseSpacing * 0.8 +
+                            cupertinoMidSpacing,
+                        14,
+                        isCupertino ? 42 : 24,
+                      );
+
+                      final minorSpacing = _clampSpacing(
+                        availableHeight * 0.012 +
+                            cupertinoDetailSpacing +
+                            cupertinoMidSpacing * 0.6,
+                        10,
+                        isCupertino ? 26 : 16,
+                      );
+                      final controlSpacing = bodySectionSpacing +
+                          (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
+                      // 统一上下边缘留白，让内容在垂直方向更均衡
+                      const double topBarSpacing = 8;
+
+                      final topBar = _buildToolbar(context);
+
+                      final topSection = <Widget>[
+                        topBar,
+                        const SizedBox(height: topBarSpacing),
+                        const Align(
+                          alignment: Alignment.topCenter,
+                          child: _PlayerArtwork(),
+                        ),
+                        SizedBox(height: bodySectionSpacing),
+                        const _SongSummary(),
+                        SizedBox(height: minorSpacing),
+                        const _QualityAndActions(),
+                        SizedBox(height: minorSpacing),
+                        const _ProgressSection(),
+                      ];
+
+                      final controlsSection = SafeArea(
+                        top: false,
+                        bottom: true,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _buildControls(context),
+                        ),
+                      );
+
+                      Widget pageContent;
+
+                      if (isCompact) {
+                        pageContent = SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          // 调整底部填充，使用较小的固定值，并保留 media.padding.bottom
+                          padding:
+                              EdgeInsets.only(bottom: 16.0 + media.padding.bottom),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              ...topSection,
+                              SizedBox(height: controlSpacing),
+                              controlsSection,
+                            ],
+                          ),
                         );
-
-                        final bodySectionSpacing = _clampSpacing(
-                          availableHeight * 0.018 +
-                              cupertinoBaseSpacing * 0.8 +
-                              cupertinoMidSpacing,
-                          14,
-                          isCupertino ? 42 : 24,
+                        return SafeArea(
+                          top: true,
+                          bottom: false,
+                          child: pageContent,
                         );
+                      }
 
-                        final minorSpacing = _clampSpacing(
-                          availableHeight * 0.012 +
-                              cupertinoDetailSpacing +
-                              cupertinoMidSpacing * 0.6,
-                          10,
-                          isCupertino ? 26 : 16,
+                      if (isCupertino) {
+                        pageContent = SizedBox(
+                          height: availableHeight,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    ...topSection,
+                                    const Spacer(),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: controlSpacing),
+                              controlsSection,
+                            ],
+                          ),
                         );
-                        final controlSpacing = bodySectionSpacing +
-                            (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
-                        // 统一上下边缘留白，让内容在垂直方向更均衡
-                        final double safeTop = media.padding.top;
-
-                        // 以屏幕高度为基准，给出一个在大屏上稍微拉开的边缘留白
-                        final double edgeSpacing = _clampSpacing(
-                          availableHeight * 0.04,
-                          safeTop + 12, // 至少包含状态栏 + 一点额外间距
-                          safeTop + 40,
+                        return SafeArea(
+                          top: true,
+                          bottom: false,
+                          child: pageContent,
                         );
+                      }
 
-                        // 仅使用工具栏自身的安全区处理，不再额外插入 toolbarTopInset 间距。
-                        final topSection = <Widget>[
-                          if (toolbarTopInset > 0)
-                            SizedBox(height: toolbarTopInset),
-                          _buildToolbar(context),
-                          SizedBox(height: topSpacing),
-                          const Center(child: _PlayerArtwork()),
-                          SizedBox(height: bodySectionSpacing),
-                          const _SongSummary(),
-                          SizedBox(height: minorSpacing),
-                          const _QualityAndActions(),
-                          SizedBox(height: minorSpacing),
-                          const _ProgressSection(),
-                        ];
-
-                        if (isCompact) {
-                          return SingleChildScrollView(
-                            physics: const BouncingScrollPhysics(),
-                            // 调整底部填充，使用较小的固定值，并保留 media.padding.bottom
-                            padding: EdgeInsets.only(
-                                bottom: 16.0 + media.padding.bottom),
-                            child: Column(
-                              children: [
-                                ...topSection,
-                                SizedBox(height: controlSpacing),
-                                _buildControls(context),
-                              ],
-                            ),
-                          );
-                        }
-
-                        if (isCupertino) {
-                          return SizedBox(
-                            height: availableHeight,
+                      pageContent = Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                // 顶部边缘留白，与底部对称
-                                SizedBox(height: edgeSpacing),
                                 ...topSection,
-                                SizedBox(height: controlSpacing),
-                                _buildControls(context),
-                                // 底部边缘留白，与顶部对称
-                                SizedBox(height: edgeSpacing),
+                                const Spacer(),
                               ],
                             ),
-                          );
-                        }
+                          ),
+                          SizedBox(height: controlSpacing),
+                          controlsSection,
+                        ],
+                      );
 
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            ...topSection,
-                            SizedBox(height: controlSpacing),
-                            _buildControls(context),
-                            SizedBox(height: media.padding.bottom + 16),
-                          ],
-                        );
-                      },
-                    ),
+                      return SafeArea(
+                        top: true,
+                        bottom: false,
+                        child: pageContent,
+                      );
+                    },
                   ),
                 ),
               ),
@@ -403,11 +428,6 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
       backgroundColor: Colors.transparent,
       builder: (context) => const _SettingsSheet(),
     );
-  }
-
-  double get toolbarTopInset {
-    final media = MediaQuery.of(context);
-    return media.padding.top + 12;
   }
 
   double _clampSpacing(double value, double min, double max) {
