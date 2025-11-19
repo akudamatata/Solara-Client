@@ -273,26 +273,29 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         10,
                         isCupertino ? 26 : 16,
                       );
-                      final controlSpacing = bodySectionSpacing +
-                          (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
                       // 统一上下边缘留白，让内容在垂直方向更均衡
                       const double topBarSpacing = 8;
 
                       final topBar = _buildToolbar(context);
 
+                      final compactPlayerSection = _PlayerContentStack(
+                        majorSpacing: bodySectionSpacing,
+                        minorSpacing: minorSpacing,
+                        useFlexibleSpacing: false,
+                      );
+                      final expandedPlayerSection = _PlayerContentStack(
+                        majorSpacing: bodySectionSpacing,
+                        minorSpacing: minorSpacing,
+                        useFlexibleSpacing: true,
+                      );
+
                       final topSection = <Widget>[
                         topBar,
                         const SizedBox(height: topBarSpacing),
-                        const Align(
-                          alignment: Alignment.topCenter,
-                          child: _PlayerArtwork(),
-                        ),
-                        SizedBox(height: bodySectionSpacing),
-                        const _SongSummary(),
-                        SizedBox(height: minorSpacing),
-                        const _QualityAndActions(),
-                        SizedBox(height: minorSpacing),
-                        const _ProgressSection(),
+                        if (isCompact)
+                          compactPlayerSection
+                        else
+                          Expanded(child: expandedPlayerSection),
                       ];
 
                       final controlsSection = SafeArea(
@@ -303,6 +306,8 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                           child: _buildControls(context),
                         ),
                       );
+
+                      final controlSpacing = max(minorSpacing, isCupertino ? 24.0 : 18.0);
 
                       Widget pageContent;
 
@@ -335,14 +340,13 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    ...topSection,
-                                    const Spacer(),
-                                  ],
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  ...topSection,
+                                ],
                               ),
+                            ),
                               SizedBox(height: controlSpacing),
                               controlsSection,
                             ],
@@ -363,7 +367,6 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 ...topSection,
-                                const Spacer(),
                               ],
                             ),
                           ),
@@ -964,6 +967,44 @@ class _SongSummary extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
       ],
+    );
+  }
+}
+
+class _PlayerContentStack extends StatelessWidget {
+  const _PlayerContentStack({
+    required this.majorSpacing,
+    required this.minorSpacing,
+    required this.useFlexibleSpacing,
+  });
+
+  final double majorSpacing;
+  final double minorSpacing;
+  final bool useFlexibleSpacing;
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[
+      if (useFlexibleSpacing) const Spacer(),
+      const Align(
+        alignment: Alignment.topCenter,
+        child: _PlayerArtwork(),
+      ),
+      SizedBox(height: majorSpacing),
+      if (useFlexibleSpacing) const Spacer(),
+      const _SongSummary(),
+      SizedBox(height: minorSpacing),
+      if (useFlexibleSpacing) const Spacer(),
+      const _QualityAndActions(),
+      SizedBox(height: minorSpacing),
+      if (useFlexibleSpacing) const Spacer(),
+      const _ProgressSection(),
+      if (useFlexibleSpacing) const Spacer(),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
     );
   }
 }
