@@ -283,18 +283,24 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                           (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
                       // 统一上下边缘留白，让内容在垂直方向更均衡
                       final double safeTop = media.padding.top;
+                      final double safeBottom = media.padding.bottom;
 
-                      // 以屏幕高度为基准，给出一个在大屏上稍微拉开的边缘留白
+                      // 以屏幕高度为基准，给出一个在大屏上稍微拉开的上下边缘留白
                       final double edgeSpacing = _clampSpacing(
-                        availableHeight * 0.04,
-                        safeTop + 12, // 至少包含状态栏 + 一点额外间距
-                        safeTop + 40,
+                        availableHeight * 0.05 + safeTop * 0.2,
+                        safeTop + 16, // 至少包含状态栏 + 一点额外间距
+                        safeTop + 48,
                       );
+
+                      // 顶部工具栏距离屏幕顶端的间距与底部控制条距屏幕底端的间距保持一致
+                      final double topBarInset = max(12.0, edgeSpacing - safeTop);
+                      final double bottomEdgeInset =
+                          max(0.0, edgeSpacing - (safeBottom + 16));
 
                       final topBar = SafeArea(
                         bottom: false,
                         child: Padding(
-                          padding: const EdgeInsets.only(top: 12),
+                          padding: EdgeInsets.only(top: topBarInset),
                           child: _buildToolbar(context),
                         ),
                       );
@@ -357,9 +363,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                               ),
                               SizedBox(height: controlSpacing),
                               controlsSection,
-                              SizedBox(
-                                height: max(0.0, edgeSpacing - media.padding.bottom),
-                              ),
+                              SizedBox(height: bottomEdgeInset),
                             ],
                           ),
                         );
@@ -379,6 +383,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                           ),
                           SizedBox(height: controlSpacing),
                           controlsSection,
+                          SizedBox(height: bottomEdgeInset),
                         ],
                       );
                     },
