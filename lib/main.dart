@@ -273,26 +273,29 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                         10,
                         isCupertino ? 26 : 16,
                       );
-                      final controlSpacing = bodySectionSpacing +
-                          (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
                       // 统一上下边缘留白，让内容在垂直方向更均衡
                       const double topBarSpacing = 8;
 
                       final topBar = _buildToolbar(context);
 
+                      final compactPlayerSection = _PlayerContentStack(
+                        majorSpacing: bodySectionSpacing,
+                        minorSpacing: minorSpacing,
+                        useFlexibleSpacing: false,
+                      );
+                      final expandedPlayerSection = _PlayerContentStack(
+                        majorSpacing: bodySectionSpacing,
+                        minorSpacing: minorSpacing,
+                        useFlexibleSpacing: true,
+                      );
+
                       final topSection = <Widget>[
                         topBar,
                         const SizedBox(height: topBarSpacing),
-                        const Align(
-                          alignment: Alignment.topCenter,
-                          child: _PlayerArtwork(),
-                        ),
-                        SizedBox(height: bodySectionSpacing),
-                        const _SongSummary(),
-                        SizedBox(height: minorSpacing),
-                        const _QualityAndActions(),
-                        SizedBox(height: minorSpacing),
-                        const _ProgressSection(),
+                        if (isCompact)
+                          compactPlayerSection
+                        else
+                          Expanded(child: expandedPlayerSection),
                       ];
 
                       final controlsSection = SafeArea(
@@ -303,6 +306,8 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                           child: _buildControls(context),
                         ),
                       );
+
+                      final controlSpacing = max(minorSpacing, isCupertino ? 24.0 : 18.0);
 
                       Widget pageContent;
 
@@ -335,14 +340,13 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    ...topSection,
-                                    const Spacer(),
-                                  ],
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  ...topSection,
+                                ],
                               ),
+                            ),
                               SizedBox(height: controlSpacing),
                               controlsSection,
                             ],
@@ -363,7 +367,6 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 ...topSection,
-                                const Spacer(),
                               ],
                             ),
                           ),
@@ -803,7 +806,7 @@ class _PlayerArtworkState extends State<_PlayerArtwork>
         gradient: RadialGradient(
           colors: [Color(0x55202932), Color(0xFF0F1118)],
           radius: 0.88,
-          center: Alignment(-0.1, -0.1),
+          center: Alignment.center,
         ),
         boxShadow: [
           BoxShadow(
@@ -964,6 +967,44 @@ class _SongSummary extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
       ],
+    );
+  }
+}
+
+class _PlayerContentStack extends StatelessWidget {
+  const _PlayerContentStack({
+    required this.majorSpacing,
+    required this.minorSpacing,
+    required this.useFlexibleSpacing,
+  });
+
+  final double majorSpacing;
+  final double minorSpacing;
+  final bool useFlexibleSpacing;
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[
+      if (useFlexibleSpacing) const Spacer(),
+      const Align(
+        alignment: Alignment.topCenter,
+        child: _PlayerArtwork(),
+      ),
+      SizedBox(height: majorSpacing),
+      if (useFlexibleSpacing) const Spacer(),
+      const _SongSummary(),
+      SizedBox(height: minorSpacing),
+      if (useFlexibleSpacing) const Spacer(),
+      const _QualityAndActions(),
+      SizedBox(height: minorSpacing),
+      if (useFlexibleSpacing) const Spacer(),
+      const _ProgressSection(),
+      if (useFlexibleSpacing) const Spacer(),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
     );
   }
 }
@@ -1508,21 +1549,32 @@ class _QueuePanel extends StatelessWidget {
                                   FilledButton.icon(
                                     onPressed: songs.isEmpty
                                         ? null
-                                        : () async {
-                                            final success =
-                                                await player.playFromCollection(songs, 0);
-                                            if (!success) {
-                                              _showSnackBar(
-                                                context,
-                                                '无法播放该歌曲',
-                                                error: true,
-                                              );
-                                              return;
-                                            }
-                                            onClose();
-                                          },
-                                    icon: const Icon(Icons.play_arrow_rounded),
-                                    label: const Text('播放全部'),
+                                        : (showFavorites
+                                            ? () => _addFavoritesToQueue(
+                                                  context,
+                                                  player,
+                                                )
+                                            : () async {
+                                                final success = await player
+                                                    .playFromCollection(songs, 0);
+                                                if (!success) {
+                                                  _showSnackBar(
+                                                    context,
+                                                    '无法播放该歌曲',
+                                                    error: true,
+                                                  );
+                                                  return;
+                                                }
+                                                onClose();
+                                              }),
+                                    icon: Icon(
+                                      showFavorites
+                                          ? Icons.playlist_add_check
+                                          : Icons.play_arrow_rounded,
+                                    ),
+                                    label: Text(
+                                      showFavorites ? '全部添加到播放列表' : '播放全部',
+                                    ),
                                     style: FilledButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 18,
@@ -1572,38 +1624,6 @@ class _QueuePanel extends StatelessWidget {
                                 ],
                               ),
                               const SizedBox(height: 20),
-                              if (showFavorites) ...[
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: SizedBox(
-                                    height: 40,
-                                    child: FilledButton.icon(
-                                      onPressed: songs.isEmpty
-                                          ? null
-                                          : () => _addFavoritesToQueue(
-                                                context,
-                                                player,
-                                              ),
-                                      icon:
-                                          const Icon(Icons.playlist_add_check, size: 18),
-                                      label: const Text('全部添加到播放列表'),
-                                      style: FilledButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                                        backgroundColor: Colors.white.withOpacity(0.08),
-                                        foregroundColor: Colors.white,
-                                        textStyle: Theme.of(context)
-                                            .textTheme
-                                            .labelLarge
-                                            ?.copyWith(fontWeight: FontWeight.w600),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                              ],
                               Expanded(
                                 child: _QueueSurface(
                                   padding: EdgeInsets.zero,
