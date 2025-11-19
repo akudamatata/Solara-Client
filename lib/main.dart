@@ -258,12 +258,6 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                           ? _clampSpacing(availableHeight * 0.01, 6, 18)
                           : 0;
 
-                      final topSpacing = _clampSpacing(
-                        availableHeight * 0.012 + cupertinoBaseSpacing * 0.4,
-                        10,
-                        isCupertino ? 28 : 16,
-                      );
-
                       final bodySectionSpacing = _clampSpacing(
                         availableHeight * 0.018 +
                             cupertinoBaseSpacing * 0.8 +
@@ -282,32 +276,13 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                       final controlSpacing = bodySectionSpacing +
                           (isCupertino ? cupertinoDetailSpacing * 0.5 : 0);
                       // 统一上下边缘留白，让内容在垂直方向更均衡
-                      final double safeTop = media.padding.top;
-                      final double safeBottom = media.padding.bottom;
+                      const double topBarSpacing = 8;
 
-                      // 以屏幕高度为基准，给出一个在大屏上稍微拉开的上下边缘留白
-                      final double edgeSpacing = _clampSpacing(
-                        availableHeight * 0.05 + safeTop * 0.2,
-                        safeTop + 16, // 至少包含状态栏 + 一点额外间距
-                        safeTop + 48,
-                      );
-
-                      // 顶部工具栏距离屏幕顶端的间距与底部控制条距屏幕底端的间距保持一致
-                      final double topBarInset = max(12.0, edgeSpacing - safeTop);
-                      final double bottomEdgeInset =
-                          max(0.0, edgeSpacing - (safeBottom + 16));
-
-                      final topBar = SafeArea(
-                        bottom: false,
-                        child: Padding(
-                          padding: EdgeInsets.only(top: topBarInset),
-                          child: _buildToolbar(context),
-                        ),
-                      );
+                      final topBar = _buildToolbar(context);
 
                       final topSection = <Widget>[
                         topBar,
-                        SizedBox(height: topSpacing),
+                        const SizedBox(height: topBarSpacing),
                         const Align(
                           alignment: Alignment.topCenter,
                           child: _PlayerArtwork(),
@@ -322,14 +297,17 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
 
                       final controlsSection = SafeArea(
                         top: false,
+                        bottom: true,
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 16),
                           child: _buildControls(context),
                         ),
                       );
 
+                      Widget pageContent;
+
                       if (isCompact) {
-                        return SingleChildScrollView(
+                        pageContent = SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
                           // 调整底部填充，使用较小的固定值，并保留 media.padding.bottom
                           padding:
@@ -343,15 +321,19 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                             ],
                           ),
                         );
+                        return SafeArea(
+                          top: true,
+                          bottom: false,
+                          child: pageContent,
+                        );
                       }
 
                       if (isCupertino) {
-                        return SizedBox(
+                        pageContent = SizedBox(
                           height: availableHeight,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              SizedBox(height: edgeSpacing),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -363,13 +345,17 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                               ),
                               SizedBox(height: controlSpacing),
                               controlsSection,
-                              SizedBox(height: bottomEdgeInset),
                             ],
                           ),
                         );
+                        return SafeArea(
+                          top: true,
+                          bottom: false,
+                          child: pageContent,
+                        );
                       }
 
-                      return Column(
+                      pageContent = Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Expanded(
@@ -383,8 +369,13 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                           ),
                           SizedBox(height: controlSpacing),
                           controlsSection,
-                          SizedBox(height: bottomEdgeInset),
                         ],
+                      );
+
+                      return SafeArea(
+                        top: true,
+                        bottom: false,
+                        child: pageContent,
                       );
                     },
                   ),
