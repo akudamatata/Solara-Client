@@ -4120,7 +4120,7 @@ class SolaraPlayerController extends ChangeNotifier {
           tag: mediaItem,
         ),
       );
-      await _player.play();
+      unawaited(_player.play());
       _currentSong = song;
       _currentArtwork = resolvedArtwork;
       _currentLyrics = const [];
@@ -4164,7 +4164,7 @@ class SolaraPlayerController extends ChangeNotifier {
     switch (_playMode) {
       case PlayMode.single:
         await _player.seek(Duration.zero);
-        await _player.play();
+        unawaited(_player.play());
         unawaited(_updateRemoteCommands());
         return;
       case PlayMode.random:
@@ -4196,7 +4196,7 @@ class SolaraPlayerController extends ChangeNotifier {
     switch (_playMode) {
       case PlayMode.single:
         await _player.seek(Duration.zero);
-        await _player.play();
+        unawaited(_player.play());
         unawaited(_updateRemoteCommands());
         return;
       case PlayMode.random:
@@ -4240,7 +4240,7 @@ class SolaraPlayerController extends ChangeNotifier {
   }
 
   Future<void> resume() async {
-    await _player.play();
+    unawaited(_player.play());
     notifyListeners();
   }
 
