@@ -711,138 +711,63 @@ class _NotificationChip extends StatelessWidget {
   }
 }
 
-class _PlayerArtwork extends StatefulWidget {
+class _PlayerArtwork extends StatelessWidget {
   const _PlayerArtwork();
-
-  @override
-  State<_PlayerArtwork> createState() => _PlayerArtworkState();
-}
-
-class _PlayerArtworkState extends State<_PlayerArtwork>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  String? _lastSongIdentity;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 22),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final player = context.watch<SolaraPlayerController>();
-    final song = player.currentSong;
     final cover = player.currentArtwork;
     final isPlaying = player.isPlaying && !player.isLoadingSong;
-    final identity = song?.identity;
-    if (identity != _lastSongIdentity) {
-      _lastSongIdentity = identity;
-      _controller.stop(canceled: false);
-      _controller.reset();
-    }
-
-    if (isPlaying && cover != null && !_controller.isAnimating) {
-      _controller.repeat();
-    } else if ((!isPlaying || cover == null) && _controller.isAnimating) {
-      _controller.stop(canceled: false);
-    }
-
     final mediaSize = MediaQuery.of(context).size;
-    final double maxDiameter = min(mediaSize.width * 0.78, 300);
-    final double diameter = max(200.0, maxDiameter);
-    final double framePadding = diameter * 0.12;
-    final double innerPadding = diameter * 0.06;
-    final double artworkSize = max(0.0, diameter - framePadding * 2 - innerPadding * 2);
+    final double coverSize = _clampSpacing(mediaSize.width * 0.7, 200, 320);
 
-    final artwork = ClipOval(
-      child: SizedBox.square(
-        dimension: artworkSize,
-        child: DecoratedBox(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF1F2A38), Color(0xFF151820)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: cover == null
-              ? _ArtworkPlaceholder(size: artworkSize)
-              : Image.network(
-                  cover,
-                  key: ValueKey(cover),
-                  width: artworkSize,
-                  height: artworkSize,
-                  fit: BoxFit.cover,
-                  filterQuality: FilterQuality.high,
-                  gaplessPlayback: true,
-                  loadingBuilder: (context, child, progress) {
-                    if (progress == null) {
-                      return child;
-                    }
-                    return const _ArtworkLoading();
-                  },
-                  errorBuilder: (_, __, ___) => _ArtworkPlaceholder(size: artworkSize),
-                ),
-        ),
-      ),
-    );
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      width: diameter,
-      height: diameter,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [Color(0x55202932), Color(0xFF0F1118)],
-          radius: 0.88,
-          center: Alignment.center,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x33000000),
-            blurRadius: 30,
-            offset: Offset(0, 18),
-          ),
-        ],
-      ),
-      padding: EdgeInsets.all(framePadding),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: const Color(0xFF0C0F15),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.08),
-            width: 1.6,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x44000000),
-              blurRadius: 26,
-              offset: Offset(0, 18),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(innerPadding),
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return Transform.rotate(
-                angle: _controller.value * pi * 2,
-                child: child,
-              );
+    final Widget artwork = cover == null
+        ? _ArtworkPlaceholder(size: coverSize)
+        : Image.network(
+            cover,
+            key: ValueKey(cover),
+            width: coverSize,
+            height: coverSize,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.high,
+            gaplessPlayback: true,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) {
+                return child;
+              }
+              return const _ArtworkLoading();
             },
+            errorBuilder: (_, __, ___) => _ArtworkPlaceholder(size: coverSize),
+          );
+
+    return Center(
+      child: AnimatedScale(
+        scale: isPlaying ? 1.0 : 0.9,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+        child: Container(
+          width: coverSize,
+          height: coverSize,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.35),
+                blurRadius: 40,
+                offset: const Offset(0, 20),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF201B26), Color(0xFF101118)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
             child: artwork,
           ),
         ),
@@ -940,10 +865,12 @@ class _SongSummary extends StatelessWidget {
                   Expanded(
                     child: Text(
                       title,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            height: 1.2,
-                          ),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withOpacity(0.92),
+                        height: 1.25,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
@@ -959,9 +886,11 @@ class _SongSummary extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           artist,
-          style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.white70,
-              ),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            color: Colors.white.withOpacity(0.65),
+          ),
           textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -995,10 +924,10 @@ class _PlayerContentStack extends StatelessWidget {
       const _SongSummary(),
       SizedBox(height: minorSpacing),
       if (useFlexibleSpacing) const Spacer(),
-      const _QualityAndActions(),
+      const _ProgressSection(),
       SizedBox(height: minorSpacing),
       if (useFlexibleSpacing) const Spacer(),
-      const _ProgressSection(),
+      const _QualityAndActions(),
       if (useFlexibleSpacing) const Spacer(),
     ];
 
@@ -1016,22 +945,34 @@ class _QualityAndActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final player = context.watch<SolaraPlayerController>();
     final quality = player.quality;
-    final theme = Theme.of(context);
+    final hasSong = player.currentSong != null;
+    final Color borderColor = Colors.white.withOpacity(0.35);
+    final Color activeColor = Colors.white.withOpacity(0.95);
+    final Color inactiveColor = Colors.white.withOpacity(0.75);
+    final Color backgroundColor = Colors.white.withOpacity(hasSong ? 0.18 : 0.08);
     return Center(
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          color: Colors.white.withOpacity(0.04),
-          border: Border.all(color: Colors.white12, width: 1),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: borderColor, width: 1),
+          color: backgroundColor,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: DropdownButtonHideUnderline(
           child: DropdownButton<SongQuality>(
             value: quality,
             dropdownColor: const Color(0xFF15171D),
             borderRadius: BorderRadius.circular(16),
-            icon: const Icon(Icons.expand_more, size: 20),
-            style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+            icon: Icon(
+              Icons.expand_more,
+              size: 18,
+              color: Colors.white.withOpacity(0.75),
+            ),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: activeColor,
+            ),
             focusColor: Colors.transparent,
             isDense: true,
             onChanged: player.currentSong == null
@@ -1048,7 +989,14 @@ class _QualityAndActions extends StatelessWidget {
                 .map(
                   (q) => DropdownMenuItem(
                     value: q,
-                    child: Text(q.label, style: theme.textTheme.bodyMedium),
+                    child: Text(
+                      q.label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: q == quality ? FontWeight.w600 : FontWeight.w400,
+                        color: q == quality ? activeColor : inactiveColor,
+                      ),
+                    ),
                   ),
                 )
                 .toList(),
@@ -1302,10 +1250,10 @@ class _ProgressSection extends StatelessWidget {
       children: [
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
-            activeTrackColor: const Color(0xFFFF6B5F),
-            inactiveTrackColor: Colors.white10,
-            trackHeight: 4,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+            activeTrackColor: Colors.white.withOpacity(0.9),
+            inactiveTrackColor: Colors.white.withOpacity(0.2),
+            trackHeight: 3,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
             overlayShape: SliderComponentShape.noOverlay,
             trackShape: const _EdgeToEdgeSliderTrackShape(),
           ),
@@ -1328,11 +1276,17 @@ class _ProgressSection extends StatelessWidget {
           children: [
             Text(
               player.positionLabel,
-              style: Theme.of(context).textTheme.labelSmall,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.white.withOpacity(0.6),
+              ),
             ),
             Text(
               player.durationLabel,
-              style: Theme.of(context).textTheme.labelSmall,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.white.withOpacity(0.6),
+              ),
               textAlign: TextAlign.right,
             ),
           ],
