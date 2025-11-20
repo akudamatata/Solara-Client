@@ -720,7 +720,8 @@ class _PlayerArtwork extends StatelessWidget {
     final cover = player.currentArtwork;
     final isPlaying = player.isPlaying && !player.isLoadingSong;
     final mediaSize = MediaQuery.of(context).size;
-    final double coverSize = _clampSpacing(mediaSize.width * 0.7, 200, 320);
+    final double coverSize =
+        (mediaSize.width * 0.7).clamp(200.0, 320.0).toDouble();
 
     final Widget artwork = cover == null
         ? _ArtworkPlaceholder(size: coverSize)
