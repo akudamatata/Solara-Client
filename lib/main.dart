@@ -973,6 +973,7 @@ class _PlayerContentStack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCupertino = Theme.of(context).platform == TargetPlatform.iOS;
     final children = <Widget>[
       if (useFlexibleSpacing) const Spacer(),
       const Align(
@@ -984,10 +985,10 @@ class _PlayerContentStack extends StatelessWidget {
       const _SongSummary(),
       SizedBox(height: minorSpacing),
       if (useFlexibleSpacing) const Spacer(),
-      const _ProgressSection(),
+      _ProgressSection(showInlineQuality: isCupertino),
       SizedBox(height: minorSpacing),
       if (useFlexibleSpacing) const Spacer(),
-      const _QualityAndActions(),
+      if (!isCupertino) const _QualityAndActions(),
       if (useFlexibleSpacing) const Spacer(),
     ];
 
@@ -1004,13 +1005,65 @@ class _QualityAndActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final player = context.watch<SolaraPlayerController>();
-    final quality = player.quality;
     final hasSong = player.currentSong != null;
     final isCupertino = Theme.of(context).platform == TargetPlatform.iOS;
     final Color activeColor = Colors.white.withOpacity(0.95);
     final Color inactiveColor = Colors.white.withOpacity(0.75);
 
-    final dropdown = DropdownButtonHideUnderline(
+    if (isCupertino) {
+      return const _CupertinoQualityDropdown();
+    }
+
+    final Color borderColor = Colors.white.withOpacity(0.35);
+    final Color backgroundColor = Colors.white.withOpacity(hasSong ? 0.18 : 0.08);
+    return Center(
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: borderColor, width: 1),
+          color: backgroundColor,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: _QualityDropdown(
+          activeColor: activeColor,
+          inactiveColor: inactiveColor,
+        ),
+      ),
+    );
+  }
+}
+
+class _CupertinoQualityDropdown extends StatelessWidget {
+  const _CupertinoQualityDropdown();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Align(
+      alignment: Alignment.center,
+      child: SizedBox(
+        height: 32,
+        child: _QualityDropdown(),
+      ),
+    );
+  }
+}
+
+class _QualityDropdown extends StatelessWidget {
+  const _QualityDropdown({
+    this.activeColor,
+    this.inactiveColor,
+  });
+
+  final Color? activeColor;
+  final Color? inactiveColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final player = context.watch<SolaraPlayerController>();
+    final quality = player.quality;
+    final Color resolvedActive = activeColor ?? Colors.white.withOpacity(0.95);
+    final Color resolvedInactive = inactiveColor ?? Colors.white.withOpacity(0.75);
+    return DropdownButtonHideUnderline(
       child: DropdownButton<SongQuality>(
         value: quality,
         dropdownColor: const Color(0xFF15171D),
@@ -1023,7 +1076,7 @@ class _QualityAndActions extends StatelessWidget {
         style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: activeColor,
+          color: resolvedActive,
         ),
         focusColor: Colors.transparent,
         isDense: true,
@@ -1045,36 +1098,12 @@ class _QualityAndActions extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: q == quality ? FontWeight.w600 : FontWeight.w400,
-                    color: q == quality ? activeColor : inactiveColor,
+                    color: q == quality ? resolvedActive : resolvedInactive,
                   ),
                 ),
               ),
             )
             .toList(),
-      ),
-    );
-
-    if (isCupertino) {
-      return Align(
-        alignment: Alignment.center,
-        child: SizedBox(
-          height: 32,
-          child: dropdown,
-        ),
-      );
-    }
-
-    final Color borderColor = Colors.white.withOpacity(0.35);
-    final Color backgroundColor = Colors.white.withOpacity(hasSong ? 0.18 : 0.08);
-    return Center(
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: borderColor, width: 1),
-          color: backgroundColor,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: dropdown,
       ),
     );
   }
@@ -1310,13 +1339,16 @@ class _ToolbarCircleButton extends StatelessWidget {
 }
 
 class _ProgressSection extends StatelessWidget {
-  const _ProgressSection();
+  const _ProgressSection({this.showInlineQuality = false});
+
+  final bool showInlineQuality;
 
   @override
   Widget build(BuildContext context) {
     final player = context.watch<SolaraPlayerController>();
     final duration = player.duration;
     final position = player.position;
+    final isCupertino = Theme.of(context).platform == TargetPlatform.iOS;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1345,7 +1377,8 @@ class _ProgressSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment:
+              showInlineQuality ? MainAxisAlignment.start : MainAxisAlignment.spaceBetween,
           children: [
             Text(
               player.positionLabel,
@@ -1354,6 +1387,16 @@ class _ProgressSection extends StatelessWidget {
                 color: Colors.white.withOpacity(0.6),
               ),
             ),
+            if (showInlineQuality) ...[
+              Expanded(
+                child: Center(
+                  child: SizedBox(
+                    height: isCupertino ? 32 : 30,
+                    child: const _QualityDropdown(),
+                  ),
+                ),
+              ),
+            ],
             Text(
               player.durationLabel,
               style: TextStyle(
@@ -4075,9 +4118,9 @@ class SolaraPlayerController extends ChangeNotifier {
     }
   }
 
-  bool get _hasPreviousForRemote => _queue.isNotEmpty;
+  bool get _hasPreviousForRemote => _queue.length > 1;
 
-  bool get _hasNextForRemote => _queue.isNotEmpty;
+  bool get _hasNextForRemote => _queue.length > 1;
 
   List<Song> get queue => List.unmodifiable(_queue);
   List<Song> get favorites => _favorites.values.toList(growable: false);
