@@ -17,6 +17,10 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+// Native remote controls channel for iOS lock screen / Control Center.
+const MethodChannel _remoteControlsChannel =
+    MethodChannel('solara/remote_controls');
+
 Future<Directory?> _ensureSolaraDirectory({String? child}) async {
   if (!Platform.isIOS) {
     return null;
@@ -3830,9 +3834,8 @@ class LyricLine {
 class SolaraPlayerController extends ChangeNotifier {
   SolaraPlayerController(this._api) {
     _init();
+    _initRemoteControls();
   }
-
-  static const MethodChannel _remoteChannel = MethodChannel('solara/remote_controls');
 
   final SolaraApi _api;
   final AudioPlayer _player = AudioPlayer();
@@ -3841,6 +3844,7 @@ class SolaraPlayerController extends ChangeNotifier {
   final Map<String, String> _artworkCache = {};
   final Map<String, List<LyricLine>> _lyricsCache = {};
   final Random _random = Random();
+  bool _remoteControlsConfigured = false;
 
   static const List<String> _exploreGenres = [
     '流行',
@@ -3872,7 +3876,6 @@ class SolaraPlayerController extends ChangeNotifier {
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<PlayerState>? _stateSub;
-  bool _remoteConfigured = false;
   Timer? _saveDebounce;
 
   bool _isLoadingSong = false;
@@ -3887,8 +3890,6 @@ class SolaraPlayerController extends ChangeNotifier {
   String? _errorMessage;
 
   Future<void> _init() async {
-    _remoteChannel.setMethodCallHandler(_handleRemoteCommand);
-    await _configureRemote();
     _positionSub = _player.positionStream.listen((value) {
       _position = value;
       _scheduleStateSave();
@@ -3909,12 +3910,45 @@ class SolaraPlayerController extends ChangeNotifier {
     await _loadExplorePreferences();
   }
 
-  Future<void> _configureRemote() async {
+  Future<void> _initRemoteControls() async {
+    // Only configure once on iOS.
+    if (!Platform.isIOS || _remoteControlsConfigured) return;
+    _remoteControlsConfigured = true;
+
     try {
-      await _remoteChannel.invokeMethod('configure');
-      _remoteConfigured = true;
+      await _remoteControlsChannel.invokeMethod('configure');
     } catch (_) {
-      _remoteConfigured = false;
+      // Ignore to avoid impacting other platforms
+    }
+
+    _remoteControlsChannel.setMethodCallHandler((MethodCall call) async {
+      switch (call.method) {
+        case 'skipPrevious':
+          await playPrevious();
+          await _updateRemoteControlsState();
+          break;
+        case 'skipNext':
+          await playNext();
+          await _updateRemoteControlsState();
+          break;
+        default:
+          break;
+      }
+    });
+
+    await _updateRemoteControlsState();
+  }
+
+  Future<void> _updateRemoteControlsState() async {
+    if (!Platform.isIOS || !_remoteControlsConfigured) return;
+
+    try {
+      await _remoteControlsChannel.invokeMethod('updateState', {
+        'hasPrevious': hasPrevious,
+        'hasNext': hasNext,
+      });
+    } catch (_) {
+      // Ignore iOS channel errors
     }
   }
 
@@ -4046,7 +4080,7 @@ class SolaraPlayerController extends ChangeNotifier {
         _duration = Duration(milliseconds: max(0, durationMs));
       }
       notifyListeners();
-      unawaited(_updateRemoteCommands());
+      await _updateRemoteControlsState();
     } catch (_) {
       // Ignore persistence errors.
     }
@@ -4084,47 +4118,21 @@ class SolaraPlayerController extends ChangeNotifier {
     });
   }
 
-  Future<void> _handleRemoteCommand(MethodCall call) async {
-    switch (call.method) {
-      case 'skipNext':
-        if (hasQueue) {
-          unawaited(playNext());
-        }
-        break;
-      case 'skipPrevious':
-        if (hasQueue) {
-          unawaited(playPrevious());
-        }
-        break;
-    }
-  }
-
-  Future<void> _updateRemoteCommands() async {
-    if (!_remoteConfigured) {
-      await _configureRemote();
-      if (!_remoteConfigured) {
-        return;
-      }
-    }
-    final bool hasPrevious = _hasPreviousForRemote;
-    final bool hasNext = _hasNextForRemote;
-    try {
-      await _remoteChannel.invokeMethod('updateState', {
-        'hasPrevious': hasPrevious,
-        'hasNext': hasNext,
-      });
-    } catch (_) {
-      _remoteConfigured = false;
-    }
-  }
-
-  bool get _hasPreviousForRemote => _queue.length > 1;
-
-  bool get _hasNextForRemote => _queue.length > 1;
-
   List<Song> get queue => List.unmodifiable(_queue);
   List<Song> get favorites => _favorites.values.toList(growable: false);
   bool get hasQueue => _queue.isNotEmpty;
+  bool get hasPrevious {
+    if (!hasQueue || _currentSong == null) return false;
+    final index = _queue.indexOf(_currentSong!);
+    return index > 0;
+  }
+
+  bool get hasNext {
+    if (!hasQueue || _currentSong == null) return false;
+    final index = _queue.indexOf(_currentSong!);
+    if (index < 0) return false;
+    return index < _queue.length - 1;
+  }
   bool get isPlaying => _player.playing;
   bool get isBuffering => _player.playerState.processingState == ProcessingState.buffering;
   bool get isLoadingSong => _isLoadingSong;
@@ -4195,7 +4203,7 @@ class SolaraPlayerController extends ChangeNotifier {
       _currentArtwork = resolvedArtwork;
       _currentLyrics = const [];
       _errorMessage = null;
-      unawaited(_updateRemoteCommands());
+      await _updateRemoteControlsState();
       unawaited(_savePersistentState());
       notifyListeners();
       unawaited(lyricsFuture.then((lyrics) {
@@ -4229,13 +4237,14 @@ class SolaraPlayerController extends ChangeNotifier {
     if (_queue.isEmpty) return;
     if (_currentSong == null) {
       await playSong(_queue.first);
+      await _updateRemoteControlsState();
       return;
     }
     switch (_playMode) {
       case PlayMode.single:
         await _player.seek(Duration.zero);
         unawaited(_player.play());
-        unawaited(_updateRemoteCommands());
+        await _updateRemoteControlsState();
         return;
       case PlayMode.random:
         final options = _queue.where((song) => song != _currentSong).toList();
@@ -4246,6 +4255,7 @@ class SolaraPlayerController extends ChangeNotifier {
           nextSong = options[_random.nextInt(options.length)];
         }
         await playSong(nextSong);
+        await _updateRemoteControlsState();
         return;
       case PlayMode.list:
         final currentIndex = _queue.indexOf(_currentSong!);
@@ -4253,6 +4263,7 @@ class SolaraPlayerController extends ChangeNotifier {
             ? currentIndex + 1
             : 0;
         await playSong(_queue[nextIndex]);
+        await _updateRemoteControlsState();
         return;
     }
   }
@@ -4261,13 +4272,14 @@ class SolaraPlayerController extends ChangeNotifier {
     if (_queue.isEmpty) return;
     if (_currentSong == null) {
       await playSong(_queue.first);
+      await _updateRemoteControlsState();
       return;
     }
     switch (_playMode) {
       case PlayMode.single:
         await _player.seek(Duration.zero);
         unawaited(_player.play());
-        unawaited(_updateRemoteCommands());
+        await _updateRemoteControlsState();
         return;
       case PlayMode.random:
         final options = _queue.where((song) => song != _currentSong).toList();
@@ -4278,11 +4290,13 @@ class SolaraPlayerController extends ChangeNotifier {
           previousSong = options[_random.nextInt(options.length)];
         }
         await playSong(previousSong);
+        await _updateRemoteControlsState();
         return;
       case PlayMode.list:
         final currentIndex = _queue.indexOf(_currentSong!);
         final previousIndex = currentIndex <= 0 ? _queue.length - 1 : currentIndex - 1;
         await playSong(_queue[previousIndex]);
+        await _updateRemoteControlsState();
         return;
     }
   }
@@ -4300,7 +4314,7 @@ class SolaraPlayerController extends ChangeNotifier {
         break;
     }
     notifyListeners();
-    unawaited(_updateRemoteCommands());
+    unawaited(_updateRemoteControlsState());
     _scheduleStateSave();
   }
 
@@ -4337,7 +4351,7 @@ class SolaraPlayerController extends ChangeNotifier {
     }
     if (added > 0) {
       notifyListeners();
-      unawaited(_updateRemoteCommands());
+      unawaited(_updateRemoteControlsState());
       _scheduleStateSave();
     }
     return added;
@@ -4360,7 +4374,7 @@ class SolaraPlayerController extends ChangeNotifier {
       }
     }
     notifyListeners();
-    unawaited(_updateRemoteCommands());
+    unawaited(_updateRemoteControlsState());
     _scheduleStateSave();
     return true;
   }
@@ -4376,7 +4390,7 @@ class SolaraPlayerController extends ChangeNotifier {
     _currentLyrics = const [];
     unawaited(_player.stop());
     notifyListeners();
-    unawaited(_updateRemoteCommands());
+    unawaited(_updateRemoteControlsState());
     _scheduleStateSave();
     return removed;
   }
