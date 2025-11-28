@@ -196,8 +196,16 @@
                     </div>
                 </div>
                 <div class="current-song-info">
-                    <div class="current-song-title-row">
-                        <span class="current-song-title" id="currentSongTitle">选择一首歌曲开始播放</span>
+                    <div class="netease-track-header">
+                        <div class="netease-track-meta">
+                            <div class="current-song-title-row">
+                                <span class="current-song-title" id="currentSongTitle">选择一首歌曲开始播放</span>
+                            </div>
+                            <div class="netease-artist-row">
+                                <span class="current-song-artist" id="currentSongArtist">未知艺术家</span>
+                                <button class="artist-follow-btn" type="button">关注</button>
+                            </div>
+                        </div>
                         <button
                             class="favorite-toggle current-favorite-btn"
                             id="currentFavoriteToggle"
@@ -208,7 +216,7 @@
                             <i class="far fa-heart" aria-hidden="true"></i>
                         </button>
                     </div>
-                    <div class="current-song-artist" id="currentSongArtist">未知艺术家</div>
+
                     <button class="mobile-quality-chip" id="mobileQualityToggle" type="button" aria-haspopup="menu" aria-expanded="false">
                         <span id="mobileQualityLabel">极高音质</span>
                         <i class="fas fa-chevron-down" aria-hidden="true"></i>
@@ -463,38 +471,46 @@
         </div>
 
         <div class="controls">
-            <div class="transport-controls">
-                <button class="play-mode-btn transport-button transport-button--mode" id="playModeBtn" type="button" title="播放模式">
-                    <i class="fas fa-repeat"></i>
-                </button>
-                <button class="transport-button transport-button--prev" onclick="playPrevious()" type="button" title="上一曲"><i class="fas fa-backward-step"></i></button>
-                <button class="transport-button transport-button--play" id="playPauseBtn" type="button" title="播放 / 暂停"><i class="fas fa-play"></i></button>
-                <button class="transport-button transport-button--next" onclick="playNext()" type="button" title="下一曲"><i class="fas fa-forward-step"></i></button>
-                <button class="transport-button transport-button--queue" id="mobileQueueToggle" type="button" title="打开播放列表" aria-label="打开播放列表"><i class="fas fa-bars"></i></button>
-                <button class="transport-button transport-button--shuffle" id="shuffleToggleBtn" type="button" title="随机播放" aria-label="切换随机播放"><i class="fas fa-shuffle shuffle-icon shuffle-icon--off"></i></button>
-            </div>
-            <div class="progress-container">
-                <span id="currentTimeDisplay">00:00</span>
-                <input type="range" id="progressBar" min="0" max="0" step="0.1" value="0">
-                <span id="durationDisplay">00:00</span>
-            </div>
-            <div class="control-trailing">
-                <div class="audio-tools">
+            <div class="now-playing-panel">
+                <div class="netease-progress-block">
+                    <div class="progress-container">
+                        <input type="range" id="progressBar" min="0" max="0" step="0.1" value="0">
+                        <div class="progress-times">
+                            <span id="currentTimeDisplay">00:00</span>
+                            <span id="durationDisplay">00:00</span>
+                        </div>
+                    </div>
                     <div class="player-quality">
-                        <button id="qualityToggle" class="player-quality-btn" type="button">
+                        <button id="qualityToggle" class="quality-pill" type="button">
                             <span id="qualityLabel">极高音质</span>
                         </button>
                         <div id="playerQualityMenu" class="player-quality-menu"></div>
                     </div>
-                    <div class="volume-container">
-                        <i id="volumeIcon" class="fas fa-volume-up"></i>
-                        <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.8">
-                    </div>
                 </div>
-                <button id="loadOnlineBtn" title="聚合所有雷达，探索新音乐">
-                    <span class="btn-text"><i class="fas fa-satellite-dish"></i> 探索雷达</span>
-                    <span class="loader" style="display: none;"></span>
-                </button>
+
+                <div class="netease-transport">
+                    <button class="play-mode-btn transport-button transport-button--mode" id="playModeBtn" type="button" title="播放模式">
+                        <i class="fas fa-repeat"></i>
+                    </button>
+                    <button class="transport-button transport-button--prev" onclick="playPrevious()" type="button" title="上一曲"><i class="fas fa-backward-step"></i></button>
+                    <button class="transport-button transport-button--play main-play-btn" id="playPauseBtn" type="button" title="播放 / 暂停"><i class="fas fa-play"></i></button>
+                    <button class="transport-button transport-button--next" onclick="playNext()" type="button" title="下一曲"><i class="fas fa-forward-step"></i></button>
+                    <button class="transport-button transport-button--shuffle" id="shuffleToggleBtn" type="button" title="随机播放" aria-label="切换随机播放"><i class="fas fa-shuffle shuffle-icon shuffle-icon--off"></i></button>
+                    <button class="transport-button transport-button--queue" id="mobileQueueToggle" type="button" title="打开播放列表" aria-label="打开播放列表"><i class="fas fa-bars"></i></button>
+                </div>
+
+                <div class="control-trailing">
+                    <div class="audio-tools">
+                        <div class="volume-container">
+                            <i id="volumeIcon" class="fas fa-volume-up"></i>
+                            <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.8">
+                        </div>
+                    </div>
+                    <button id="loadOnlineBtn" title="聚合所有雷达，探索新音乐">
+                        <span class="btn-text"><i class="fas fa-satellite-dish"></i> 探索雷达</span>
+                        <span class="loader" style="display: none;"></span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>

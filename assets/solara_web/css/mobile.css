@@ -350,7 +350,7 @@ body.mobile-view .current-song-info {
     text-align: center;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 10px;
 }
 
 body.mobile-view .current-song-title {
@@ -374,6 +374,32 @@ body.mobile-view .current-song-artist {
     color: rgba(255, 255, 255, 0.7);
     margin-top: 0;
     margin-bottom: 10px;
+}
+
+body.mobile-view .netease-track-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+}
+
+body.mobile-view .current-song-title-row {
+    justify-content: center;
+}
+
+body.mobile-view .netease-artist-row {
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+body.mobile-view .current-song-title-row .current-favorite-btn {
+    width: 40px;
+    height: 40px;
+}
+
+body.mobile-view .artist-follow-btn {
+    padding: 4px 10px;
+    font-size: 12px;
 }
 
 body.mobile-view .mobile-quality-chip {

@@ -555,7 +555,7 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
     final playMode = player.playMode;
     final playModeData = _PlayModeVisuals.from(playMode);
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         _ControlButton(
           icon: playModeData.icon,
@@ -563,14 +563,16 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
           onTap: player.hasQueue ? player.cyclePlayMode : null,
           iconTheme: iconTheme,
         ),
+        const SizedBox(width: 18),
         _ControlButton(
           icon: Icons.skip_previous_rounded,
           onTap: player.hasQueue ? player.playPrevious : null,
           iconTheme: iconTheme,
         ),
+        const SizedBox(width: 20),
         _ControlButton(
           icon: isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-          size: 64,
+          size: 68,
           onTap: player.hasQueue
               ? () => isPlaying ? player.pause() : player.resume()
               : null,
@@ -579,11 +581,13 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
           ),
           iconTheme: iconTheme,
         ),
+        const SizedBox(width: 20),
         _ControlButton(
           icon: Icons.skip_next_rounded,
           onTap: player.hasQueue ? player.playNext : null,
           iconTheme: iconTheme,
         ),
+        const SizedBox(width: 18),
         _ControlButton(
           icon: Icons.queue_music,
           tooltip: '播放列表',
@@ -833,69 +837,93 @@ class _SongSummary extends StatelessWidget {
     final theme = Theme.of(context);
     final bool canFavorite = song != null;
     final bool isFavorite = canFavorite && player.isFavorite(song!);
-    final favoriteButton = IconButton(
-      onPressed: canFavorite ? () => player.toggleFavorite(song!) : null,
-      icon: Icon(
-        isFavorite ? Icons.favorite : Icons.favorite_border,
-        color: canFavorite
-            ? (isFavorite ? theme.colorScheme.primary : theme.iconTheme.color)
-            : theme.disabledColor,
+    final favoriteButton = Material(
+      shape: const CircleBorder(),
+      color: isFavorite
+          ? const Color(0x1Aff4d6a)
+          : Colors.white.withOpacity(0.08),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: canFavorite ? () => player.toggleFavorite(song!) : null,
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Icon(
+            isFavorite ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
+            color: canFavorite
+                ? (isFavorite ? const Color(0xFFFF4D6A) : Colors.white70)
+                : theme.disabledColor,
+            size: 22,
+          ),
+        ),
       ),
-      iconSize: 20,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints.tightFor(width: 40, height: 40),
-      tooltip: canFavorite
-          ? (isFavorite ? '取消收藏' : '收藏')
-          : '暂无可收藏的歌曲',
+    );
+
+    final followButton = OutlinedButton(
+      onPressed: song == null ? null : () {},
+      style: OutlinedButton.styleFrom(
+        side: BorderSide(color: Colors.white.withOpacity(0.28), width: 1),
+        minimumSize: const Size(0, 30),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+        foregroundColor: Colors.white,
+        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+      ),
+      child: const Text('关注'),
     );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          height: 60,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 320),
-              child: Row(
-                mainAxisSize: MainAxisSize.max,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(width: 40),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
                       title,
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white.withOpacity(0.92),
+                        color: Colors.white.withOpacity(0.95),
                         height: 1.25,
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(width: 40, height: 40, child: favoriteButton),
-                ],
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            artist,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white.withOpacity(0.62),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        followButton,
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              favoriteButton,
+            ],
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          artist,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w400,
-            color: Colors.white.withOpacity(0.65),
-          ),
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        const SizedBox(height: 10),
       ],
     );
   }
@@ -1251,10 +1279,10 @@ class _ProgressSection extends StatelessWidget {
       children: [
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
-            activeTrackColor: Colors.white.withOpacity(0.9),
-            inactiveTrackColor: Colors.white.withOpacity(0.2),
-            trackHeight: 3,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+            activeTrackColor: Colors.white.withOpacity(0.95),
+            inactiveTrackColor: Colors.white.withOpacity(0.24),
+            trackHeight: 2,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
             overlayShape: SliderComponentShape.noOverlay,
             trackShape: const _EdgeToEdgeSliderTrackShape(),
           ),
