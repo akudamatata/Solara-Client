@@ -724,59 +724,71 @@ class _PlayerArtwork extends StatelessWidget {
     final cover = player.currentArtwork;
     final isPlaying = player.isPlaying && !player.isLoadingSong;
     final mediaSize = MediaQuery.of(context).size;
-    final double coverSize =
-        (mediaSize.width * 0.7).clamp(200.0, 320.0).toDouble();
+    final isCupertino = Theme.of(context).platform == TargetPlatform.iOS;
 
-    final Widget artwork = cover == null
-        ? _ArtworkPlaceholder(size: coverSize)
-        : Image.network(
-            cover,
-            key: ValueKey(cover),
-            width: coverSize,
-            height: coverSize,
-            fit: BoxFit.cover,
-            filterQuality: FilterQuality.high,
-            gaplessPlayback: true,
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) {
-                return child;
-              }
-              return const _ArtworkLoading();
-            },
-            errorBuilder: (_, __, ___) => _ArtworkPlaceholder(size: coverSize),
-          );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double baseCoverSize =
+            (mediaSize.width * 0.7).clamp(200.0, 320.0).toDouble();
+        final double availableWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : baseCoverSize;
+        final double coverSize = isCupertino ? availableWidth : baseCoverSize;
 
-    return Center(
-      child: AnimatedScale(
-        scale: isPlaying ? 1.0 : 0.9,
-        duration: const Duration(milliseconds: 240),
-        curve: Curves.easeOutCubic,
-        child: Container(
-          width: coverSize,
-          height: coverSize,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.35),
-                blurRadius: 40,
-                offset: const Offset(0, 20),
+        final Widget artwork = cover == null
+            ? _ArtworkPlaceholder(size: coverSize)
+            : Image.network(
+                cover,
+                key: ValueKey(cover),
+                width: coverSize,
+                height: coverSize,
+                fit: BoxFit.cover,
+                filterQuality: FilterQuality.high,
+                gaplessPlayback: true,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) {
+                    return child;
+                  }
+                  return const _ArtworkLoading();
+                },
+                errorBuilder: (_, __, ___) => _ArtworkPlaceholder(size: coverSize),
+              );
+
+        return Center(
+          child: AnimatedScale(
+            scale: isPlaying
+                ? (isCupertino ? 1.04 : 1.0)
+                : (isCupertino ? 0.92 : 0.9),
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+            child: Container(
+              width: coverSize,
+              height: coverSize,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.35),
+                    blurRadius: 40,
+                    offset: const Offset(0, 20),
+                  ),
+                ],
               ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: DecoratedBox(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF201B26), Color(0xFF101118)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+              clipBehavior: Clip.antiAlias,
+              child: DecoratedBox(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF201B26), Color(0xFF101118)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: artwork,
               ),
             ),
-            child: artwork,
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -835,29 +847,47 @@ class _SongSummary extends StatelessWidget {
     final title = song?.name ?? '选择一首歌曲开始播放';
     final artist = song?.artist ?? '未知艺术家';
     final theme = Theme.of(context);
+    final isCupertino = theme.platform == TargetPlatform.iOS;
     final bool canFavorite = song != null;
     final bool isFavorite = canFavorite && player.isFavorite(song!);
-    final favoriteButton = Material(
-      shape: const CircleBorder(),
-      color: isFavorite
-          ? const Color(0x1Aff4d6a)
-          : Colors.white.withOpacity(0.08),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: canFavorite ? () => player.toggleFavorite(song!) : null,
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(
-            isFavorite ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
-            color: canFavorite
-                ? (isFavorite ? const Color(0xFFFF4D6A) : Colors.white70)
-                : theme.disabledColor,
-            size: 22,
-          ),
-        ),
-      ),
-    );
+    final favoriteButton = isCupertino
+        ? IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+            onPressed: canFavorite ? () => player.toggleFavorite(song!) : null,
+            icon: Icon(
+              isFavorite
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_outline_rounded,
+              color: canFavorite
+                  ? (isFavorite ? const Color(0xFFFF4D6A) : Colors.white70)
+                  : theme.disabledColor,
+              size: 24,
+            ),
+          )
+        : Material(
+            shape: const CircleBorder(),
+            color: isFavorite
+                ? const Color(0x1Aff4d6a)
+                : Colors.white.withOpacity(0.08),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: canFavorite ? () => player.toggleFavorite(song!) : null,
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Icon(
+                  isFavorite
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_outline_rounded,
+                  color: canFavorite
+                      ? (isFavorite ? const Color(0xFFFF4D6A) : Colors.white70)
+                      : theme.disabledColor,
+                  size: 22,
+                ),
+              ),
+            ),
+          );
 
     final followButton = OutlinedButton(
       onPressed: song == null ? null : () {},
@@ -876,9 +906,10 @@ class _SongSummary extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: isCupertino ? 0 : 8),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: Column(
@@ -918,7 +949,7 @@ class _SongSummary extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isCupertino ? 0 : 12),
               favoriteButton,
             ],
           ),
@@ -975,9 +1006,65 @@ class _QualityAndActions extends StatelessWidget {
     final player = context.watch<SolaraPlayerController>();
     final quality = player.quality;
     final hasSong = player.currentSong != null;
-    final Color borderColor = Colors.white.withOpacity(0.35);
+    final isCupertino = Theme.of(context).platform == TargetPlatform.iOS;
     final Color activeColor = Colors.white.withOpacity(0.95);
     final Color inactiveColor = Colors.white.withOpacity(0.75);
+
+    final dropdown = DropdownButtonHideUnderline(
+      child: DropdownButton<SongQuality>(
+        value: quality,
+        dropdownColor: const Color(0xFF15171D),
+        borderRadius: BorderRadius.circular(16),
+        icon: Icon(
+          Icons.expand_more,
+          size: 18,
+          color: Colors.white.withOpacity(0.75),
+        ),
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: activeColor,
+        ),
+        focusColor: Colors.transparent,
+        isDense: true,
+        onChanged: player.currentSong == null
+            ? null
+            : (value) {
+                if (value != null) {
+                  unawaited(player.updateQuality(value));
+                  final notifications = context.read<SolaraNotificationController?>();
+                  notifications?.success('已切换至${value.label}');
+                }
+              },
+        items: SongQuality.values
+            .map(
+              (q) => DropdownMenuItem(
+                value: q,
+                child: Text(
+                  q.label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: q == quality ? FontWeight.w600 : FontWeight.w400,
+                    color: q == quality ? activeColor : inactiveColor,
+                  ),
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+
+    if (isCupertino) {
+      return Align(
+        alignment: Alignment.center,
+        child: SizedBox(
+          height: 32,
+          child: dropdown,
+        ),
+      );
+    }
+
+    final Color borderColor = Colors.white.withOpacity(0.35);
     final Color backgroundColor = Colors.white.withOpacity(hasSong ? 0.18 : 0.08);
     return Center(
       child: Container(
@@ -987,50 +1074,7 @@ class _QualityAndActions extends StatelessWidget {
           color: backgroundColor,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<SongQuality>(
-            value: quality,
-            dropdownColor: const Color(0xFF15171D),
-            borderRadius: BorderRadius.circular(16),
-            icon: Icon(
-              Icons.expand_more,
-              size: 18,
-              color: Colors.white.withOpacity(0.75),
-            ),
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: activeColor,
-            ),
-            focusColor: Colors.transparent,
-            isDense: true,
-            onChanged: player.currentSong == null
-                ? null
-                : (value) {
-                    if (value != null) {
-                      unawaited(player.updateQuality(value));
-                      final notifications =
-                          context.read<SolaraNotificationController?>();
-                      notifications?.success('已切换至${value.label}');
-                    }
-                  },
-            items: SongQuality.values
-                .map(
-                  (q) => DropdownMenuItem(
-                    value: q,
-                    child: Text(
-                      q.label,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: q == quality ? FontWeight.w600 : FontWeight.w400,
-                        color: q == quality ? activeColor : inactiveColor,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-        ),
+        child: dropdown,
       ),
     );
   }
