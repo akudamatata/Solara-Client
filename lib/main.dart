@@ -3881,6 +3881,7 @@ class SolaraPlayerController extends ChangeNotifier {
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<PlayerState>? _stateSub;
+  StreamSubscription<int?>? _currentIndexSub;
   Timer? _saveDebounce;
 
   bool _isLoadingSong = false;
@@ -3910,6 +3911,16 @@ class SolaraPlayerController extends ChangeNotifier {
         unawaited(playNext());
       }
       notifyListeners();
+    });
+    _currentIndexSub = _player.currentIndexStream.listen((index) async {
+      if (index == null || index < 0 || index >= _queue.length) {
+        return;
+      }
+      final song = _queue[index];
+      if (_currentSong == song) {
+        return;
+      }
+      await _applyCurrentSongState(song);
     });
     await _player.setAudioSource(_playlist);
     await _loadPersistentState();
@@ -4184,6 +4195,10 @@ class SolaraPlayerController extends ChangeNotifier {
     final song = _queue[index];
     await _player.seek(Duration.zero, index: index);
     unawaited(_player.play());
+    await _applyCurrentSongState(song);
+  }
+
+  Future<void> _applyCurrentSongState(Song song) async {
     _currentSong = song;
     _currentArtwork =
         _artworkCache[song.identity] ?? _normalizeArtworkUrl(song.picId);
@@ -4673,6 +4688,7 @@ class SolaraPlayerController extends ChangeNotifier {
     _positionSub?.cancel();
     _durationSub?.cancel();
     _stateSub?.cancel();
+    _currentIndexSub?.cancel();
     _saveDebounce?.cancel();
     _player.dispose();
     _api.dispose();
