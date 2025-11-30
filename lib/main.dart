@@ -4142,8 +4142,9 @@ class SolaraPlayerController extends ChangeNotifier {
       final audioUrl = _audioUrlCache[song.identity] ??
           (await _api.resolveSongUrl(song, _quality)).url;
       _audioUrlCache[song.identity] = audioUrl;
-      final artwork = _artworkCache[song.identity] ??
+      String? artwork = _artworkCache[song.identity] ??
           _normalizeArtworkUrl(song.picId);
+      artwork ??= await _api.resolveArtwork(song);
       if (artwork != null) {
         _artworkCache[song.identity] = artwork;
       }
