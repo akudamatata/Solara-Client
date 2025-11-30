@@ -3839,8 +3839,10 @@ class SolaraPlayerController extends ChangeNotifier {
 
   final SolaraApi _api;
   final AudioPlayer _player = AudioPlayer();
-  final ConcatenatingAudioSource _playlist =
-      ConcatenatingAudioSource(useLazyPreparation: true);
+  final ConcatenatingAudioSource _playlist = ConcatenatingAudioSource(
+    children: [],
+    useLazyPreparation: true,
+  );
   final List<Song> _queue = [];
   final Map<String, Song> _favorites = {};
   final Map<String, String> _artworkCache = {};
