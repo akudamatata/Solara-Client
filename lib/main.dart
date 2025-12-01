@@ -893,20 +893,6 @@ class _SongSummary extends StatelessWidget {
             ),
           );
 
-    final followButton = OutlinedButton(
-      onPressed: song == null ? null : () {},
-      style: OutlinedButton.styleFrom(
-        side: BorderSide(color: Colors.white.withOpacity(0.28), width: 1),
-        minimumSize: const Size(0, 30),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-        foregroundColor: Colors.white,
-        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-      ),
-      child: const Text('关注'),
-    );
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -931,24 +917,15 @@ class _SongSummary extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            artist,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.white.withOpacity(0.62),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        followButton,
-                      ],
+                    Text(
+                      artist,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white.withOpacity(0.62),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -4419,7 +4396,8 @@ class SolaraPlayerController extends ChangeNotifier {
     }
   }
 
-  Future<int> addSongsToQueue(List<Song> songs) async {
+  Future<int> addSongsToQueue(List<Song> songs,
+      {bool waitForPlaylist = true}) async {
     var added = 0;
     final List<Song> addedSongs = [];
     for (final song in songs) {
@@ -4431,7 +4409,12 @@ class SolaraPlayerController extends ChangeNotifier {
     }
     if (added > 0) {
       notifyListeners();
-      await _appendSongsToPlaylist(addedSongs);
+      final playlistFuture = _appendSongsToPlaylist(addedSongs);
+      if (waitForPlaylist) {
+        await playlistFuture;
+      } else {
+        unawaited(playlistFuture);
+      }
       await _updateRemoteControlsState();
       _scheduleStateSave();
     }
@@ -4584,7 +4567,8 @@ class SolaraPlayerController extends ChangeNotifier {
         return 0;
       }
       final wasEmpty = _queue.isEmpty;
-      final added = await addSongsToQueue(newSongs);
+      final added =
+          await addSongsToQueue(newSongs, waitForPlaylist: false);
       if (wasEmpty && _queue.isNotEmpty) {
         await playSong(_queue.first);
       }
