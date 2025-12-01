@@ -3893,6 +3893,8 @@ class SolaraPlayerController extends ChangeNotifier {
   final Map<String, String> _artworkCache = {};
   final Map<String, List<LyricLine>> _lyricsCache = {};
   final Map<String, String> _audioUrlCache = {};
+  AudioSession? _audioSession;
+  bool _audioSessionActive = false;
   final Random _random = Random();
   bool _remoteControlsConfigured = false;
 
@@ -3959,7 +3961,11 @@ class SolaraPlayerController extends ChangeNotifier {
       if (state.processingState == ProcessingState.completed) {
         unawaited(playNext());
       }
+      if (!state.playing) {
+        _audioSessionActive = false;
+      }
       notifyListeners();
+      unawaited(_updateRemoteControlsState());
     });
     // 移除 _currentIndexSub，因为改为手动管理播放队列，不再依赖播放器内部索引
 
@@ -3970,6 +3976,12 @@ class SolaraPlayerController extends ChangeNotifier {
         _volume = volume;
         notifyListeners();
       });
+    } catch (_) {}
+
+    try {
+      _audioSession = await AudioSession.instance;
+      await _audioSession?.setActive(true);
+      _audioSessionActive = true;
     } catch (_) {}
 
     await _loadPersistentState();
@@ -4008,12 +4020,36 @@ class SolaraPlayerController extends ChangeNotifier {
           await playNext();
           await _updateRemoteControlsState();
           break;
+        case 'play':
+          await resume();
+          await _updateRemoteControlsState();
+          break;
+        case 'pause':
+          await pause();
+          await _updateRemoteControlsState();
+          break;
+        case 'toggle':
+          if (_player.playing) {
+            await pause();
+          } else {
+            await resume();
+          }
+          await _updateRemoteControlsState();
+          break;
         default:
           break;
       }
     });
 
     await _updateRemoteControlsState();
+  }
+
+  Future<void> _ensureAudioSessionActive() async {
+    if (_audioSession == null || _audioSessionActive) return;
+    try {
+      await _audioSession!.setActive(true);
+      _audioSessionActive = true;
+    } catch (_) {}
   }
 
   Future<void> _updateRemoteControlsState() async {
@@ -4023,6 +4059,7 @@ class SolaraPlayerController extends ChangeNotifier {
       await _remoteControlsChannel.invokeMethod('updateState', {
         'hasPrevious': hasPrevious,
         'hasNext': hasNext,
+        'isPlaying': _player.playing,
       });
     } catch (_) {
       // Ignore iOS channel errors
@@ -4263,6 +4300,7 @@ class SolaraPlayerController extends ChangeNotifier {
     if (index < 0 || index >= _queue.length) return;
     final song = _queue[index];
     await _ensurePlaylistReady();
+    await _ensureAudioSessionActive();
 
     _isLoadingSong = true;
     _currentSong = song;
@@ -4454,6 +4492,7 @@ class SolaraPlayerController extends ChangeNotifier {
   Future<void> playNext() async {
     if (_queue.isEmpty) return;
     await _ensurePlaylistReady();
+    await _ensureAudioSessionActive();
     if (_currentSong == null) {
       await playSong(_queue.first);
       await _updateRemoteControlsState();
@@ -4489,6 +4528,7 @@ class SolaraPlayerController extends ChangeNotifier {
   Future<void> playPrevious() async {
     if (_queue.isEmpty) return;
     await _ensurePlaylistReady();
+    await _ensureAudioSessionActive();
     if (_currentSong == null) {
       await playSong(_queue.first);
       await _updateRemoteControlsState();
@@ -4538,12 +4578,16 @@ class SolaraPlayerController extends ChangeNotifier {
 
   Future<void> pause() async {
     await _player.pause();
+    _audioSessionActive = false;
     notifyListeners();
+    await _updateRemoteControlsState();
   }
 
   Future<void> resume() async {
+    await _ensureAudioSessionActive();
     unawaited(_player.play());
     notifyListeners();
+    await _updateRemoteControlsState();
   }
 
   Future<void> seek(Duration position) async {
