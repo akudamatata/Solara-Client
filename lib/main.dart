@@ -22,6 +22,10 @@ import 'package:url_launcher/url_launcher.dart';
 const MethodChannel _remoteControlsChannel =
     MethodChannel('solara/remote_controls');
 
+// 1秒静音MP3的Data URI，占位用以填充播放列表，确保系统显示完整控制按钮
+const String _kSilentMp3 =
+    'data:audio/mp3;base64,//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq';
+
 Future<Directory?> _ensureSolaraDirectory({String? child}) async {
   if (!Platform.isIOS) {
     return null;
@@ -1418,31 +1422,35 @@ class _VolumeSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final player = context.watch<SolaraPlayerController>();
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Row(
-        children: [
-          Icon(Icons.volume_mute_rounded, size: 20, color: Colors.white.withOpacity(0.5)),
-          Expanded(
-            child: SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                activeTrackColor: Colors.white.withOpacity(0.95),
-                inactiveTrackColor: Colors.white.withOpacity(0.15),
-                trackHeight: 3,
-                thumbColor: Colors.white,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7, elevation: 2),
-                overlayShape: SliderComponentShape.noOverlay,
-                trackShape: const _EdgeToEdgeSliderTrackShape(),
-              ),
-              child: Slider(
-                value: player.volume,
-                onChanged: (value) => player.setVolume(value),
-              ),
+    // 移除外层 Padding，让音量条与上方进度条宽度一致
+    return Row(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: Icon(Icons.volume_mute_rounded, size: 20, color: Colors.white.withOpacity(0.5)),
+        ),
+        Expanded(
+          child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: Colors.white.withOpacity(0.95),
+              inactiveTrackColor: Colors.white.withOpacity(0.15),
+              trackHeight: 3,
+              thumbColor: Colors.white,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8, elevation: 2),
+              overlayShape: SliderComponentShape.noOverlay,
+              trackShape: const _EdgeToEdgeSliderTrackShape(),
+            ),
+            child: Slider(
+              value: player.volume,
+              onChanged: (value) => player.setVolume(value),
             ),
           ),
-          Icon(Icons.volume_up_rounded, size: 20, color: Colors.white.withOpacity(0.5)),
-        ],
-      ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: Icon(Icons.volume_up_rounded, size: 20, color: Colors.white.withOpacity(0.5)),
+        ),
+      ],
     );
   }
 }
@@ -4216,11 +4224,10 @@ class SolaraPlayerController extends ChangeNotifier {
     }
   }
 
-  // 恢复列表同步，但使用“占位符”策略
-  // 构建包含所有歌曲 metadata 的列表，但 URL 使用假的，不请求 API
-  // 这样系统锁屏界面能看到完整的歌单和按钮，但不会触发流量消耗
+  // 【修复】列表同步逻辑：使用占位符填满列表，让锁屏/系统知道有上一首/下一首
   Future<void> _syncPlaylistWithQueue() async {
     await _playlist.clear();
+    // 使用占位符，不请求 API
     final sources = _queue.map((song) => _buildPlaceholderSource(song)).toList();
     await _playlist.addAll(sources);
   }
@@ -4230,12 +4237,12 @@ class SolaraPlayerController extends ChangeNotifier {
     await _playlist.addAll(sources);
   }
 
-  // 构建占位音源：包含正确元数据，但 URL 是假的
   AudioSource _buildPlaceholderSource(Song song) {
-    // 尝试使用已有封面，没有则留空，等待播放时更新
+    // 占位符使用一个标准的静音 MP3 帧，防止播放器报错
+    // 附带完整 Metadata，保证锁屏显示正确信息
     final artwork = _artworkCache[song.identity] ?? _normalizeArtworkUrl(song.picId);
     return AudioSource.uri(
-      Uri.parse('http://solara.placeholder/song/${song.id}'), // 假 URL
+      Uri.parse(_kSilentMp3),
       tag: MediaItem(
         id: song.identity,
         title: song.name,
@@ -4247,10 +4254,9 @@ class SolaraPlayerController extends ChangeNotifier {
   }
 
   Future<void> _ensurePlaylistReady() async {
-    if (_playlist.length == _queue.length) {
-      return;
+    if (_playlist.length != _queue.length) {
+      await _syncPlaylistWithQueue();
     }
-    await _syncPlaylistWithQueue();
   }
 
   Future<void> _playFromQueueIndex(int index) async {
@@ -4298,23 +4304,28 @@ class SolaraPlayerController extends ChangeNotifier {
           'quality': _quality.label,
         },
       );
+      // 添加 Headers 支持防盗链音频
+      final realSource = AudioSource.uri(
+        Uri.parse(audioUrl),
+        tag: mediaItem,
+        headers: SolaraApi.headers,
+      );
 
-      final realSource = AudioSource.uri(Uri.parse(audioUrl), tag: mediaItem);
-
-      // 4. 【核心逻辑】动态替换播放列表中的占位符
-      // 先确保列表长度足够，防止越界
+      // 4. 【热替换】将占位符替换为真实音源
       if (index < _playlist.length) {
-        // 为了避免操作正在播放的 index 导致异常，先移除再插入
-        // 如果是同一首，这其实相当于刷新了 Source
+        // 先替换，再跳转，保证播放的是真实地址
         await _playlist.removeAt(index);
         await _playlist.insert(index, realSource);
+      } else {
+        // 异常回落
+        await _playlist.add(realSource);
       }
-      
-      // 5. 跳转并播放
+
+      // 5. 播放
       await _player.seek(Duration.zero, index: index);
       unawaited(_player.play());
-      
-      // 6. 更新状态
+
+      // 6. 同步原生控制中心状态 (解决按钮变灰问题)
       await _applyCurrentSongState(song);
       
     } catch (e) {
