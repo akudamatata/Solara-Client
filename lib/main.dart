@@ -9,6 +9,7 @@ import 'package:collection/collection.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -256,26 +257,27 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                           ? _clampSpacing(availableHeight * 0.02, 8, 32)
                           : 0;
                       final double cupertinoDetailSpacing = isCupertino
-                          ? _clampSpacing(availableHeight * 0.015, 6, 18)
+                          ? _clampSpacing(availableHeight * 0.01, 4, 14)
                           : 0;
                       final double cupertinoMidSpacing = isCupertino
-                          ? _clampSpacing(availableHeight * 0.01, 6, 18)
+                          ? _clampSpacing(availableHeight * 0.008, 4, 14)
                           : 0;
 
+                      // 针对 iOS 调整间距，为底部的音量条腾出空间
                       final bodySectionSpacing = _clampSpacing(
-                        availableHeight * 0.018 +
-                            cupertinoBaseSpacing * 0.8 +
+                        availableHeight * 0.015 +
+                            cupertinoBaseSpacing * 0.6 +
                             cupertinoMidSpacing,
-                        14,
-                        isCupertino ? 42 : 24,
+                        12,
+                        isCupertino ? 32 : 24,
                       );
 
                       final minorSpacing = _clampSpacing(
-                        availableHeight * 0.012 +
+                        availableHeight * 0.01 +
                             cupertinoDetailSpacing +
-                            cupertinoMidSpacing * 0.6,
-                        10,
-                        isCupertino ? 26 : 16,
+                            cupertinoMidSpacing * 0.5,
+                        8,
+                        isCupertino ? 20 : 16,
                       );
                       // 统一上下边缘留白，让内容在垂直方向更均衡
                       const double topBarSpacing = 8;
@@ -558,7 +560,9 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
     final iconTheme = Theme.of(context).iconTheme.copyWith(color: Colors.white);
     final playMode = player.playMode;
     final playModeData = _PlayModeVisuals.from(playMode);
-    return Row(
+    final isCupertino = Theme.of(context).platform == TargetPlatform.iOS;
+
+    final controls = Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         _ControlButton(
@@ -604,6 +608,19 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
           },
           iconTheme: iconTheme,
         ),
+      ],
+    );
+
+    if (!isCupertino) {
+      return controls;
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        controls,
+        const SizedBox(height: 24),
+        const _VolumeSlider(),
       ],
     );
   }
@@ -1391,6 +1408,41 @@ class _ProgressSection extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _VolumeSlider extends StatelessWidget {
+  const _VolumeSlider();
+
+  @override
+  Widget build(BuildContext context) {
+    final player = context.watch<SolaraPlayerController>();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: [
+          Icon(Icons.volume_mute_rounded, size: 20, color: Colors.white.withOpacity(0.5)),
+          Expanded(
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                activeTrackColor: Colors.white.withOpacity(0.95),
+                inactiveTrackColor: Colors.white.withOpacity(0.15),
+                trackHeight: 3,
+                thumbColor: Colors.white,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7, elevation: 2),
+                overlayShape: SliderComponentShape.noOverlay,
+                trackShape: const _EdgeToEdgeSliderTrackShape(),
+              ),
+              child: Slider(
+                value: player.volume,
+                onChanged: (value) => player.setVolume(value),
+              ),
+            ),
+          ),
+          Icon(Icons.volume_up_rounded, size: 20, color: Colors.white.withOpacity(0.5)),
+        ],
+      ),
     );
   }
 }
@@ -3880,6 +3932,10 @@ class SolaraPlayerController extends ChangeNotifier {
   List<LyricLine> _currentLyrics = const [];
   String? _errorMessage;
 
+  double _volume = 0.5;
+  StreamSubscription<double>? _volumeSubscription;
+  double get volume => _volume;
+
   Future<void> _init() async {
     _positionSub = _player.positionStream.listen((value) {
       _position = value;
@@ -3898,10 +3954,29 @@ class SolaraPlayerController extends ChangeNotifier {
       notifyListeners();
     });
     // 移除 _currentIndexSub，因为改为手动管理播放队列，不再依赖播放器内部索引
+
+    // 初始化系统音量监听
+    try {
+      _volume = await FlutterVolumeController.getVolume() ?? 0.5;
+      _volumeSubscription = FlutterVolumeController.addListener((volume) {
+        _volume = volume;
+        notifyListeners();
+      });
+    } catch (_) {}
+
     await _loadPersistentState();
     await _loadExplorePreferences();
     await _syncPlaylistWithQueue();
     await _player.setAudioSource(_playlist);
+  }
+
+  Future<void> setVolume(double value) async {
+    final clamped = value.clamp(0.0, 1.0);
+    _volume = clamped;
+    notifyListeners();
+    try {
+      await FlutterVolumeController.setVolume(clamped);
+    } catch (_) {}
   }
 
   Future<void> _initRemoteControls() async {
@@ -4752,6 +4827,7 @@ class SolaraPlayerController extends ChangeNotifier {
     _durationSub?.cancel();
     _stateSub?.cancel();
     _currentIndexSub?.cancel();
+    _volumeSubscription?.cancel();
     _saveDebounce?.cancel();
     _player.dispose();
     _api.dispose();
