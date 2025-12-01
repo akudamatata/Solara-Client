@@ -1782,8 +1782,11 @@ class _QueuePanel extends StatelessWidget {
     }
   }
 
-  void _addFavoritesToQueue(BuildContext context, SolaraPlayerController player) {
-    final added = player.addFavoritesToQueue();
+  Future<void> _addFavoritesToQueue(
+    BuildContext context,
+    SolaraPlayerController player,
+  ) async {
+    final added = await player.addFavoritesToQueue();
     if (added == 0) {
       _showSnackBar(context, '收藏歌曲已全部在播放列表中');
     } else {
@@ -1864,8 +1867,8 @@ class _QueuePanel extends StatelessWidget {
       _QueueTileAction(
         icon: Icons.playlist_add,
         tooltip: '添加到播放列表',
-        onTap: () {
-          final added = player.addSongsToQueue([song]);
+        onTap: () async {
+          final added = await player.addSongsToQueue([song]);
           _showSnackBar(
             context,
             added > 0 ? '已添加到播放列表' : '歌曲已在播放列表中',
@@ -2179,7 +2182,7 @@ Future<void> _importCollection(
     }
     final added = favorites
         ? player.addSongsToFavorites(songs)
-        : player.addSongsToQueue(songs);
+        : await player.addSongsToQueue(songs);
     final duplicates = songs.length - added;
     if (added == 0) {
       _showSnackBar(
@@ -4302,7 +4305,7 @@ class SolaraPlayerController extends ChangeNotifier {
     }
     final song = songs[index];
     if (!_queue.contains(song)) {
-      addSongsToQueue(songs);
+      await addSongsToQueue(songs);
     }
     await playSong(song);
     return _currentSong == song;
@@ -4416,7 +4419,7 @@ class SolaraPlayerController extends ChangeNotifier {
     }
   }
 
-  int addSongsToQueue(List<Song> songs) {
+  Future<int> addSongsToQueue(List<Song> songs) async {
     var added = 0;
     final List<Song> addedSongs = [];
     for (final song in songs) {
@@ -4428,8 +4431,8 @@ class SolaraPlayerController extends ChangeNotifier {
     }
     if (added > 0) {
       notifyListeners();
-      unawaited(_appendSongsToPlaylist(addedSongs));
-      unawaited(_updateRemoteControlsState());
+      await _appendSongsToPlaylist(addedSongs);
+      await _updateRemoteControlsState();
       _scheduleStateSave();
     }
     return added;
@@ -4512,7 +4515,7 @@ class SolaraPlayerController extends ChangeNotifier {
     return removed;
   }
 
-  int addFavoritesToQueue() {
+  Future<int> addFavoritesToQueue() async {
     final favorites = this.favorites;
     if (favorites.isEmpty) {
       return 0;
@@ -4581,7 +4584,7 @@ class SolaraPlayerController extends ChangeNotifier {
         return 0;
       }
       final wasEmpty = _queue.isEmpty;
-      final added = addSongsToQueue(newSongs);
+      final added = await addSongsToQueue(newSongs);
       if (wasEmpty && _queue.isNotEmpty) {
         await playSong(_queue.first);
       }
@@ -4770,7 +4773,7 @@ class SolaraSearchController extends ChangeNotifier {
       return;
     }
     final songs = _results.where((song) => _selection.contains(song.identity)).toList();
-    _player!.addSongsToQueue(songs);
+    await _player!.addSongsToQueue(songs);
     _selection.clear();
     notifyListeners();
   }
