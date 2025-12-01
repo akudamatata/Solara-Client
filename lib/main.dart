@@ -24,7 +24,7 @@ const MethodChannel _remoteControlsChannel =
 
 // 1秒静音MP3的Data URI，占位用以填充播放列表，确保系统显示完整控制按钮
 const String _kSilentMp3 =
-    'data:audio/mp3;base64,SUQzBAAAAAAAI1RTSSEAAAA6AAANM3R0cjUAAAANAAAD//7UkAAAAAAAAAAAAAA=';
+    'data:audio/mp3;base64,//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq';
 
 Future<Directory?> _ensureSolaraDirectory({String? child}) async {
   if (!Platform.isIOS) {
@@ -1425,7 +1425,10 @@ class _VolumeSlider extends StatelessWidget {
     // 移除外层 Padding，让音量条与上方进度条宽度一致
     return Row(
       children: [
-        Icon(Icons.volume_mute_rounded, size: 20, color: Colors.white.withOpacity(0.5)),
+        Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: Icon(Icons.volume_mute_rounded, size: 20, color: Colors.white.withOpacity(0.5)),
+        ),
         Expanded(
           child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
@@ -1433,7 +1436,7 @@ class _VolumeSlider extends StatelessWidget {
               inactiveTrackColor: Colors.white.withOpacity(0.15),
               trackHeight: 3,
               thumbColor: Colors.white,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7, elevation: 2),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8, elevation: 2),
               overlayShape: SliderComponentShape.noOverlay,
               trackShape: const _EdgeToEdgeSliderTrackShape(),
             ),
@@ -1443,7 +1446,10 @@ class _VolumeSlider extends StatelessWidget {
             ),
           ),
         ),
-        Icon(Icons.volume_up_rounded, size: 20, color: Colors.white.withOpacity(0.5)),
+        Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: Icon(Icons.volume_up_rounded, size: 20, color: Colors.white.withOpacity(0.5)),
+        ),
       ],
     );
   }
@@ -4232,7 +4238,7 @@ class SolaraPlayerController extends ChangeNotifier {
   }
 
   AudioSource _buildPlaceholderSource(Song song) {
-    // 占位符使用一个合法的 Data URI (1字节 MP3)，防止播放器报错
+    // 占位符使用一个标准的静音 MP3 帧，防止播放器报错
     // 附带完整 Metadata，保证锁屏显示正确信息
     final artwork = _artworkCache[song.identity] ?? _normalizeArtworkUrl(song.picId);
     return AudioSource.uri(
