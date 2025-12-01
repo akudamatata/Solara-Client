@@ -9,6 +9,7 @@ import 'package:collection/collection.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -256,26 +257,27 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
                           ? _clampSpacing(availableHeight * 0.02, 8, 32)
                           : 0;
                       final double cupertinoDetailSpacing = isCupertino
-                          ? _clampSpacing(availableHeight * 0.015, 6, 18)
+                          ? _clampSpacing(availableHeight * 0.01, 4, 14)
                           : 0;
                       final double cupertinoMidSpacing = isCupertino
-                          ? _clampSpacing(availableHeight * 0.01, 6, 18)
+                          ? _clampSpacing(availableHeight * 0.008, 4, 14)
                           : 0;
 
+                      // 针对 iOS 调整间距，为底部的音量条腾出空间
                       final bodySectionSpacing = _clampSpacing(
-                        availableHeight * 0.018 +
-                            cupertinoBaseSpacing * 0.8 +
+                        availableHeight * 0.015 +
+                            cupertinoBaseSpacing * 0.6 +
                             cupertinoMidSpacing,
-                        14,
-                        isCupertino ? 42 : 24,
+                        12,
+                        isCupertino ? 32 : 24,
                       );
 
                       final minorSpacing = _clampSpacing(
-                        availableHeight * 0.012 +
+                        availableHeight * 0.01 +
                             cupertinoDetailSpacing +
-                            cupertinoMidSpacing * 0.6,
-                        10,
-                        isCupertino ? 26 : 16,
+                            cupertinoMidSpacing * 0.5,
+                        8,
+                        isCupertino ? 20 : 16,
                       );
                       // 统一上下边缘留白，让内容在垂直方向更均衡
                       const double topBarSpacing = 8;
@@ -558,7 +560,9 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
     final iconTheme = Theme.of(context).iconTheme.copyWith(color: Colors.white);
     final playMode = player.playMode;
     final playModeData = _PlayModeVisuals.from(playMode);
-    return Row(
+    final isCupertino = Theme.of(context).platform == TargetPlatform.iOS;
+
+    final controls = Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         _ControlButton(
@@ -604,6 +608,19 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
           },
           iconTheme: iconTheme,
         ),
+      ],
+    );
+
+    if (!isCupertino) {
+      return controls;
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        controls,
+        const SizedBox(height: 24),
+        const _VolumeSlider(),
       ],
     );
   }
@@ -744,6 +761,8 @@ class _PlayerArtwork extends StatelessWidget {
             : Image.network(
                 cover,
                 key: ValueKey(cover),
+                // 修改：添加 headers 以支持防盗链图片显示
+                headers: SolaraApi.headers,
                 width: coverSize,
                 height: coverSize,
                 fit: BoxFit.cover,
@@ -1389,6 +1408,41 @@ class _ProgressSection extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _VolumeSlider extends StatelessWidget {
+  const _VolumeSlider();
+
+  @override
+  Widget build(BuildContext context) {
+    final player = context.watch<SolaraPlayerController>();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: [
+          Icon(Icons.volume_mute_rounded, size: 20, color: Colors.white.withOpacity(0.5)),
+          Expanded(
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                activeTrackColor: Colors.white.withOpacity(0.95),
+                inactiveTrackColor: Colors.white.withOpacity(0.15),
+                trackHeight: 3,
+                thumbColor: Colors.white,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7, elevation: 2),
+                overlayShape: SliderComponentShape.noOverlay,
+                trackShape: const _EdgeToEdgeSliderTrackShape(),
+              ),
+              child: Slider(
+                value: player.volume,
+                onChanged: (value) => player.setVolume(value),
+              ),
+            ),
+          ),
+          Icon(Icons.volume_up_rounded, size: 20, color: Colors.white.withOpacity(0.5)),
+        ],
+      ),
     );
   }
 }
@@ -3350,6 +3404,9 @@ class SolaraApi {
   final http.Client _client;
 
   static const String _baseUrl = 'https://music-api.gdstudio.xyz/api.php';
+  
+  // 修改：公开 headers getter，供图片加载使用
+  static Map<String, String> get headers => _headers;
   static const Map<String, String> _headers = {
     'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
     'Referer': 'https://music-api.gdstudio.xyz/',
@@ -3875,6 +3932,10 @@ class SolaraPlayerController extends ChangeNotifier {
   List<LyricLine> _currentLyrics = const [];
   String? _errorMessage;
 
+  double _volume = 0.5;
+  StreamSubscription<double>? _volumeSubscription;
+  double get volume => _volume;
+
   Future<void> _init() async {
     _positionSub = _player.positionStream.listen((value) {
       _position = value;
@@ -3892,20 +3953,30 @@ class SolaraPlayerController extends ChangeNotifier {
       }
       notifyListeners();
     });
-    _currentIndexSub = _player.currentIndexStream.listen((index) async {
-      if (index == null || index < 0 || index >= _queue.length) {
-        return;
-      }
-      final song = _queue[index];
-      if (_currentSong == song) {
-        return;
-      }
-      await _applyCurrentSongState(song);
-    });
-    await _player.setAudioSource(_playlist);
+    // 移除 _currentIndexSub，因为改为手动管理播放队列，不再依赖播放器内部索引
+
+    // 初始化系统音量监听
+    try {
+      _volume = await FlutterVolumeController.getVolume() ?? 0.5;
+      _volumeSubscription = FlutterVolumeController.addListener((volume) {
+        _volume = volume;
+        notifyListeners();
+      });
+    } catch (_) {}
+
     await _loadPersistentState();
     await _loadExplorePreferences();
     await _syncPlaylistWithQueue();
+    await _player.setAudioSource(_playlist);
+  }
+
+  Future<void> setVolume(double value) async {
+    final clamped = value.clamp(0.0, 1.0);
+    _volume = clamped;
+    notifyListeners();
+    try {
+      await FlutterVolumeController.setVolume(clamped);
+    } catch (_) {}
   }
 
   Future<void> _initRemoteControls() async {
@@ -4145,23 +4216,34 @@ class SolaraPlayerController extends ChangeNotifier {
     }
   }
 
+  // 恢复列表同步，但使用“占位符”策略
+  // 构建包含所有歌曲 metadata 的列表，但 URL 使用假的，不请求 API
+  // 这样系统锁屏界面能看到完整的歌单和按钮，但不会触发流量消耗
   Future<void> _syncPlaylistWithQueue() async {
     await _playlist.clear();
-    for (final song in _queue) {
-      final source = await _buildAudioSourceForSong(song);
-      if (source != null) {
-        await _playlist.add(source);
-      }
-    }
+    final sources = _queue.map((song) => _buildPlaceholderSource(song)).toList();
+    await _playlist.addAll(sources);
   }
 
   Future<void> _appendSongsToPlaylist(List<Song> songs) async {
-    for (final song in songs) {
-      final source = await _buildAudioSourceForSong(song);
-      if (source != null) {
-        await _playlist.add(source);
-      }
-    }
+    final sources = songs.map((song) => _buildPlaceholderSource(song)).toList();
+    await _playlist.addAll(sources);
+  }
+
+  // 构建占位音源：包含正确元数据，但 URL 是假的
+  AudioSource _buildPlaceholderSource(Song song) {
+    // 尝试使用已有封面，没有则留空，等待播放时更新
+    final artwork = _artworkCache[song.identity] ?? _normalizeArtworkUrl(song.picId);
+    return AudioSource.uri(
+      Uri.parse('http://solara.placeholder/song/${song.id}'), // 假 URL
+      tag: MediaItem(
+        id: song.identity,
+        title: song.name,
+        artist: song.artist,
+        album: song.album,
+        artUri: artwork != null ? Uri.tryParse(artwork) : null,
+      ),
+    );
   }
 
   Future<void> _ensurePlaylistReady() async {
@@ -4174,9 +4256,77 @@ class SolaraPlayerController extends ChangeNotifier {
   Future<void> _playFromQueueIndex(int index) async {
     if (index < 0 || index >= _queue.length) return;
     final song = _queue[index];
-    await _player.seek(Duration.zero, index: index);
-    unawaited(_player.play());
-    await _applyCurrentSongState(song);
+    await _ensurePlaylistReady();
+
+    _isLoadingSong = true;
+    _currentSong = song;
+    notifyListeners();
+
+    try {
+      // 1. 解析真实音频地址
+      String audioUrl;
+      if (_audioUrlCache.containsKey(song.identity)) {
+        audioUrl = _audioUrlCache[song.identity]!;
+      } else {
+        final audio = await _api.resolveSongUrl(song, _quality);
+        audioUrl = audio.url;
+        _audioUrlCache[song.identity] = audioUrl;
+      }
+
+      // 2. 解析真实封面
+      String? artworkUrl = _artworkCache[song.identity] ?? _normalizeArtworkUrl(song.picId);
+      if (artworkUrl == null) {
+         try {
+           artworkUrl = await _api.resolveArtwork(song);
+           if (artworkUrl != null) {
+             _artworkCache[song.identity] = artworkUrl;
+           }
+         } catch (_) {}
+      }
+      _currentArtwork = artworkUrl;
+      notifyListeners();
+
+      // 3. 构建真实音源
+      final mediaItem = MediaItem(
+        id: song.identity,
+        title: song.name,
+        artist: song.artist,
+        album: song.album,
+        artUri: artworkUrl != null ? Uri.tryParse(artworkUrl) : null,
+        extras: {
+          'source': song.source.param,
+          'quality': _quality.label,
+        },
+      );
+
+      final realSource = AudioSource.uri(Uri.parse(audioUrl), tag: mediaItem);
+
+      // 4. 【核心逻辑】动态替换播放列表中的占位符
+      // 先确保列表长度足够，防止越界
+      if (index < _playlist.length) {
+        // 为了避免操作正在播放的 index 导致异常，先移除再插入
+        // 如果是同一首，这其实相当于刷新了 Source
+        await _playlist.removeAt(index);
+        await _playlist.insert(index, realSource);
+      }
+      
+      // 5. 跳转并播放
+      await _player.seek(Duration.zero, index: index);
+      unawaited(_player.play());
+      
+      // 6. 更新状态
+      await _applyCurrentSongState(song);
+      
+    } catch (e) {
+      _errorMessage = e.toString();
+      _isLoadingSong = false;
+      notifyListeners();
+    } finally {
+      if (_isLoadingSong) {
+        _isLoadingSong = false;
+        notifyListeners();
+      }
+    }
   }
 
   Future<void> _applyCurrentSongState(Song song) async {
@@ -4196,6 +4346,7 @@ class SolaraPlayerController extends ChangeNotifier {
         if (_currentSong == song) {
           _currentArtwork = resolvedArtwork;
           notifyListeners();
+          unawaited(_updateRemoteControlsState());
         }
       }
     }));
@@ -4260,7 +4411,6 @@ class SolaraPlayerController extends ChangeNotifier {
     _currentArtwork = initialArtwork;
     notifyListeners();
     try {
-      await _syncPlaylistWithQueue();
       final index = _queue.indexOf(song);
       if (index < 0) {
         _errorMessage = '歌曲未在播放列表中';
@@ -4677,6 +4827,7 @@ class SolaraPlayerController extends ChangeNotifier {
     _durationSub?.cancel();
     _stateSub?.cancel();
     _currentIndexSub?.cancel();
+    _volumeSubscription?.cancel();
     _saveDebounce?.cancel();
     _player.dispose();
     _api.dispose();
