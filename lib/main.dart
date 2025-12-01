@@ -4215,15 +4215,15 @@ class SolaraPlayerController extends ChangeNotifier {
   bool get hasQueue => _queue.isNotEmpty;
   bool get hasPrevious {
     if (!hasQueue || _currentSong == null) return false;
-    final index = _queue.indexOf(_currentSong!);
-    return index > 0;
+    // Always allow navigating when there is more than one track to mirror
+    // common iOS player behavior, even if the current song is first/last.
+    return _queue.length > 1;
   }
 
   bool get hasNext {
     if (!hasQueue || _currentSong == null) return false;
-    final index = _queue.indexOf(_currentSong!);
-    if (index < 0) return false;
-    return index < _queue.length - 1;
+    // Keep the next button active as long as the queue has multiple tracks.
+    return _queue.length > 1;
   }
   bool get isPlaying => _player.playing;
   bool get isBuffering => _player.playerState.processingState == ProcessingState.buffering;
