@@ -744,6 +744,8 @@ class _PlayerArtwork extends StatelessWidget {
             : Image.network(
                 cover,
                 key: ValueKey(cover),
+                // 修改：添加 headers 以支持防盗链图片显示
+                headers: SolaraApi.headers,
                 width: coverSize,
                 height: coverSize,
                 fit: BoxFit.cover,
@@ -3350,6 +3352,9 @@ class SolaraApi {
   final http.Client _client;
 
   static const String _baseUrl = 'https://music-api.gdstudio.xyz/api.php';
+  
+  // 修改：公开 headers getter，供图片加载使用
+  static Map<String, String> get headers => _headers;
   static const Map<String, String> _headers = {
     'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
     'Referer': 'https://music-api.gdstudio.xyz/',
@@ -3893,11 +3898,10 @@ class SolaraPlayerController extends ChangeNotifier {
       notifyListeners();
     });
     // 移除 _currentIndexSub，因为改为手动管理播放队列，不再依赖播放器内部索引
-
-    // await _player.setAudioSource(_playlist); // 不再初始化全量列表
     await _loadPersistentState();
     await _loadExplorePreferences();
     await _syncPlaylistWithQueue();
+    await _player.setAudioSource(_playlist);
   }
 
   Future<void> _initRemoteControls() async {
@@ -4137,10 +4141,35 @@ class SolaraPlayerController extends ChangeNotifier {
     }
   }
 
-  // 禁用播放列表同步，实现完全懒加载
-  Future<void> _syncPlaylistWithQueue() async {}
+  // 恢复列表同步，但使用“占位符”策略
+  // 构建包含所有歌曲 metadata 的列表，但 URL 使用假的，不请求 API
+  // 这样系统锁屏界面能看到完整的歌单和按钮，但不会触发流量消耗
+  Future<void> _syncPlaylistWithQueue() async {
+    await _playlist.clear();
+    final sources = _queue.map((song) => _buildPlaceholderSource(song)).toList();
+    await _playlist.addAll(sources);
+  }
 
-  Future<void> _appendSongsToPlaylist(List<Song> songs) async {}
+  Future<void> _appendSongsToPlaylist(List<Song> songs) async {
+    final sources = songs.map((song) => _buildPlaceholderSource(song)).toList();
+    await _playlist.addAll(sources);
+  }
+
+  // 构建占位音源：包含正确元数据，但 URL 是假的
+  AudioSource _buildPlaceholderSource(Song song) {
+    // 尝试使用已有封面，没有则留空，等待播放时更新
+    final artwork = _artworkCache[song.identity] ?? _normalizeArtworkUrl(song.picId);
+    return AudioSource.uri(
+      Uri.parse('http://solara.placeholder/song/${song.id}'), // 假 URL
+      tag: MediaItem(
+        id: song.identity,
+        title: song.name,
+        artist: song.artist,
+        album: song.album,
+        artUri: artwork != null ? Uri.tryParse(artwork) : null,
+      ),
+    );
+  }
 
   Future<void> _ensurePlaylistReady() async {
     if (_playlist.length == _queue.length) {
@@ -4152,13 +4181,14 @@ class SolaraPlayerController extends ChangeNotifier {
   Future<void> _playFromQueueIndex(int index) async {
     if (index < 0 || index >= _queue.length) return;
     final song = _queue[index];
+    await _ensurePlaylistReady();
 
     _isLoadingSong = true;
-    _currentSong = song; // 立即更新当前歌曲，让UI响应
+    _currentSong = song;
     notifyListeners();
 
     try {
-      // 1. 解析音频地址 (懒加载)
+      // 1. 解析真实音频地址
       String audioUrl;
       if (_audioUrlCache.containsKey(song.identity)) {
         audioUrl = _audioUrlCache[song.identity]!;
@@ -4168,7 +4198,7 @@ class SolaraPlayerController extends ChangeNotifier {
         _audioUrlCache[song.identity] = audioUrl;
       }
 
-      // 2. 解析封面 (懒加载)
+      // 2. 解析真实封面
       String? artworkUrl = _artworkCache[song.identity] ?? _normalizeArtworkUrl(song.picId);
       if (artworkUrl == null) {
          try {
@@ -4178,11 +4208,10 @@ class SolaraPlayerController extends ChangeNotifier {
            }
          } catch (_) {}
       }
-      // 立即更新界面封面
       _currentArtwork = artworkUrl;
       notifyListeners();
 
-      // 3. 构建音频源并播放
+      // 3. 构建真实音源
       final mediaItem = MediaItem(
         id: song.identity,
         title: song.name,
@@ -4195,12 +4224,22 @@ class SolaraPlayerController extends ChangeNotifier {
         },
       );
 
-      final source = AudioSource.uri(Uri.parse(audioUrl), tag: mediaItem);
+      final realSource = AudioSource.uri(Uri.parse(audioUrl), tag: mediaItem);
+
+      // 4. 【核心逻辑】动态替换播放列表中的占位符
+      // 先确保列表长度足够，防止越界
+      if (index < _playlist.length) {
+        // 为了避免操作正在播放的 index 导致异常，先移除再插入
+        // 如果是同一首，这其实相当于刷新了 Source
+        await _playlist.removeAt(index);
+        await _playlist.insert(index, realSource);
+      }
       
-      await _player.setAudioSource(source);
+      // 5. 跳转并播放
+      await _player.seek(Duration.zero, index: index);
       unawaited(_player.play());
       
-      // 4. 更新状态（歌词等）
+      // 6. 更新状态
       await _applyCurrentSongState(song);
       
     } catch (e) {
@@ -4208,11 +4247,10 @@ class SolaraPlayerController extends ChangeNotifier {
       _isLoadingSong = false;
       notifyListeners();
     } finally {
-       // 确保在成功或失败后取消加载状态
-       if (_isLoadingSong) {
-         _isLoadingSong = false;
-         notifyListeners();
-       }
+      if (_isLoadingSong) {
+        _isLoadingSong = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -4233,6 +4271,7 @@ class SolaraPlayerController extends ChangeNotifier {
         if (_currentSong == song) {
           _currentArtwork = resolvedArtwork;
           notifyListeners();
+          unawaited(_updateRemoteControlsState());
         }
       }
     }));
