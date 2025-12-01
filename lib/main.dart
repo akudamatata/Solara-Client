@@ -4311,13 +4311,15 @@ class SolaraPlayerController extends ChangeNotifier {
         headers: SolaraApi.headers,
       );
 
-      // 4. 【热替换】将占位符替换为真实音源
+      // 4. 【安全热替换】
+      // 为避免 iOS AVQueuePlayer 在移除当前项时进入异常状态，先停止再执行
+      // "Insert-Then-Remove" 策略：先插入真实源，再移除后一个占位符。
+      await _player.stop();
+
       if (index < _playlist.length) {
-        // 先替换，再跳转，保证播放的是真实地址
-        await _playlist.removeAt(index);
         await _playlist.insert(index, realSource);
+        await _playlist.removeAt(index + 1);
       } else {
-        // 异常回落
         await _playlist.add(realSource);
       }
 
