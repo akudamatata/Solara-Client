@@ -893,20 +893,6 @@ class _SongSummary extends StatelessWidget {
             ),
           );
 
-    final followButton = OutlinedButton(
-      onPressed: song == null ? null : () {},
-      style: OutlinedButton.styleFrom(
-        side: BorderSide(color: Colors.white.withOpacity(0.28), width: 1),
-        minimumSize: const Size(0, 30),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-        foregroundColor: Colors.white,
-        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-      ),
-      child: const Text('关注'),
-    );
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -931,24 +917,15 @@ class _SongSummary extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            artist,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.white.withOpacity(0.62),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        followButton,
-                      ],
+                    Text(
+                      artist,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white.withOpacity(0.62),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -1782,8 +1759,11 @@ class _QueuePanel extends StatelessWidget {
     }
   }
 
-  void _addFavoritesToQueue(BuildContext context, SolaraPlayerController player) {
-    final added = player.addFavoritesToQueue();
+  Future<void> _addFavoritesToQueue(
+    BuildContext context,
+    SolaraPlayerController player,
+  ) async {
+    final added = await player.addFavoritesToQueue();
     if (added == 0) {
       _showSnackBar(context, '收藏歌曲已全部在播放列表中');
     } else {
@@ -1864,8 +1844,8 @@ class _QueuePanel extends StatelessWidget {
       _QueueTileAction(
         icon: Icons.playlist_add,
         tooltip: '添加到播放列表',
-        onTap: () {
-          final added = player.addSongsToQueue([song]);
+        onTap: () async {
+          final added = await player.addSongsToQueue([song]);
           _showSnackBar(
             context,
             added > 0 ? '已添加到播放列表' : '歌曲已在播放列表中',
@@ -2179,7 +2159,7 @@ Future<void> _importCollection(
     }
     final added = favorites
         ? player.addSongsToFavorites(songs)
-        : player.addSongsToQueue(songs);
+        : await player.addSongsToQueue(songs);
     final duplicates = songs.length - added;
     if (added == 0) {
       _showSnackBar(
@@ -3839,10 +3819,15 @@ class SolaraPlayerController extends ChangeNotifier {
 
   final SolaraApi _api;
   final AudioPlayer _player = AudioPlayer();
+  final ConcatenatingAudioSource _playlist = ConcatenatingAudioSource(
+    children: [],
+    useLazyPreparation: true,
+  );
   final List<Song> _queue = [];
   final Map<String, Song> _favorites = {};
   final Map<String, String> _artworkCache = {};
   final Map<String, List<LyricLine>> _lyricsCache = {};
+  final Map<String, String> _audioUrlCache = {};
   final Random _random = Random();
   bool _remoteControlsConfigured = false;
 
@@ -3876,6 +3861,7 @@ class SolaraPlayerController extends ChangeNotifier {
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<PlayerState>? _stateSub;
+  StreamSubscription<int?>? _currentIndexSub;
   Timer? _saveDebounce;
 
   bool _isLoadingSong = false;
@@ -3906,8 +3892,20 @@ class SolaraPlayerController extends ChangeNotifier {
       }
       notifyListeners();
     });
+    _currentIndexSub = _player.currentIndexStream.listen((index) async {
+      if (index == null || index < 0 || index >= _queue.length) {
+        return;
+      }
+      final song = _queue[index];
+      if (_currentSong == song) {
+        return;
+      }
+      await _applyCurrentSongState(song);
+    });
+    await _player.setAudioSource(_playlist);
     await _loadPersistentState();
     await _loadExplorePreferences();
+    await _syncPlaylistWithQueue();
   }
 
   Future<void> _initRemoteControls() async {
@@ -4118,6 +4116,100 @@ class SolaraPlayerController extends ChangeNotifier {
     });
   }
 
+  Future<AudioSource?> _buildAudioSourceForSong(Song song) async {
+    if (song.id.isEmpty) return null;
+    try {
+      final audioUrl = _audioUrlCache[song.identity] ??
+          (await _api.resolveSongUrl(song, _quality)).url;
+      _audioUrlCache[song.identity] = audioUrl;
+      String? artwork = _artworkCache[song.identity] ??
+          _normalizeArtworkUrl(song.picId);
+      artwork ??= await _api.resolveArtwork(song);
+      if (artwork != null) {
+        _artworkCache[song.identity] = artwork;
+      }
+      final mediaItem = MediaItem(
+        id: song.identity,
+        title: song.name,
+        artist: song.artist,
+        album: song.album?.isNotEmpty == true ? song.album : null,
+        artUri: artwork != null ? Uri.tryParse(artwork) : null,
+        extras: {
+          'source': song.source.param,
+          'quality': _quality.label,
+        },
+      );
+      return AudioSource.uri(Uri.parse(audioUrl), tag: mediaItem);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _syncPlaylistWithQueue() async {
+    await _playlist.clear();
+    for (final song in _queue) {
+      final source = await _buildAudioSourceForSong(song);
+      if (source != null) {
+        await _playlist.add(source);
+      }
+    }
+  }
+
+  Future<void> _appendSongsToPlaylist(List<Song> songs) async {
+    for (final song in songs) {
+      final source = await _buildAudioSourceForSong(song);
+      if (source != null) {
+        await _playlist.add(source);
+      }
+    }
+  }
+
+  Future<void> _ensurePlaylistReady() async {
+    if (_playlist.length == _queue.length) {
+      return;
+    }
+    await _syncPlaylistWithQueue();
+  }
+
+  Future<void> _playFromQueueIndex(int index) async {
+    if (index < 0 || index >= _queue.length) return;
+    final song = _queue[index];
+    await _player.seek(Duration.zero, index: index);
+    unawaited(_player.play());
+    await _applyCurrentSongState(song);
+  }
+
+  Future<void> _applyCurrentSongState(Song song) async {
+    _currentSong = song;
+    _currentArtwork =
+        _artworkCache[song.identity] ?? _normalizeArtworkUrl(song.picId);
+    _currentLyrics = const [];
+    _errorMessage = null;
+    await _updateRemoteControlsState();
+    unawaited(_savePersistentState());
+    notifyListeners();
+
+    unawaited(_loadArtwork(song).catchError((_) => null).then((artwork) {
+      final resolvedArtwork = artwork ?? _normalizeArtworkUrl(song.picId);
+      if (resolvedArtwork != null) {
+        _artworkCache[song.identity] = resolvedArtwork;
+        if (_currentSong == song) {
+          _currentArtwork = resolvedArtwork;
+          notifyListeners();
+        }
+      }
+    }));
+
+    unawaited(
+      _loadLyrics(song).catchError((_) => const <LyricLine>[]).then((lyrics) {
+        if (_currentSong == song) {
+          _currentLyrics = lyrics;
+          notifyListeners();
+        }
+      }),
+    );
+  }
+
   List<Song> get queue => List.unmodifiable(_queue);
   List<Song> get favorites => _favorites.values.toList(growable: false);
   bool get hasQueue => _queue.isNotEmpty;
@@ -4168,50 +4260,13 @@ class SolaraPlayerController extends ChangeNotifier {
     _currentArtwork = initialArtwork;
     notifyListeners();
     try {
-      final audioFuture = _api.resolveSongUrl(song, _quality);
-      final artworkFuture = _loadArtwork(song).catchError(
-        (_) => null,
-      );
-      final lyricsFuture = _loadLyrics(song).catchError(
-        (_) => const <LyricLine>[],
-      );
-      final audio = await audioFuture;
-      final artwork = await artworkFuture;
-      final resolvedArtwork = artwork ?? _normalizeArtworkUrl(song.picId);
-      if (resolvedArtwork != null) {
-        _artworkCache[song.identity] = resolvedArtwork;
+      await _syncPlaylistWithQueue();
+      final index = _queue.indexOf(song);
+      if (index < 0) {
+        _errorMessage = '歌曲未在播放列表中';
+        return;
       }
-      final mediaItem = MediaItem(
-        id: song.identity,
-        title: song.name,
-        artist: song.artist,
-        album: song.album?.isNotEmpty == true ? song.album : null,
-        artUri: resolvedArtwork != null ? Uri.tryParse(resolvedArtwork) : null,
-        extras: {
-          'source': song.source.param,
-          'quality': _quality.label,
-        },
-      );
-      await _player.setAudioSource(
-        AudioSource.uri(
-          Uri.parse(audio.url),
-          tag: mediaItem,
-        ),
-      );
-      unawaited(_player.play());
-      _currentSong = song;
-      _currentArtwork = resolvedArtwork;
-      _currentLyrics = const [];
-      _errorMessage = null;
-      await _updateRemoteControlsState();
-      unawaited(_savePersistentState());
-      notifyListeners();
-      unawaited(lyricsFuture.then((lyrics) {
-        if (_currentSong == song) {
-          _currentLyrics = lyrics;
-          notifyListeners();
-        }
-      }));
+      await _playFromQueueIndex(index);
     } catch (error) {
       _errorMessage = error.toString();
       notifyListeners();
@@ -4227,7 +4282,7 @@ class SolaraPlayerController extends ChangeNotifier {
     }
     final song = songs[index];
     if (!_queue.contains(song)) {
-      addSongsToQueue(songs);
+      await addSongsToQueue(songs);
     }
     await playSong(song);
     return _currentSong == song;
@@ -4235,6 +4290,7 @@ class SolaraPlayerController extends ChangeNotifier {
 
   Future<void> playNext() async {
     if (_queue.isEmpty) return;
+    await _ensurePlaylistReady();
     if (_currentSong == null) {
       await playSong(_queue.first);
       await _updateRemoteControlsState();
@@ -4254,22 +4310,22 @@ class SolaraPlayerController extends ChangeNotifier {
         } else {
           nextSong = options[_random.nextInt(options.length)];
         }
-        await playSong(nextSong);
-        await _updateRemoteControlsState();
+        final nextIndex = _queue.indexOf(nextSong);
+        await _playFromQueueIndex(nextIndex);
         return;
       case PlayMode.list:
         final currentIndex = _queue.indexOf(_currentSong!);
         final nextIndex = currentIndex >= 0 && currentIndex + 1 < _queue.length
             ? currentIndex + 1
             : 0;
-        await playSong(_queue[nextIndex]);
-        await _updateRemoteControlsState();
+        await _playFromQueueIndex(nextIndex);
         return;
     }
   }
 
   Future<void> playPrevious() async {
     if (_queue.isEmpty) return;
+    await _ensurePlaylistReady();
     if (_currentSong == null) {
       await playSong(_queue.first);
       await _updateRemoteControlsState();
@@ -4289,14 +4345,13 @@ class SolaraPlayerController extends ChangeNotifier {
         } else {
           previousSong = options[_random.nextInt(options.length)];
         }
-        await playSong(previousSong);
-        await _updateRemoteControlsState();
+        final previousIndex = _queue.indexOf(previousSong);
+        await _playFromQueueIndex(previousIndex);
         return;
       case PlayMode.list:
         final currentIndex = _queue.indexOf(_currentSong!);
         final previousIndex = currentIndex <= 0 ? _queue.length - 1 : currentIndex - 1;
-        await playSong(_queue[previousIndex]);
-        await _updateRemoteControlsState();
+        await _playFromQueueIndex(previousIndex);
         return;
     }
   }
@@ -4341,17 +4396,26 @@ class SolaraPlayerController extends ChangeNotifier {
     }
   }
 
-  int addSongsToQueue(List<Song> songs) {
+  Future<int> addSongsToQueue(List<Song> songs,
+      {bool waitForPlaylist = true}) async {
     var added = 0;
+    final List<Song> addedSongs = [];
     for (final song in songs) {
       if (song.id.isEmpty) continue;
       if (_queue.contains(song)) continue;
       _queue.add(song);
+      addedSongs.add(song);
       added++;
     }
     if (added > 0) {
       notifyListeners();
-      unawaited(_updateRemoteControlsState());
+      final playlistFuture = _appendSongsToPlaylist(addedSongs);
+      if (waitForPlaylist) {
+        await playlistFuture;
+      } else {
+        unawaited(playlistFuture);
+      }
+      await _updateRemoteControlsState();
       _scheduleStateSave();
     }
     return added;
@@ -4372,6 +4436,8 @@ class SolaraPlayerController extends ChangeNotifier {
         _currentLyrics = const [];
         unawaited(_player.stop());
       }
+    } else {
+      unawaited(_syncPlaylistWithQueue());
     }
     notifyListeners();
     unawaited(_updateRemoteControlsState());
@@ -4388,6 +4454,8 @@ class SolaraPlayerController extends ChangeNotifier {
     _currentSong = null;
     _currentArtwork = null;
     _currentLyrics = const [];
+    _audioUrlCache.clear();
+    unawaited(_playlist.clear());
     unawaited(_player.stop());
     notifyListeners();
     unawaited(_updateRemoteControlsState());
@@ -4430,7 +4498,7 @@ class SolaraPlayerController extends ChangeNotifier {
     return removed;
   }
 
-  int addFavoritesToQueue() {
+  Future<int> addFavoritesToQueue() async {
     final favorites = this.favorites;
     if (favorites.isEmpty) {
       return 0;
@@ -4443,6 +4511,8 @@ class SolaraPlayerController extends ChangeNotifier {
   Future<void> updateQuality(SongQuality quality) async {
     if (_quality == quality) return;
     _quality = quality;
+    _audioUrlCache.clear();
+    await _syncPlaylistWithQueue();
     notifyListeners();
     _scheduleStateSave();
     if (_currentSong != null) {
@@ -4497,7 +4567,8 @@ class SolaraPlayerController extends ChangeNotifier {
         return 0;
       }
       final wasEmpty = _queue.isEmpty;
-      final added = addSongsToQueue(newSongs);
+      final added =
+          await addSongsToQueue(newSongs, waitForPlaylist: false);
       if (wasEmpty && _queue.isNotEmpty) {
         await playSong(_queue.first);
       }
@@ -4605,6 +4676,7 @@ class SolaraPlayerController extends ChangeNotifier {
     _positionSub?.cancel();
     _durationSub?.cancel();
     _stateSub?.cancel();
+    _currentIndexSub?.cancel();
     _saveDebounce?.cancel();
     _player.dispose();
     _api.dispose();
@@ -4685,7 +4757,7 @@ class SolaraSearchController extends ChangeNotifier {
       return;
     }
     final songs = _results.where((song) => _selection.contains(song.identity)).toList();
-    _player!.addSongsToQueue(songs);
+    await _player!.addSongsToQueue(songs);
     _selection.clear();
     notifyListeners();
   }
