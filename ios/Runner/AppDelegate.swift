@@ -11,6 +11,7 @@ import MediaPlayer
   private var playCommandTarget: Any?
   private var pauseCommandTarget: Any?
   private var toggleCommandTarget: Any?
+  private var artworkCache: [String: MPMediaItemArtwork] = [:]
 
   override func application(
     _ application: UIApplication,
@@ -44,6 +45,11 @@ import MediaPlayer
         let hasNext = args["hasNext"] as? Bool ?? false
         let isPlaying = args["isPlaying"] as? Bool ?? false
         updateRemoteAvailability(hasPrevious: hasPrevious, hasNext: hasNext, isPlaying: isPlaying)
+      }
+      result(nil)
+    case "nowPlaying":
+      if let args = call.arguments as? [String: Any] {
+        updateNowPlayingInfo(info: args)
       }
       result(nil)
     default:
@@ -93,5 +99,49 @@ import MediaPlayer
     commandCenter.playCommand.isEnabled = !isPlaying
     commandCenter.pauseCommand.isEnabled = isPlaying
     commandCenter.togglePlayPauseCommand.isEnabled = true
+  }
+
+  private func updateNowPlayingInfo(info: [String: Any]) {
+    var nowPlaying: [String: Any] = [:]
+    if let title = info["title"] as? String {
+      nowPlaying[MPMediaItemPropertyTitle] = title
+    }
+    if let artist = info["artist"] as? String {
+      nowPlaying[MPMediaItemPropertyArtist] = artist
+    }
+    if let album = info["album"] as? String {
+      nowPlaying[MPMediaItemPropertyAlbumTitle] = album
+    }
+
+    if let duration = info["duration"] as? Double {
+      nowPlaying[MPMediaItemPropertyPlaybackDuration] = duration
+    }
+    if let position = info["position"] as? Double {
+      nowPlaying[MPNowPlayingInfoPropertyElapsedPlaybackTime] = position
+    }
+    let isPlaying = info["isPlaying"] as? Bool ?? false
+    nowPlaying[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
+
+    if let artworkUrl = info["artworkUrl"] as? String, !artworkUrl.isEmpty {
+      if let cached = artworkCache[artworkUrl] {
+        nowPlaying[MPMediaItemPropertyArtwork] = cached
+      } else if let url = URL(string: artworkUrl) {
+        DispatchQueue.global().async { [weak self] in
+          guard let data = try? Data(contentsOf: url),
+                let image = UIImage(data: data) else {
+            return
+          }
+          let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+          self?.artworkCache[artworkUrl] = artwork
+          DispatchQueue.main.async {
+            var current = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+            current[MPMediaItemPropertyArtwork] = artwork
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = current
+          }
+        }
+      }
+    }
+
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlaying
   }
 }
