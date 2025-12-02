@@ -3930,6 +3930,7 @@ class SolaraPlayerController extends ChangeNotifier {
   StreamSubscription<PlayerState>? _stateSub;
   StreamSubscription<int?>? _currentIndexSub;
   Timer? _saveDebounce;
+  Timer? _nowPlayingUpdateDebounce;
 
   bool _isLoadingSong = false;
   bool _isExploring = false;
@@ -3950,11 +3951,13 @@ class SolaraPlayerController extends ChangeNotifier {
     _positionSub = _player.positionStream.listen((value) {
       _position = value;
       _scheduleStateSave();
+      _scheduleNowPlayingUpdate();
       notifyListeners();
     });
     _durationSub = _player.durationStream.listen((value) {
       _duration = value ?? Duration.zero;
       _scheduleStateSave();
+      _scheduleNowPlayingUpdate();
       notifyListeners();
     });
     _stateSub = _player.playerStateStream.listen((state) {
@@ -3966,6 +3969,7 @@ class SolaraPlayerController extends ChangeNotifier {
       }
       notifyListeners();
       unawaited(_updateRemoteControlsState());
+      _scheduleNowPlayingUpdate();
     });
     // 移除 _currentIndexSub，因为改为手动管理播放队列，不再依赖播放器内部索引
 
@@ -4042,6 +4046,7 @@ class SolaraPlayerController extends ChangeNotifier {
     });
 
     await _updateRemoteControlsState();
+    await _updateNowPlayingInfo();
   }
 
   Future<void> _ensureAudioSessionActive() async {
@@ -4059,6 +4064,34 @@ class SolaraPlayerController extends ChangeNotifier {
       await _remoteControlsChannel.invokeMethod('updateState', {
         'hasPrevious': hasPrevious,
         'hasNext': hasNext,
+        'isPlaying': _player.playing,
+      });
+    } catch (_) {
+      // Ignore iOS channel errors
+    }
+  }
+
+  void _scheduleNowPlayingUpdate() {
+    if (!Platform.isIOS || !_remoteControlsConfigured) return;
+
+    _nowPlayingUpdateDebounce?.cancel();
+    _nowPlayingUpdateDebounce =
+        Timer(const Duration(milliseconds: 500), _updateNowPlayingInfo);
+  }
+
+  Future<void> _updateNowPlayingInfo() async {
+    if (!Platform.isIOS || !_remoteControlsConfigured || _currentSong == null) {
+      return;
+    }
+
+    try {
+      await _remoteControlsChannel.invokeMethod('nowPlaying', {
+        'title': _currentSong!.name,
+        'artist': _currentSong!.artist,
+        'album': _currentSong!.album,
+        'artworkUrl': _currentArtwork,
+        'duration': _duration.inMilliseconds / 1000,
+        'position': _position.inMilliseconds / 1000,
         'isPlaying': _player.playing,
       });
     } catch (_) {
@@ -4387,20 +4420,22 @@ class SolaraPlayerController extends ChangeNotifier {
     _currentLyrics = const [];
     _errorMessage = null;
     await _updateRemoteControlsState();
+    await _updateNowPlayingInfo();
     unawaited(_savePersistentState());
     notifyListeners();
 
-    unawaited(_loadArtwork(song).catchError((_) => null).then((artwork) {
-      final resolvedArtwork = artwork ?? _normalizeArtworkUrl(song.picId);
-      if (resolvedArtwork != null) {
-        _artworkCache[song.identity] = resolvedArtwork;
-        if (_currentSong == song) {
-          _currentArtwork = resolvedArtwork;
-          notifyListeners();
-          unawaited(_updateRemoteControlsState());
+      unawaited(_loadArtwork(song).catchError((_) => null).then((artwork) {
+        final resolvedArtwork = artwork ?? _normalizeArtworkUrl(song.picId);
+        if (resolvedArtwork != null) {
+          _artworkCache[song.identity] = resolvedArtwork;
+          if (_currentSong == song) {
+            _currentArtwork = resolvedArtwork;
+            notifyListeners();
+            unawaited(_updateRemoteControlsState());
+            unawaited(_updateNowPlayingInfo());
+          }
         }
-      }
-    }));
+      }));
 
     unawaited(
       _loadLyrics(song).catchError((_) => const <LyricLine>[]).then((lyrics) {
@@ -4886,6 +4921,7 @@ class SolaraPlayerController extends ChangeNotifier {
     _currentIndexSub?.cancel();
     _volumeSubscription?.cancel();
     _saveDebounce?.cancel();
+    _nowPlayingUpdateDebounce?.cancel();
     _player.dispose();
     _api.dispose();
     super.dispose();
