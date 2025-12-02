@@ -22,6 +22,86 @@ import 'package:url_launcher/url_launcher.dart';
 const MethodChannel _remoteControlsChannel =
     MethodChannel('solara/remote_controls');
 
+/// iOS 锁屏 / 控制中心 / 灵动岛桥接包装
+class IosRemoteControls {
+  static bool _configured = false;
+
+  /// 配置远控命令（只在 iOS 调一次）
+  static Future<void> configure() async {
+    if (!Platform.isIOS) return;
+    if (_configured) return;
+    try {
+      await _remoteControlsChannel.invokeMethod('configure');
+      _configured = true;
+    } catch (_) {}
+  }
+
+  /// 同步“是否可上一曲/下一曲/当前是否在播”到 iOS
+  static Future<void> updateState({
+    required bool hasPrevious,
+    required bool hasNext,
+    required bool isPlaying,
+  }) async {
+    if (!Platform.isIOS) return;
+    try {
+      await _remoteControlsChannel.invokeMethod('updateState', {
+        'hasPrevious': hasPrevious,
+        'hasNext': hasNext,
+        'isPlaying': isPlaying,
+      });
+    } catch (_) {}
+  }
+
+  /// 同步 Now Playing 信息到 iOS（duration/position 可选）
+  static Future<void> nowPlaying({
+    required String title,
+    String artist = '',
+    String album = '',
+    String artworkUrl = '',
+    double? duration,
+    double? position,
+    required bool isPlaying,
+  }) async {
+    if (!Platform.isIOS) return;
+    final Map<String, dynamic> payload = {
+      'title': title,
+      'artist': artist,
+      'album': album,
+      'artworkUrl': artworkUrl,
+      'isPlaying': isPlaying,
+    };
+    if (duration != null) payload['duration'] = duration;
+    if (position != null) payload['position'] = position;
+    try {
+      await _remoteControlsChannel.invokeMethod('nowPlaying', payload);
+    } catch (_) {}
+  }
+
+  /// 安装来自 iOS 的远控回调（锁屏/控制中心/灵动岛按钮）
+  static Future<void> installMethodHandler(BuildContext context) async {
+    if (!Platform.isIOS) return;
+    _remoteControlsChannel.setMethodCallHandler((call) async {
+      final player = context.read<SolaraPlayerController>();
+      switch (call.method) {
+        case 'play':
+          await player.resume();
+          break;
+        case 'pause':
+          await player.pause();
+          break;
+        case 'toggle':
+          player.isPlaying ? await player.pause() : await player.resume();
+          break;
+        case 'skipNext':
+          await player.playNext();
+          break;
+        case 'skipPrevious':
+          await player.playPrevious();
+          break;
+      }
+    });
+  }
+}
 // 1秒静音MP3的Data URI，占位用以填充播放列表，确保系统显示完整控制按钮
 const String _kSilentMp3 =
     'data:audio/mp3;base64,//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq';
@@ -225,6 +305,72 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
   bool _showQueue = false;
   bool _showFavorites = false;
   bool _showSearch = false;
+
+  // --- iOS Remote Controls sync ---
+  Timer? _iosNowPlayingTicker;
+  VoidCallback? _iosPlayerListener;
+
+  @override
+  void initState() {
+    super.initState();
+    if (Platform.isIOS) {
+      // 等首帧之后再拿到 Provider 的 player
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await IosRemoteControls.installMethodHandler(context);
+        await IosRemoteControls.configure();
+        final player = context.read<SolaraPlayerController>();
+        // 初始化推送一次
+        _pushNowPlayingToIOS(player);
+        // 每次控制器触发 notifyListeners() 时同步一次
+        _iosPlayerListener = () => _pushNowPlayingToIOS(player);
+        player.addListener(_iosPlayerListener!);
+        // 1s tick，保持控制中心进度/状态新鲜（position 可缺省）
+        _iosNowPlayingTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+          _pushNowPlayingToIOS(player);
+        });
+      });
+    }
+  }
+
+  void _pushNowPlayingToIOS(SolaraPlayerController player) {
+    final song = player.currentSong;
+    final artwork = player.currentArtwork ?? '';
+    // 就算拿不到 position/duration，系统也会显示卡片；先保证锁屏/灵动岛出现
+    IosRemoteControls.updateState(
+      hasPrevious: player.hasQueue,
+      hasNext: player.hasQueue,
+      isPlaying: player.isPlaying,
+    );
+    if (song != null) {
+      IosRemoteControls.nowPlaying(
+        title: song.name,
+        artist: song.artist ?? '',
+        album: '',
+        artworkUrl: artwork,
+        isPlaying: player.isPlaying,
+      );
+    } else {
+      IosRemoteControls.nowPlaying(
+        title: '',
+        artist: '',
+        album: '',
+        artworkUrl: '',
+        isPlaying: false,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _iosNowPlayingTicker?.cancel();
+    if (_iosPlayerListener != null) {
+      try {
+        final player = context.read<SolaraPlayerController>();
+        player.removeListener(_iosPlayerListener!);
+      } catch (_) {}
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
