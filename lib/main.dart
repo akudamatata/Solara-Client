@@ -7,6 +7,7 @@ import 'dart:math';
 import 'package:audio_session/audio_session.dart';
 import 'package:collection/collection.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
@@ -307,8 +308,8 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
   bool _showSearch = false;
 
   // --- iOS Remote Controls sync ---
-  Timer? _iosNowPlayingTicker;
   VoidCallback? _iosPlayerListener;
+  Map<String, Object?> _lastIosNowPlaying = const <String, Object?>{};
 
   @override
   void initState() {
@@ -324,10 +325,6 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
         // 每次控制器触发 notifyListeners() 时同步一次
         _iosPlayerListener = () => _pushNowPlayingToIOS(player);
         player.addListener(_iosPlayerListener!);
-        // 1s tick，保持控制中心进度/状态新鲜（position 可缺省）
-        _iosNowPlayingTicker = Timer.periodic(const Duration(seconds: 1), (_) {
-          _pushNowPlayingToIOS(player);
-        });
       });
     }
   }
@@ -341,28 +338,28 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
       hasNext: player.hasQueue,
       isPlaying: player.isPlaying,
     );
-    if (song != null) {
-      IosRemoteControls.nowPlaying(
-        title: song.name,
-        artist: song.artist ?? '',
-        album: '',
-        artworkUrl: artwork,
-        isPlaying: player.isPlaying,
-      );
-    } else {
-      IosRemoteControls.nowPlaying(
-        title: '',
-        artist: '',
-        album: '',
-        artworkUrl: '',
-        isPlaying: false,
-      );
+    final payload = {
+      'title': song?.name ?? '',
+      'artist': song?.artist ?? '',
+      'album': '',
+      'artworkUrl': artwork,
+      'isPlaying': player.isPlaying,
+    };
+    if (mapEquals(payload, _lastIosNowPlaying)) {
+      return;
     }
+    _lastIosNowPlaying = payload;
+    IosRemoteControls.nowPlaying(
+      title: payload['title'] as String,
+      artist: payload['artist'] as String,
+      album: payload['album'] as String,
+      artworkUrl: payload['artworkUrl'] as String,
+      isPlaying: payload['isPlaying'] as bool,
+    );
   }
 
   @override
   void dispose() {
-    _iosNowPlayingTicker?.cancel();
     if (_iosPlayerListener != null) {
       try {
         final player = context.read<SolaraPlayerController>();
@@ -4097,13 +4094,11 @@ class SolaraPlayerController extends ChangeNotifier {
     _positionSub = _player.positionStream.listen((value) {
       _position = value;
       _scheduleStateSave();
-      _scheduleNowPlayingUpdate();
       notifyListeners();
     });
     _durationSub = _player.durationStream.listen((value) {
       _duration = value ?? Duration.zero;
       _scheduleStateSave();
-      _scheduleNowPlayingUpdate();
       notifyListeners();
     });
     _stateSub = _player.playerStateStream.listen((state) {
@@ -4762,6 +4757,7 @@ class SolaraPlayerController extends ChangeNotifier {
     _audioSessionActive = false;
     notifyListeners();
     await _updateRemoteControlsState();
+    _scheduleNowPlayingUpdate();
   }
 
   Future<void> resume() async {
@@ -4769,10 +4765,12 @@ class SolaraPlayerController extends ChangeNotifier {
     unawaited(_player.play());
     notifyListeners();
     await _updateRemoteControlsState();
+    _scheduleNowPlayingUpdate();
   }
 
   Future<void> seek(Duration position) async {
     await _player.seek(position);
+    _scheduleNowPlayingUpdate();
   }
 
   Future<String?> resolveDownloadUrl(Song song) async {
