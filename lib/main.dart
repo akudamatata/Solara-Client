@@ -4,108 +4,20 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:collection/collection.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-// Native remote controls channel for iOS lock screen / Control Center.
-const MethodChannel _remoteControlsChannel =
-    MethodChannel('solara/remote_controls');
-
-/// iOS 锁屏 / 控制中心 / 灵动岛桥接包装
-class IosRemoteControls {
-  static bool _configured = false;
-
-  /// 配置远控命令（只在 iOS 调一次）
-  static Future<void> configure() async {
-    if (!Platform.isIOS) return;
-    if (_configured) return;
-    try {
-      await _remoteControlsChannel.invokeMethod('configure');
-      _configured = true;
-    } catch (_) {}
-  }
-
-  /// 同步“是否可上一曲/下一曲/当前是否在播”到 iOS
-  static Future<void> updateState({
-    required bool hasPrevious,
-    required bool hasNext,
-    required bool isPlaying,
-  }) async {
-    if (!Platform.isIOS) return;
-    try {
-      await _remoteControlsChannel.invokeMethod('updateState', {
-        'hasPrevious': hasPrevious,
-        'hasNext': hasNext,
-        'isPlaying': isPlaying,
-      });
-    } catch (_) {}
-  }
-
-  /// 同步 Now Playing 信息到 iOS（duration/position 可选）
-  static Future<void> nowPlaying({
-    required String title,
-    String artist = '',
-    String album = '',
-    String artworkUrl = '',
-    double? duration,
-    double? position,
-    required bool isPlaying,
-  }) async {
-    if (!Platform.isIOS) return;
-    final Map<String, dynamic> payload = {
-      'title': title,
-      'artist': artist,
-      'album': album,
-      'artworkUrl': artworkUrl,
-      'isPlaying': isPlaying,
-    };
-    if (duration != null) payload['duration'] = duration;
-    if (position != null) payload['position'] = position;
-    try {
-      await _remoteControlsChannel.invokeMethod('nowPlaying', payload);
-    } catch (_) {}
-  }
-
-  /// 安装来自 iOS 的远控回调（锁屏/控制中心/灵动岛按钮）
-  static Future<void> installMethodHandler(BuildContext context) async {
-    if (!Platform.isIOS) return;
-    _remoteControlsChannel.setMethodCallHandler((call) async {
-      final player = context.read<SolaraPlayerController>();
-      switch (call.method) {
-        case 'play':
-          await player.resume();
-          break;
-        case 'pause':
-          await player.pause();
-          break;
-        case 'toggle':
-          player.isPlaying ? await player.pause() : await player.resume();
-          break;
-        case 'skipNext':
-          await player.playNext();
-          break;
-        case 'skipPrevious':
-          await player.playPrevious();
-          break;
-      }
-    });
-  }
-}
-// 1秒静音MP3的Data URI，占位用以填充播放列表，确保系统显示完整控制按钮
-const String _kSilentMp3 =
-    'data:audio/mp3;base64,//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq';
+import 'audio_handler.dart';
 
 Future<Directory?> _ensureSolaraDirectory({String? child}) async {
   if (!Platform.isIOS) {
@@ -132,18 +44,23 @@ Future<Directory?> _ensureSolaraDirectory({String? child}) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.solara.mobile.channel.audio',
-    androidNotificationChannelName: 'Solara Playback',
-    androidNotificationOngoing: true,
-  );
+  final audioHandler = await AudioService.init(
+    builder: SolaraAudioHandler.new,
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'com.solara.mobile.channel.audio',
+      androidNotificationChannelName: 'Solara Playback',
+      androidNotificationOngoing: true,
+    ),
+  ) as SolaraAudioHandler;
   final session = await AudioSession.instance;
   await session.configure(const AudioSessionConfiguration.music());
-  runApp(const SolaraApp());
+  runApp(SolaraApp(audioHandler: audioHandler));
 }
 
 class SolaraApp extends StatelessWidget {
-  const SolaraApp({super.key});
+  const SolaraApp({super.key, required this.audioHandler});
+
+  final SolaraAudioHandler audioHandler;
 
   @override
   Widget build(BuildContext context) {
@@ -154,7 +71,7 @@ class SolaraApp extends StatelessWidget {
           create: (_) => SolaraNotificationController(),
         ),
         ChangeNotifierProvider(
-          create: (_) => SolaraPlayerController(api),
+          create: (_) => SolaraPlayerController(api, audioHandler),
         ),
         ChangeNotifierProxyProvider<SolaraPlayerController, SolaraSearchController>(
           create: (_) => SolaraSearchController(api),
@@ -306,68 +223,6 @@ class _SolaraHomePageState extends State<SolaraHomePage> {
   bool _showQueue = false;
   bool _showFavorites = false;
   bool _showSearch = false;
-
-  // --- iOS Remote Controls sync ---
-  VoidCallback? _iosPlayerListener;
-  Map<String, Object?> _lastIosNowPlaying = const <String, Object?>{};
-
-  @override
-  void initState() {
-    super.initState();
-    if (Platform.isIOS) {
-      // 等首帧之后再拿到 Provider 的 player
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        await IosRemoteControls.installMethodHandler(context);
-        await IosRemoteControls.configure();
-        final player = context.read<SolaraPlayerController>();
-        // 初始化推送一次
-        _pushNowPlayingToIOS(player);
-        // 每次控制器触发 notifyListeners() 时同步一次
-        _iosPlayerListener = () => _pushNowPlayingToIOS(player);
-        player.addListener(_iosPlayerListener!);
-      });
-    }
-  }
-
-  void _pushNowPlayingToIOS(SolaraPlayerController player) {
-    final song = player.currentSong;
-    final artwork = player.currentArtwork ?? '';
-    // 就算拿不到 position/duration，系统也会显示卡片；先保证锁屏/灵动岛出现
-    IosRemoteControls.updateState(
-      hasPrevious: player.hasQueue,
-      hasNext: player.hasQueue,
-      isPlaying: player.isPlaying,
-    );
-    final payload = {
-      'title': song?.name ?? '',
-      'artist': song?.artist ?? '',
-      'album': '',
-      'artworkUrl': artwork,
-      'isPlaying': player.isPlaying,
-    };
-    if (mapEquals(payload, _lastIosNowPlaying)) {
-      return;
-    }
-    _lastIosNowPlaying = payload;
-    IosRemoteControls.nowPlaying(
-      title: payload['title'] as String,
-      artist: payload['artist'] as String,
-      album: payload['album'] as String,
-      artworkUrl: payload['artworkUrl'] as String,
-      isPlaying: payload['isPlaying'] as bool,
-    );
-  }
-
-  @override
-  void dispose() {
-    if (_iosPlayerListener != null) {
-      try {
-        final player = context.read<SolaraPlayerController>();
-        player.removeListener(_iosPlayerListener!);
-      } catch (_) {}
-    }
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -4020,17 +3875,14 @@ class LyricLine {
 }
 
 class SolaraPlayerController extends ChangeNotifier {
-  SolaraPlayerController(this._api) {
+  SolaraPlayerController(this._api, this._audioHandler)
+      : _player = _audioHandler.player {
     _init();
-    _initRemoteControls();
   }
 
   final SolaraApi _api;
-  final AudioPlayer _player = AudioPlayer();
-  final ConcatenatingAudioSource _playlist = ConcatenatingAudioSource(
-    children: [],
-    useLazyPreparation: true,
-  );
+  final SolaraAudioHandler _audioHandler;
+  final AudioPlayer _player;
   final List<Song> _queue = [];
   final Map<String, Song> _favorites = {};
   final Map<String, String> _artworkCache = {};
@@ -4039,7 +3891,6 @@ class SolaraPlayerController extends ChangeNotifier {
   AudioSession? _audioSession;
   bool _audioSessionActive = false;
   final Random _random = Random();
-  bool _remoteControlsConfigured = false;
 
   static const List<String> _exploreGenres = [
     '流行',
@@ -4071,9 +3922,7 @@ class SolaraPlayerController extends ChangeNotifier {
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<PlayerState>? _stateSub;
-  StreamSubscription<int?>? _currentIndexSub;
   Timer? _saveDebounce;
-  Timer? _nowPlayingUpdateDebounce;
 
   bool _isLoadingSong = false;
   bool _isExploring = false;
@@ -4109,10 +3958,7 @@ class SolaraPlayerController extends ChangeNotifier {
         _audioSessionActive = false;
       }
       notifyListeners();
-      unawaited(_updateRemoteControlsState());
-      _scheduleNowPlayingUpdate();
     });
-    // 移除 _currentIndexSub，因为改为手动管理播放队列，不再依赖播放器内部索引
 
     // 初始化系统音量监听
     try {
@@ -4131,8 +3977,6 @@ class SolaraPlayerController extends ChangeNotifier {
 
     await _loadPersistentState();
     await _loadExplorePreferences();
-    await _syncPlaylistWithQueue();
-    await _player.setAudioSource(_playlist);
   }
 
   Future<void> setVolume(double value) async {
@@ -4144,52 +3988,6 @@ class SolaraPlayerController extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> _initRemoteControls() async {
-    // Only configure once on iOS.
-    if (!Platform.isIOS || _remoteControlsConfigured) return;
-    _remoteControlsConfigured = true;
-
-    try {
-      await _remoteControlsChannel.invokeMethod('configure');
-    } catch (_) {
-      // Ignore to avoid impacting other platforms
-    }
-
-    _remoteControlsChannel.setMethodCallHandler((MethodCall call) async {
-      switch (call.method) {
-        case 'skipPrevious':
-          await playPrevious();
-          await _updateRemoteControlsState();
-          break;
-        case 'skipNext':
-          await playNext();
-          await _updateRemoteControlsState();
-          break;
-        case 'play':
-          await resume();
-          await _updateRemoteControlsState();
-          break;
-        case 'pause':
-          await pause();
-          await _updateRemoteControlsState();
-          break;
-        case 'toggle':
-          if (_player.playing) {
-            await pause();
-          } else {
-            await resume();
-          }
-          await _updateRemoteControlsState();
-          break;
-        default:
-          break;
-      }
-    });
-
-    await _updateRemoteControlsState();
-    await _updateNowPlayingInfo();
-  }
-
   Future<void> _ensureAudioSessionActive() async {
     if (_audioSession == null || _audioSessionActive) return;
     try {
@@ -4198,48 +3996,35 @@ class SolaraPlayerController extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> _updateRemoteControlsState() async {
-    if (!Platform.isIOS || !_remoteControlsConfigured) return;
-
-    try {
-      await _remoteControlsChannel.invokeMethod('updateState', {
-        'hasPrevious': hasPrevious,
-        'hasNext': hasNext,
-        'isPlaying': _player.playing,
-      });
-    } catch (_) {
-      // Ignore iOS channel errors
-    }
-  }
-
-  void _scheduleNowPlayingUpdate() {
-    if (!Platform.isIOS || !_remoteControlsConfigured) return;
-
-    _nowPlayingUpdateDebounce?.cancel();
-    _nowPlayingUpdateDebounce =
-        Timer(const Duration(milliseconds: 500), _updateNowPlayingInfo);
-  }
-
-  Future<void> _updateNowPlayingInfo() async {
-    if (!Platform.isIOS || !_remoteControlsConfigured || _currentSong == null) {
+  void _updateAudioServiceMetadata({MediaItem? mediaItem}) {
+    if (mediaItem != null) {
+      _audioHandler.queue.add([mediaItem]);
+      _audioHandler.mediaItem.add(mediaItem);
       return;
     }
 
-    try {
-      await _remoteControlsChannel.invokeMethod('nowPlaying', {
-        'title': _currentSong!.name,
-        'artist': _currentSong!.artist,
-        'album': _currentSong!.album,
-        'artworkUrl': _currentArtwork,
-        'duration': _duration.inMilliseconds / 1000,
-        'position': _position.inMilliseconds / 1000,
-        'isPlaying': _player.playing,
-      });
-    } catch (_) {
-      // Ignore iOS channel errors
+    if (_currentSong == null) {
+      _audioHandler.queue.add([]);
+      _audioHandler.mediaItem.add(null);
+      return;
     }
-  }
 
+    final song = _currentSong!;
+    final item = MediaItem(
+      id: _audioUrlCache[song.identity] ?? song.identity,
+      title: song.name,
+      artist: song.artist,
+      album: song.album,
+      artUri: _currentArtwork != null ? Uri.tryParse(_currentArtwork!) : null,
+      extras: {
+        'source': song.source.param,
+        'quality': _quality.label,
+        'identity': song.identity,
+      },
+    );
+    _audioHandler.queue.add([item]);
+    _audioHandler.mediaItem.add(item);
+  }
   Future<void> _loadExplorePreferences() async {
     try {
       final directory = await _ensureSolaraDirectory();
@@ -4368,7 +4153,7 @@ class SolaraPlayerController extends ChangeNotifier {
         _duration = Duration(milliseconds: max(0, durationMs));
       }
       notifyListeners();
-      await _updateRemoteControlsState();
+      _updateAudioServiceMetadata();
     } catch (_) {
       // Ignore persistence errors.
     }
@@ -4406,74 +4191,9 @@ class SolaraPlayerController extends ChangeNotifier {
     });
   }
 
-  Future<AudioSource?> _buildAudioSourceForSong(Song song) async {
-    if (song.id.isEmpty) return null;
-    try {
-      final audioUrl = _audioUrlCache[song.identity] ??
-          (await _api.resolveSongUrl(song, _quality)).url;
-      _audioUrlCache[song.identity] = audioUrl;
-      String? artwork = _artworkCache[song.identity] ??
-          _normalizeArtworkUrl(song.picId);
-      artwork ??= await _api.resolveArtwork(song);
-      if (artwork != null) {
-        _artworkCache[song.identity] = artwork;
-      }
-      final mediaItem = MediaItem(
-        id: song.identity,
-        title: song.name,
-        artist: song.artist,
-        album: song.album?.isNotEmpty == true ? song.album : null,
-        artUri: artwork != null ? Uri.tryParse(artwork) : null,
-        extras: {
-          'source': song.source.param,
-          'quality': _quality.label,
-        },
-      );
-      return AudioSource.uri(Uri.parse(audioUrl), tag: mediaItem);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  // 【修复】列表同步逻辑：使用占位符填满列表，让锁屏/系统知道有上一首/下一首
-  Future<void> _syncPlaylistWithQueue() async {
-    await _playlist.clear();
-    // 使用占位符，不请求 API
-    final sources = _queue.map((song) => _buildPlaceholderSource(song)).toList();
-    await _playlist.addAll(sources);
-  }
-
-  Future<void> _appendSongsToPlaylist(List<Song> songs) async {
-    final sources = songs.map((song) => _buildPlaceholderSource(song)).toList();
-    await _playlist.addAll(sources);
-  }
-
-  AudioSource _buildPlaceholderSource(Song song) {
-    // 占位符使用一个标准的静音 MP3 帧，防止播放器报错
-    // 附带完整 Metadata，保证锁屏显示正确信息
-    final artwork = _artworkCache[song.identity] ?? _normalizeArtworkUrl(song.picId);
-    return AudioSource.uri(
-      Uri.parse(_kSilentMp3),
-      tag: MediaItem(
-        id: song.identity,
-        title: song.name,
-        artist: song.artist,
-        album: song.album,
-        artUri: artwork != null ? Uri.tryParse(artwork) : null,
-      ),
-    );
-  }
-
-  Future<void> _ensurePlaylistReady() async {
-    if (_playlist.length != _queue.length) {
-      await _syncPlaylistWithQueue();
-    }
-  }
-
   Future<void> _playFromQueueIndex(int index) async {
     if (index < 0 || index >= _queue.length) return;
     final song = _queue[index];
-    await _ensurePlaylistReady();
     await _ensureAudioSessionActive();
 
     _isLoadingSong = true;
@@ -4506,7 +4226,7 @@ class SolaraPlayerController extends ChangeNotifier {
 
       // 3. 构建真实音源
       final mediaItem = MediaItem(
-        id: song.identity,
+        id: audioUrl,
         title: song.name,
         artist: song.artist,
         album: song.album,
@@ -4514,8 +4234,10 @@ class SolaraPlayerController extends ChangeNotifier {
         extras: {
           'source': song.source.param,
           'quality': _quality.label,
+          'identity': song.identity,
         },
       );
+      _updateAudioServiceMetadata(mediaItem: mediaItem);
       // 添加 Headers 支持防盗链音频
       final realSource = AudioSource.uri(
         Uri.parse(audioUrl),
@@ -4523,23 +4245,10 @@ class SolaraPlayerController extends ChangeNotifier {
         headers: SolaraApi.headers,
       );
 
-      // 4. 【安全热替换】
-      // 为避免 iOS AVQueuePlayer 在移除当前项时进入异常状态，先停止再执行
-      // "Insert-Then-Remove" 策略：先插入真实源，再移除后一个占位符。
-      await _player.stop();
+      await _audioHandler.stop();
+      await _player.setAudioSource(realSource);
+      await _audioHandler.play();
 
-      if (index < _playlist.length) {
-        await _playlist.insert(index, realSource);
-        await _playlist.removeAt(index + 1);
-      } else {
-        await _playlist.add(realSource);
-      }
-
-      // 5. 播放
-      await _player.seek(Duration.zero, index: index);
-      unawaited(_player.play());
-
-      // 6. 同步原生控制中心状态 (解决按钮变灰问题)
       await _applyCurrentSongState(song);
       
     } catch (e) {
@@ -4560,23 +4269,21 @@ class SolaraPlayerController extends ChangeNotifier {
         _artworkCache[song.identity] ?? _normalizeArtworkUrl(song.picId);
     _currentLyrics = const [];
     _errorMessage = null;
-    await _updateRemoteControlsState();
-    await _updateNowPlayingInfo();
+    _updateAudioServiceMetadata();
     unawaited(_savePersistentState());
     notifyListeners();
 
-      unawaited(_loadArtwork(song).catchError((_) => null).then((artwork) {
-        final resolvedArtwork = artwork ?? _normalizeArtworkUrl(song.picId);
-        if (resolvedArtwork != null) {
-          _artworkCache[song.identity] = resolvedArtwork;
-          if (_currentSong == song) {
-            _currentArtwork = resolvedArtwork;
-            notifyListeners();
-            unawaited(_updateRemoteControlsState());
-            unawaited(_updateNowPlayingInfo());
-          }
+    unawaited(_loadArtwork(song).catchError((_) => null).then((artwork) {
+      final resolvedArtwork = artwork ?? _normalizeArtworkUrl(song.picId);
+      if (resolvedArtwork != null) {
+        _artworkCache[song.identity] = resolvedArtwork;
+        if (_currentSong == song) {
+          _currentArtwork = resolvedArtwork;
+          notifyListeners();
+          _updateAudioServiceMetadata();
         }
-      }));
+      }
+    }));
 
     unawaited(
       _loadLyrics(song).catchError((_) => const <LyricLine>[]).then((lyrics) {
@@ -4667,18 +4374,15 @@ class SolaraPlayerController extends ChangeNotifier {
 
   Future<void> playNext() async {
     if (_queue.isEmpty) return;
-    await _ensurePlaylistReady();
     await _ensureAudioSessionActive();
     if (_currentSong == null) {
       await playSong(_queue.first);
-      await _updateRemoteControlsState();
       return;
     }
     switch (_playMode) {
       case PlayMode.single:
-        await _player.seek(Duration.zero);
-        unawaited(_player.play());
-        await _updateRemoteControlsState();
+        await _audioHandler.seek(Duration.zero);
+        unawaited(_audioHandler.play());
         return;
       case PlayMode.random:
         final options = _queue.where((song) => song != _currentSong).toList();
@@ -4703,18 +4407,15 @@ class SolaraPlayerController extends ChangeNotifier {
 
   Future<void> playPrevious() async {
     if (_queue.isEmpty) return;
-    await _ensurePlaylistReady();
     await _ensureAudioSessionActive();
     if (_currentSong == null) {
       await playSong(_queue.first);
-      await _updateRemoteControlsState();
       return;
     }
     switch (_playMode) {
       case PlayMode.single:
-        await _player.seek(Duration.zero);
-        unawaited(_player.play());
-        await _updateRemoteControlsState();
+        await _audioHandler.seek(Duration.zero);
+        unawaited(_audioHandler.play());
         return;
       case PlayMode.random:
         final options = _queue.where((song) => song != _currentSong).toList();
@@ -4748,29 +4449,23 @@ class SolaraPlayerController extends ChangeNotifier {
         break;
     }
     notifyListeners();
-    unawaited(_updateRemoteControlsState());
     _scheduleStateSave();
   }
 
   Future<void> pause() async {
-    await _player.pause();
+    await _audioHandler.pause();
     _audioSessionActive = false;
     notifyListeners();
-    await _updateRemoteControlsState();
-    _scheduleNowPlayingUpdate();
   }
 
   Future<void> resume() async {
     await _ensureAudioSessionActive();
-    unawaited(_player.play());
+    unawaited(_audioHandler.play());
     notifyListeners();
-    await _updateRemoteControlsState();
-    _scheduleNowPlayingUpdate();
   }
 
   Future<void> seek(Duration position) async {
-    await _player.seek(position);
-    _scheduleNowPlayingUpdate();
+    await _audioHandler.seek(position);
   }
 
   Future<String?> resolveDownloadUrl(Song song) async {
@@ -4782,26 +4477,16 @@ class SolaraPlayerController extends ChangeNotifier {
     }
   }
 
-  Future<int> addSongsToQueue(List<Song> songs,
-      {bool waitForPlaylist = true}) async {
+  Future<int> addSongsToQueue(List<Song> songs) async {
     var added = 0;
-    final List<Song> addedSongs = [];
     for (final song in songs) {
       if (song.id.isEmpty) continue;
       if (_queue.contains(song)) continue;
       _queue.add(song);
-      addedSongs.add(song);
       added++;
     }
     if (added > 0) {
       notifyListeners();
-      final playlistFuture = _appendSongsToPlaylist(addedSongs);
-      if (waitForPlaylist) {
-        await playlistFuture;
-      } else {
-        unawaited(playlistFuture);
-      }
-      await _updateRemoteControlsState();
       _scheduleStateSave();
     }
     return added;
@@ -4820,13 +4505,11 @@ class SolaraPlayerController extends ChangeNotifier {
         _currentSong = null;
         _currentArtwork = null;
         _currentLyrics = const [];
-        unawaited(_player.stop());
+        unawaited(_audioHandler.stop());
+        _updateAudioServiceMetadata(mediaItem: null);
       }
-    } else {
-      unawaited(_syncPlaylistWithQueue());
     }
     notifyListeners();
-    unawaited(_updateRemoteControlsState());
     _scheduleStateSave();
     return true;
   }
@@ -4841,10 +4524,9 @@ class SolaraPlayerController extends ChangeNotifier {
     _currentArtwork = null;
     _currentLyrics = const [];
     _audioUrlCache.clear();
-    unawaited(_playlist.clear());
-    unawaited(_player.stop());
+    unawaited(_audioHandler.stop());
+    _updateAudioServiceMetadata(mediaItem: null);
     notifyListeners();
-    unawaited(_updateRemoteControlsState());
     _scheduleStateSave();
     return removed;
   }
@@ -4898,7 +4580,6 @@ class SolaraPlayerController extends ChangeNotifier {
     if (_quality == quality) return;
     _quality = quality;
     _audioUrlCache.clear();
-    await _syncPlaylistWithQueue();
     notifyListeners();
     _scheduleStateSave();
     if (_currentSong != null) {
@@ -4953,8 +4634,7 @@ class SolaraPlayerController extends ChangeNotifier {
         return 0;
       }
       final wasEmpty = _queue.isEmpty;
-      final added =
-          await addSongsToQueue(newSongs, waitForPlaylist: false);
+      final added = await addSongsToQueue(newSongs);
       if (wasEmpty && _queue.isNotEmpty) {
         await playSong(_queue.first);
       }
@@ -5062,10 +4742,8 @@ class SolaraPlayerController extends ChangeNotifier {
     _positionSub?.cancel();
     _durationSub?.cancel();
     _stateSub?.cancel();
-    _currentIndexSub?.cancel();
     _volumeSubscription?.cancel();
     _saveDebounce?.cancel();
-    _nowPlayingUpdateDebounce?.cancel();
     _player.dispose();
     _api.dispose();
     super.dispose();
