@@ -50,6 +50,9 @@ Future<void> main() async {
       androidNotificationChannelId: 'com.solara.mobile.channel.audio',
       androidNotificationChannelName: 'Solara Playback',
       androidNotificationOngoing: true,
+      iosCategory: IosCategory.playback,
+      iosCategoryPolicy: IosCategoryPolicy.longFormAudio,
+      iosCategoryOptions: {IosCategoryOption.defaultToSpeaker},
     ),
   ) as SolaraAudioHandler;
   final session = await AudioSession.instance;
@@ -4002,7 +4005,8 @@ class SolaraPlayerController extends ChangeNotifier {
 
   Future<void> _updateAudioServiceMetadata({MediaItem? mediaItem}) async {
     if (mediaItem != null) {
-      await _audioHandler.addQueueItem(mediaItem);
+      _audioHandler.mediaItem.add(mediaItem);
+      _audioHandler.queue.add([mediaItem]);
       return;
     }
 
@@ -4024,7 +4028,8 @@ class SolaraPlayerController extends ChangeNotifier {
         'identity': song.identity,
       },
     );
-    await _audioHandler.addQueueItem(item);
+    _audioHandler.mediaItem.add(item);
+    _audioHandler.queue.add([item]);
   }
   Future<void> _loadExplorePreferences() async {
     try {
