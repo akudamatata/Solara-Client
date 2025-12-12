@@ -1,6 +1,8 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 
+import 'main.dart' show SolaraApi, SolaraPlayerController;
+
 /// 自定义音频处理器：管理 just_audio 播放器并桥接 audio_service。
 class SolaraAudioHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler {
@@ -13,11 +15,23 @@ class SolaraAudioHandler extends BaseAudioHandler
     _player.playbackEventStream.listen(_broadcastState);
   }
 
+  SolaraPlayerController? _controller;
+
+  void attachController(SolaraPlayerController controller) {
+    _controller = controller;
+  }
+
   @override
   Future<void> addQueueItem(MediaItem mediaItem) async {
-    // 可根据需要扩展队列管理，此例简单处理单曲播放。
-    queue.value = [mediaItem];
-    await _player.setAudioSource(AudioSource.uri(Uri.parse(mediaItem.id)));
+    final currentQueue = queue.valueOrNull ?? const <MediaItem>[];
+    queue.add([...currentQueue, mediaItem]);
+    this.mediaItem.add(mediaItem);
+    await _player.setAudioSource(
+      AudioSource.uri(
+        Uri.parse(mediaItem.id),
+        headers: SolaraApi.headers,
+      ),
+    );
   }
 
   @override
@@ -30,18 +44,23 @@ class SolaraAudioHandler extends BaseAudioHandler
   Future<void> stop() => _player.stop();
 
   @override
+  Future<void> seek(Duration position) => _player.seek(position);
+
+  @override
   Future<void> skipToNext() async {
-    // 其他自定义逻辑，如管理队列索引；此例简化处理。
-    return;
+    await _controller?.playNext();
   }
 
   @override
   Future<void> skipToPrevious() async {
-    return;
+    await _controller?.playPrevious();
   }
 
-  @override
-  Future<void> seek(Duration position) => _player.seek(position);
+  Future<void> clearQueue() async {
+    queue.add(const []);
+    mediaItem.add(null);
+    await _player.stop();
+  }
 
   void _broadcastState(_) {
     playbackState.add(playbackState.value.copyWith(
