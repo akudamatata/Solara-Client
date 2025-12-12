@@ -53,7 +53,13 @@ Future<void> main() async {
     ),
   ) as SolaraAudioHandler;
   final session = await AudioSession.instance;
-  await session.configure(const AudioSessionConfiguration.music());
+  await session.configure(const AudioSessionConfiguration(
+    avAudioSessionCategory: AVAudioSessionCategory.playback,
+    avAudioSessionCategoryOptions: {
+      AVAudioSessionCategoryOptions.defaultToSpeaker,
+    },
+    avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.longFormAudio,
+  ));
   runApp(SolaraApp(audioHandler: audioHandler));
 }
 
@@ -4002,7 +4008,8 @@ class SolaraPlayerController extends ChangeNotifier {
 
   Future<void> _updateAudioServiceMetadata({MediaItem? mediaItem}) async {
     if (mediaItem != null) {
-      await _audioHandler.addQueueItem(mediaItem);
+      _audioHandler.mediaItem.add(mediaItem);
+      _audioHandler.queue.add([mediaItem]);
       return;
     }
 
@@ -4024,7 +4031,8 @@ class SolaraPlayerController extends ChangeNotifier {
         'identity': song.identity,
       },
     );
-    await _audioHandler.addQueueItem(item);
+    _audioHandler.mediaItem.add(item);
+    _audioHandler.queue.add([item]);
   }
   Future<void> _loadExplorePreferences() async {
     try {
