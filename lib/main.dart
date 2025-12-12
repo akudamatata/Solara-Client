@@ -71,7 +71,11 @@ class SolaraApp extends StatelessWidget {
           create: (_) => SolaraNotificationController(),
         ),
         ChangeNotifierProvider(
-          create: (_) => SolaraPlayerController(api, audioHandler),
+          create: (_) {
+            final controller = SolaraPlayerController(api, audioHandler);
+            audioHandler.attachController(controller);
+            return controller;
+          },
         ),
         ChangeNotifierProxyProvider<SolaraPlayerController, SolaraSearchController>(
           create: (_) => SolaraSearchController(api),
@@ -3996,16 +4000,14 @@ class SolaraPlayerController extends ChangeNotifier {
     } catch (_) {}
   }
 
-  void _updateAudioServiceMetadata({MediaItem? mediaItem}) {
+  Future<void> _updateAudioServiceMetadata({MediaItem? mediaItem}) async {
     if (mediaItem != null) {
-      _audioHandler.queue.add([mediaItem]);
-      _audioHandler.mediaItem.add(mediaItem);
+      await _audioHandler.addQueueItem(mediaItem);
       return;
     }
 
     if (_currentSong == null) {
-      _audioHandler.queue.add([]);
-      _audioHandler.mediaItem.add(null);
+      await _audioHandler.clearQueue();
       return;
     }
 
@@ -4022,8 +4024,7 @@ class SolaraPlayerController extends ChangeNotifier {
         'identity': song.identity,
       },
     );
-    _audioHandler.queue.add([item]);
-    _audioHandler.mediaItem.add(item);
+    await _audioHandler.addQueueItem(item);
   }
   Future<void> _loadExplorePreferences() async {
     try {
@@ -4153,7 +4154,7 @@ class SolaraPlayerController extends ChangeNotifier {
         _duration = Duration(milliseconds: max(0, durationMs));
       }
       notifyListeners();
-      _updateAudioServiceMetadata();
+      await _updateAudioServiceMetadata();
     } catch (_) {
       // Ignore persistence errors.
     }
@@ -4237,16 +4238,7 @@ class SolaraPlayerController extends ChangeNotifier {
           'identity': song.identity,
         },
       );
-      _updateAudioServiceMetadata(mediaItem: mediaItem);
-      // 添加 Headers 支持防盗链音频
-      final realSource = AudioSource.uri(
-        Uri.parse(audioUrl),
-        tag: mediaItem,
-        headers: SolaraApi.headers,
-      );
-
-      await _audioHandler.stop();
-      await _player.setAudioSource(realSource);
+      await _audioHandler.addQueueItem(mediaItem);
       await _audioHandler.play();
 
       await _applyCurrentSongState(song);
@@ -4269,7 +4261,7 @@ class SolaraPlayerController extends ChangeNotifier {
         _artworkCache[song.identity] ?? _normalizeArtworkUrl(song.picId);
     _currentLyrics = const [];
     _errorMessage = null;
-    _updateAudioServiceMetadata();
+    await _updateAudioServiceMetadata();
     unawaited(_savePersistentState());
     notifyListeners();
 
@@ -4280,7 +4272,7 @@ class SolaraPlayerController extends ChangeNotifier {
         if (_currentSong == song) {
           _currentArtwork = resolvedArtwork;
           notifyListeners();
-          _updateAudioServiceMetadata();
+          unawaited(_updateAudioServiceMetadata());
         }
       }
     }));
@@ -4505,8 +4497,7 @@ class SolaraPlayerController extends ChangeNotifier {
         _currentSong = null;
         _currentArtwork = null;
         _currentLyrics = const [];
-        unawaited(_audioHandler.stop());
-        _updateAudioServiceMetadata(mediaItem: null);
+        unawaited(_audioHandler.clearQueue());
       }
     }
     notifyListeners();
@@ -4524,8 +4515,7 @@ class SolaraPlayerController extends ChangeNotifier {
     _currentArtwork = null;
     _currentLyrics = const [];
     _audioUrlCache.clear();
-    unawaited(_audioHandler.stop());
-    _updateAudioServiceMetadata(mediaItem: null);
+    unawaited(_audioHandler.clearQueue());
     notifyListeners();
     _scheduleStateSave();
     return removed;
