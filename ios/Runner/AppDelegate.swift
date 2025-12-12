@@ -23,7 +23,6 @@ import MediaPlayer
     } catch {
       NSLog("[Solara] Failed to configure audio session: \(error)")
     }
-    application.beginReceivingRemoteControlEvents()
     if let controller = window?.rootViewController as? FlutterViewController {
       let channel = FlutterMethodChannel(name: "solara/remote_controls", binaryMessenger: controller.binaryMessenger)
       remoteChannel = channel
@@ -43,8 +42,7 @@ import MediaPlayer
       if let args = call.arguments as? [String: Any] {
         let hasPrevious = args["hasPrevious"] as? Bool ?? false
         let hasNext = args["hasNext"] as? Bool ?? false
-        let isPlaying = args["isPlaying"] as? Bool ?? false
-        updateRemoteAvailability(hasPrevious: hasPrevious, hasNext: hasNext, isPlaying: isPlaying)
+        updateRemoteAvailability(hasPrevious: hasPrevious, hasNext: hasNext)
       }
       result(nil)
     case "nowPlaying":
@@ -59,7 +57,7 @@ import MediaPlayer
 
   private func configureRemoteCommands() {
     let commandCenter = MPRemoteCommandCenter.shared()
-    updateRemoteAvailability(hasPrevious: false, hasNext: false, isPlaying: false)
+    updateRemoteAvailability(hasPrevious: false, hasNext: false)
     if previousCommandTarget == nil {
       previousCommandTarget = commandCenter.previousTrackCommand.addTarget { [weak self] _ in
         self?.remoteChannel?.invokeMethod("skipPrevious", arguments: nil)
@@ -92,12 +90,12 @@ import MediaPlayer
     }
   }
 
-  private func updateRemoteAvailability(hasPrevious: Bool, hasNext: Bool, isPlaying: Bool) {
+  private func updateRemoteAvailability(hasPrevious: Bool, hasNext: Bool) {
     let commandCenter = MPRemoteCommandCenter.shared()
     commandCenter.previousTrackCommand.isEnabled = hasPrevious
     commandCenter.nextTrackCommand.isEnabled = hasNext
-    commandCenter.playCommand.isEnabled = !isPlaying
-    commandCenter.pauseCommand.isEnabled = isPlaying
+    commandCenter.playCommand.isEnabled = true
+    commandCenter.pauseCommand.isEnabled = true
     commandCenter.togglePlayPauseCommand.isEnabled = true
   }
 
