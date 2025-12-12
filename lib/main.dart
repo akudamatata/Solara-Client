@@ -56,7 +56,13 @@ Future<void> main() async {
     ),
   ) as SolaraAudioHandler;
   final session = await AudioSession.instance;
-  await session.configure(const AudioSessionConfiguration.music());
+  await session.configure(const AudioSessionConfiguration(
+    avAudioSessionCategory: AVAudioSessionCategory.playback,
+    avAudioSessionCategoryOptions: {
+      AVAudioSessionCategoryOptions.defaultToSpeaker,
+    },
+    avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.longFormAudio,
+  ));
   runApp(SolaraApp(audioHandler: audioHandler));
 }
 
