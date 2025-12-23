@@ -1,53 +1,37 @@
-# Solara Native Flutter Client
+# Solara Native iOS Client
 
-This project rebuilds the Solara music experience as a first-class Flutter application that mirrors the vertical iOS layout from [akudamatata/Solara](https://github.com/akudamatata/Solara). Instead of wrapping the web player, the app renders native widgets, talks directly to `https://music-api.gdstudio.xyz/api.php`, and exposes player controls, playlists, favourites, search, and quality switching with a mobile-first feel.
+This repository now ships a fully native SwiftUI implementation of Solara. The app talks directly to `https://music-api.gdstudio.xyz/api.php`, manages playback with `AVPlayer`, and mirrors the original portrait layout with search, queue management, favourites, lyrics, and quality switching (128k / 192k / 320k / FLAC / 无损)。
 
 ## Project layout
 
-- `lib/main.dart` – Flutter app (widgets + controllers) that renders the Solara UI natively and talks to the direct music API.
-- `tool/package_unsigned_ipa.sh` – helper that zips the built `Runner.app` into an unsigned IPA and copies the dSYM for distribution.
-- `ios/` – Runner target configured with the bundle identifier `com.wetdreamboy.solara`, portrait-only, ATS exceptions for localhost, and AppStore-ready settings.
-- `android/` – kept in sync with the same applicationId for parity/testing.
-- `.github/workflows/ios-build.yml` – GitHub Actions workflow that produces an unsigned IPA artifact with `flutter build ios --release --no-codesign` and a packaging helper script.
+- `Solara.xcodeproj` – Xcode project targeting iOS 17+, preconfigured for SwiftUI and background audio.
+- `Solara/App` – App entry point and root UI container.
+- `Solara/Models` – Data models for songs, quality, playback snapshots, and parsed lyrics.
+- `Solara/Services` – API client, playback manager (AVFoundation + MPNowPlayingInfoCenter), and shared image loader.
+- `Solara/ViewModels` – Observable view models (e.g., aggregated multi-source search).
+- `Solara/Views` – SwiftUI screens, sheets, and reusable components.
+- `Solara/Resources` – App assets, accent colour, launch screen storyboard, and `Info.plist` (app icon is generated at build time to avoid storing binaries).
 
-## Requirements
+## Key capabilities
 
-- Flutter 3.3+ (stable channel). Install from [flutter.dev](https://docs.flutter.dev/get-started/install) and add `flutter/bin` to `PATH`.
-- Xcode 15+ with command-line tools for local iOS builds.
-- (Optional) CocoaPods for manual `pod install` inside `ios/`.
+- **Direct API access** – Signed GET requests to `music-api.gdstudio.xyz` with shared headers, Codable helpers, and async/await networking.
+- **Playback service** – `PlaybackManager` wraps `AVPlayer`, handles queue play/pause/上一首/下一首, quality switching, seek, remote command center integration, and background metadata updates.
+- **Multi-source search** – Concurrent searches across 网易云 / QQ / 酷我 / 酷狗 / 咪咕 with multi-select actions (enqueue or play now).
+- **UI/UX** – Gradient shell, album art viewer, lyrics scroller, queue + favourites sheets, and quality/play mode menus implemented in SwiftUI.
+- **State persistence** – Lightweight JSON snapshot for queue, favourites, playback mode, and position in Application Support.
 
 ## Local development
 
-```bash
-flutter pub get
-flutter run -d ios        # or any connected simulator
+1. Open `Solara.xcodeproj` in Xcode 15+.
+2. Select the **Solara** scheme and an iOS 17+ device/simulator.
+3. Build & run (code signing is configured for automatic signing; adjust the team as needed).
 
-# Generate an unsigned IPA locally (requires macOS + Xcode)
-flutter build ios --release --no-codesign
-bash tool/package_unsigned_ipa.sh
-```
+## CI
 
-### Core architecture
+`.github/workflows/ios-build.yml` builds the iOS target on `macos-latest` using `xcodebuild` with signing disabled. The job ensures the SwiftUI target stays compilable in CI.
 
-- `SolaraApi` (inside `lib/main.dart`) issues signed GET requests directly to `https://music-api.gdstudio.xyz/api.php` with the same parameters as the original web implementation.
-- `SolaraPlayerController` manages queue playback through `just_audio`, handles quality changes (128k / 192k / 320k / FLAC), caches album artwork + lyrics, and exposes derived UI state.
-- `SolaraSearchController` mirrors the mobile search overlay – it supports source switching (网易云 / QQ / 酷狗 / 咪咕), multi-select import into the queue, and one-tap preview.
-- Native widgets recreate the Solara mobile layout: gradient shell, album art halo, progress slider, toolbar, playlist & favourite panels, and the modal search sheet.
+## Notes / next steps
 
-## GitHub Actions (unsigned IPA)
-
-The workflow `.github/workflows/ios-build.yml` does the following whenever triggered manually or on pushes to `main`:
-
-1. Checks out the repo.
-2. Installs Flutter via `subosito/flutter-action`.
-3. Runs `flutter pub get`.
-4. Builds an unsigned iOS app bundle with `flutter build ios --release --no-codesign`.
-5. Packages the bundle into `build/ios/ipa/Runner.ipa` via `tool/package_unsigned_ipa.sh` and uploads it together with the debug symbols.
-
-Download the artifact from the workflow run page, unzip, and distribute/sign as needed.
-
-## Support / next steps
-
-- Hook in offline caching or downloads once storage/licensing requirements are clear.
-- Integrate lyrics display or background blur derived from `SolaraPlayerController.currentLyrics`.
-- Connect a CI/CD provider (Fastlane, Codemagic) if you need signed builds or TestFlight uploads.
+- Add richer animations or UIKit-powered components via `UIViewRepresentable` if desired.
+- Extend persistence to cache artwork/audio files for offline playback using `FileManager`.
+- Wire up advanced error handling and retry for unstable network conditions.

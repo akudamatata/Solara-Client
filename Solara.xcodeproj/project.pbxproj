@@ -1,0 +1,382 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		010000001 = {isa = PBXBuildFile; fileRef = 010000101 /* SolaraApp.swift */; };
+		010000002 = {isa = PBXBuildFile; fileRef = 010000102 /* ContentView.swift */; };
+		010000003 = {isa = PBXBuildFile; fileRef = 010000103 /* Song.swift */; };
+		010000004 = {isa = PBXBuildFile; fileRef = 010000104 /* PlaybackSnapshot.swift */; };
+		010000005 = {isa = PBXBuildFile; fileRef = 010000105 /* APIClient.swift */; };
+		010000006 = {isa = PBXBuildFile; fileRef = 010000106 /* PlaybackManager.swift */; };
+		010000007 = {isa = PBXBuildFile; fileRef = 010000107 /* ImageLoader.swift */; };
+		010000008 = {isa = PBXBuildFile; fileRef = 010000108 /* Formatting.swift */; };
+		010000009 = {isa = PBXBuildFile; fileRef = 010000109 /* SearchViewModel.swift */; };
+		01000000A = {isa = PBXBuildFile; fileRef = 01000010A /* RemoteImageView.swift */; };
+		01000000B = {isa = PBXBuildFile; fileRef = 01000010B /* SongRow.swift */; };
+		01000000C = {isa = PBXBuildFile; fileRef = 01000010C /* LyricView.swift */; };
+		01000000D = {isa = PBXBuildFile; fileRef = 01000010D /* PlayerView.swift */; };
+		01000000E = {isa = PBXBuildFile; fileRef = 01000010E /* QueueSheet.swift */; };
+		01000000F = {isa = PBXBuildFile; fileRef = 01000010F /* FavoritesSheet.swift */; };
+		010000010 = {isa = PBXBuildFile; fileRef = 010000110 /* SearchSheet.swift */; };
+		010000011 = {isa = PBXBuildFile; fileRef = 010000111 /* Assets.xcassets */; };
+		010000012 = {isa = PBXBuildFile; fileRef = 010000112 /* LaunchScreen.storyboard */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		010000101 /* SolaraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolaraApp.swift; sourceTree = "<group>"; };
+		010000102 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		010000103 /* Song.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Song.swift; sourceTree = "<group>"; };
+		010000104 /* PlaybackSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSnapshot.swift; sourceTree = "<group>"; };
+		010000105 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		010000106 /* PlaybackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackManager.swift; sourceTree = "<group>"; };
+		010000107 /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
+		010000108 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
+		010000109 /* SearchViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchViewModel.swift; sourceTree = "<group>"; };
+		01000010A /* RemoteImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImageView.swift; sourceTree = "<group>"; };
+		01000010B /* SongRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongRow.swift; sourceTree = "<group>"; };
+		01000010C /* LyricView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricView.swift; sourceTree = "<group>"; };
+		01000010D /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
+		01000010E /* QueueSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueSheet.swift; sourceTree = "<group>"; };
+		01000010F /* FavoritesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesSheet.swift; sourceTree = "<group>"; };
+		010000110 /* SearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSheet.swift; sourceTree = "<group>"; };
+		010000111 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		010000112 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		010000113 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		010000402 /* Solara.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Solara.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		010000200 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		010000300 = {
+			isa = PBXGroup;
+			children = (
+				010000301 /* Solara */,
+				010000403 /* Products */,
+			);
+			indentWidth = 2;
+			tabWidth = 2;
+			sourceTree = "<group>";
+		};
+		010000301 /* Solara */ = {
+			isa = PBXGroup;
+			children = (
+				010000310 /* App */,
+				010000320 /* Models */,
+				010000330 /* Services */,
+				010000340 /* Utilities */,
+				010000350 /* ViewModels */,
+				010000360 /* Views */,
+				010000370 /* Resources */,
+			);
+			path = Solara;
+			sourceTree = "<group>";
+		};
+		010000403 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				010000402 /* Solara.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		010000310 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				010000101 /* SolaraApp.swift */,
+				010000102 /* ContentView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		010000320 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				010000103 /* Song.swift */,
+				010000104 /* PlaybackSnapshot.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		010000330 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				010000105 /* APIClient.swift */,
+				010000106 /* PlaybackManager.swift */,
+				010000107 /* ImageLoader.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		010000340 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				010000108 /* Formatting.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		010000350 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				010000109 /* SearchViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		010000360 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				010000361 /* Components */,
+				010000362 /* Screens */,
+				010000363 /* Sheets */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		010000361 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				01000010A /* RemoteImageView.swift */,
+				01000010B /* SongRow.swift */,
+				01000010C /* LyricView.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		010000362 /* Screens */ = {
+			isa = PBXGroup;
+			children = (
+				01000010D /* PlayerView.swift */,
+			);
+			path = Screens;
+			sourceTree = "<group>";
+		};
+		010000363 /* Sheets */ = {
+			isa = PBXGroup;
+			children = (
+				01000010E /* QueueSheet.swift */,
+				01000010F /* FavoritesSheet.swift */,
+				010000110 /* SearchSheet.swift */,
+			);
+			path = Sheets;
+			sourceTree = "<group>";
+		};
+		010000370 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				010000111 /* Assets.xcassets */,
+				010000112 /* LaunchScreen.storyboard */,
+				010000113 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		010000400 /* Solara */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 010000700 /* Build configuration list for PBXNativeTarget "Solara" */;
+			buildPhases = (
+				010000014 /* Generate App Icon */,
+				010000500 /* Sources */,
+				010000501 /* Resources */,
+				010000200 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Solara;
+			productName = Solara;
+			productReference = 010000402 /* Solara.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		010000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				ORGANIZATIONNAME = "Solara";
+				TargetAttributes = {
+					010000400 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = 010000600 /* Build configuration list for PBXProject "Solara" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 010000300;
+			productRefGroup = 010000403 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				010000400 /* Solara */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		010000501 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				010000011 /* Assets.xcassets */,
+				010000012 /* LaunchScreen.storyboard */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		010000500 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				010000001,
+				010000002,
+				010000003,
+				010000004,
+				010000005,
+				010000006,
+				010000007,
+				010000008,
+				010000009,
+				01000000A,
+				01000000B,
+				01000000C,
+				01000000D,
+				01000000E,
+				01000000F,
+				010000010,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		010000014 /* Generate App Icon */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Generate App Icon";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Solara/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ ! -f \"${SRCROOT}/Solara/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png\" ]; then\\n  \"${SRCROOT}/tools/generate_appicon.swift\" \"${SRCROOT}/Solara/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png\"\\nfi\\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		010000601 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = Solara/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.solara.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1";
+				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Apple Development";
+			};
+			name = Debug;
+		};
+		010000602 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = Solara/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.solara.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1";
+				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Apple Development";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		010000600 /* Build configuration list for PBXProject "Solara" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				010000601 /* Debug */,
+				010000602 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		010000700 /* Build configuration list for PBXNativeTarget "Solara" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				010000601 /* Debug */,
+				010000602 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 010000000 /* Project object */;
+}
