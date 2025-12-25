@@ -18,10 +18,10 @@ jobs:
 
       - name: Build Solara (iOS)
         run: |
-          xcodebuild \\
-            -project Solara.xcodeproj \\
-            -scheme Solara \\
-            -destination 'generic/platform=iOS' \\
-            -configuration Release \\
-            CODE_SIGNING_ALLOWED=NO \\
+          xcodebuild \
+            -project Solara.xcodeproj \
+            -scheme Solara \
+            -destination 'generic/platform=iOS' \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
             clean build
