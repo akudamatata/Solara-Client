@@ -18,6 +18,7 @@ jobs:
 
       - name: Build Solara (iOS)
         run: |
+          # Fix line continuation syntax
           xcodebuild \
             -project Solara.xcodeproj \
             -scheme Solara \
