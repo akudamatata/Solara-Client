@@ -1,0 +1,37 @@
+# Xcode
+DerivedData/
+build/
+*.xccheckout
+*.xcscmblueprint
+*.xcworkspace/xcuserdata/
+*.xcuserstate
+*.moved-aside
+.DS_Store
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Carthage
+Carthage/Build/
+
+# Temporary
+*.swp
+*.tmp
+*.log
+
+# VSCode
+.vscode/
+# Generated app icon
+Solara/Resources/Assets.xcassets/AppIcon.appiconset/*.png
