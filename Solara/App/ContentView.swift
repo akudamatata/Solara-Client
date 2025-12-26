@@ -11,7 +11,6 @@ struct ContentView: View {
     @State private var showQueue = false
     @State private var showFavorites = false
     @State private var showSearch = false
-    @State private var showSearch = false
     @State private var showLyrics = false
     @State private var showSettings = false
 
@@ -65,14 +64,9 @@ struct ContentView: View {
                 playback.enqueue(songs)
             } onPlayNow: { songs in
                 playback.enqueue(songs) 
-                playback.play(song: songs[0]) // Play the clicked song, but enqueue the rest? 
-                // Wait, request said "append to playlist". Just changing to enqueue might be safer.
-                // Request 4: "Search Play behavior to append/insert instead of replacing"
-                // Actually, typically user expects "Play" to play immediately but NOT wipe the queue, just add effectively.
-                // Let's interpret as: enqueue the song and play it.
+                playback.play(song: songs[0]) 
             }
             .environmentObject(playback)
-        }
         }
         .sheet(isPresented: $showSettings) {
             SettingsSheet().environmentObject(playback)

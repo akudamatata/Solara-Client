@@ -84,26 +84,27 @@ struct QueueSheet: View {
                                 // Filter out current song
                                 if index != playback.currentIndex {
                                     SongRow(
-                                    song: song,
-                                    isCurrent: playback.currentSong?.identity == song.identity,
-                                    artworkOverrideURL: (playback.currentSong?.identity == song.identity) ? playback.artworkURL : nil,
-                                    onAddToQueue: {
-                                        playback.enqueue(song)
+                                        song: song,
+                                        isCurrent: playback.currentSong?.identity == song.identity,
+                                        artworkOverrideURL: (playback.currentSong?.identity == song.identity) ? playback.artworkURL : nil,
+                                        onAddToQueue: {
+                                            playback.enqueue(song)
+                                        }
+                                    ) {
+                                        playback.play(song: song)
                                     }
-                                ) {
-                                    playback.play(song: song)
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparatorTint(.white.opacity(0.1))
                                 }
-                                .listRowBackground(Color.clear)
-                                .listRowSeparatorTint(.white.opacity(0.1))
                             }
+                            .onDelete(perform: playback.removeSong)
+                            .onMove(perform: playback.moveSong)
+                        } header: {
+                            Text("稍后播放")
+                                .font(.footnote.bold())
+                                .foregroundStyle(.white.opacity(0.5))
+                                .textCase(.uppercase)
                         }
-                        .onDelete(perform: playback.removeSong)
-                        .onMove(perform: playback.moveSong)
-                    } header: {
-                        Text("稍后播放")
-                            .font(.footnote.bold())
-                            .foregroundStyle(.white.opacity(0.5))
-                            .textCase(.uppercase)
                     }
                 }
                 .listStyle(.grouped)
