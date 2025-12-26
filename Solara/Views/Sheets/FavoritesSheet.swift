@@ -63,7 +63,7 @@ struct FavoritesSheet: View {
                                 .buttonStyle(.plain)
                             }
                             .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 12, trailing: 0))
+                            .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 12, trailing: 20)) // Added horizontal inset
                             .listRowSeparator(.hidden)
                         }
 
@@ -89,6 +89,7 @@ struct FavoritesSheet: View {
                     .scrollContentBackground(.hidden)
                 }
             }
+            .frame(maxWidth: UIScreen.main.bounds.width) // Prevent horizontal overflow
             .navigationTitle("我的收藏")
             .navigationBarTitleDisplayMode(.large)
             .environment(\.colorScheme, .dark)
