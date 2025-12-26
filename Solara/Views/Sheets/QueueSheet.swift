@@ -51,7 +51,7 @@ struct QueueSheet: View {
                     .padding(.top, 12)
                     .padding(.bottom, 8)
                 }
-                .background(.ultraThinMaterial.opacity(0.5))
+                .background(Color.black.opacity(0.2)) // Darker, cleaner header background
 
                 // Queue List
                 List {

@@ -4,28 +4,28 @@ struct SearchSheet: View {
     @ObservedObject var viewModel: SearchViewModel
     @EnvironmentObject var playback: PlaybackManager
     @Environment(\.dismiss) var dismiss
+    private let imageLoader = ImageLoader.shared
 
     let onAddToQueue: ([Song]) -> Void
     let onPlayNow: ([Song]) -> Void
 
     var body: some View {
         ZStack {
-            // Futuristic Mesh-like Background
-            Color(red: 0.05, green: 0.05, blue: 0.07)
+            // Dynamic Background (Synchronized with Main Interface)
+            if let url = playback.artworkURL {
+                RemoteImageView(
+                    url: url,
+                    placeholderImage: playback.artwork,
+                    imageLoader: imageLoader,
+                    contentMode: .fill
+                )
                 .ignoresSafeArea()
-            
-            // Subtle ambient glows
-            Circle()
-                .fill(Color.pink.opacity(0.15))
-                .frame(width: 400, height: 400)
-                .blur(radius: 100)
-                .offset(x: -150, y: -200)
-            
-            Circle()
-                .fill(Color.blue.opacity(0.1))
-                .frame(width: 300, height: 300)
                 .blur(radius: 80)
-                .offset(x: 150, y: 200)
+                .overlay(Color.black.opacity(0.6))
+            } else {
+                Color(red: 0.05, green: 0.05, blue: 0.06)
+                    .ignoresSafeArea()
+            }
 
             VStack(spacing: 0) {
                 // Premium Floating Search Bar
@@ -104,7 +104,7 @@ struct SearchSheet: View {
                     }
                     .padding(.bottom, 16)
                 }
-                .background(.ultraThinMaterial.opacity(0.8))
+                .background(Color.black.opacity(0.2)) // Unified dark header
 
                 // Results List
                 List {

@@ -76,9 +76,9 @@ struct ContentView: View {
                                         playback.toggleFavorite(song)
                                     }
                                 } label: {
-                                    Image(systemName: isCurrentFavorite ? "star.fill" : "star")
+                                    Image(systemName: isCurrentFavorite ? "heart.fill" : "heart")
                                         .font(.system(size: 20)) // Slightly smaller in header
-                                        .foregroundStyle(isCurrentFavorite ? .yellow : .white.opacity(0.4))
+                                        .foregroundStyle(isCurrentFavorite ? .red : .white.opacity(0.4))
                                         .symbolEffect(.bounce, value: isCurrentFavorite)
                                 }
                                 
@@ -201,9 +201,9 @@ struct ContentView: View {
                                         playback.toggleFavorite(song)
                                     }
                                 } label: {
-                                    Image(systemName: isCurrentFavorite ? "star.fill" : "star")
+                                    Image(systemName: isCurrentFavorite ? "heart.fill" : "heart")
                                         .font(.system(size: 24))
-                                        .foregroundStyle(isCurrentFavorite ? .yellow : .white.opacity(0.4))
+                                        .foregroundStyle(isCurrentFavorite ? .red : .white.opacity(0.4))
                                         .symbolEffect(.bounce, value: isCurrentFavorite)
                                 }
                             }
