@@ -255,7 +255,7 @@ struct ContentView: View {
                 }
                 .padding(.bottom, 20)
             }
-            .frame(maxWidth: .infinity) // Ensure content doesn't overflow screen width
+            .frame(width: UIScreen.main.bounds.width) // Strictly enforce screen width to prevent overflow bug
         }
         .sheet(isPresented: $showFavorites) {
             FavoritesSheet().environmentObject(playback)
