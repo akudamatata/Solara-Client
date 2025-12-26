@@ -15,20 +15,7 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             // Background
-            if let url = playback.artworkURL {
-                RemoteImageView(
-                    url: url,
-                    placeholderImage: playback.artwork,
-                    imageLoader: imageLoader,
-                    contentMode: .fill
-                )
-                .ignoresSafeArea()
-                .blur(radius: 60)
-                .overlay(Color.black.opacity(0.5))
-            } else {
-                Color(red: 0.11, green: 0.11, blue: 0.12)
-                    .ignoresSafeArea()
-            }
+            PlayerBackgroundView(playback: playback, imageLoader: imageLoader)
 
             VStack(spacing: 0) {
                 if showLyrics {
@@ -82,6 +69,28 @@ struct ContentView: View {
 }
 
 // MARK: - Subviews
+
+struct PlayerBackgroundView: View {
+    @ObservedObject var playback: PlaybackManager
+    let imageLoader: ImageLoader
+
+    var body: some View {
+        if let url = playback.artworkURL {
+            RemoteImageView(
+                url: url,
+                placeholderImage: playback.artwork,
+                imageLoader: imageLoader,
+                contentMode: .fill
+            )
+            .ignoresSafeArea()
+            .blur(radius: 60)
+            .overlay(Color.black.opacity(0.5))
+        } else {
+            Color(red: 0.11, green: 0.11, blue: 0.12)
+                .ignoresSafeArea()
+        }
+    }
+}
 
 struct LyricsModeView: View {
     @EnvironmentObject var playback: PlaybackManager
@@ -288,173 +297,202 @@ struct PlayerControlsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Seek Bar
-            VStack(spacing: 12) {
-                Slider(
-                    value: Binding(
-                        get: { playback.duration == 0 ? 0 : playback.position / max(playback.duration, 0.1) },
-                        set: { progress in playback.seek(to: progress) }
-                    ),
-                    in: 0...1
-                )
-                .tint(.white.opacity(0.5))
-                
-                HStack {
-                    Text(TimeFormatting.string(from: playback.position))
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.5))
-                        .monospacedDigit()
-                    
-                    Spacer()
-                    
-                    // Quality Badge
-                    Menu {
-                        Picker("音质选择", selection: Binding(
-                            get: { playback.quality },
-                            set: { playback.setQuality($0) }
-                        )) {
-                            ForEach(SongQuality.allCases) { quality in
-                                Text(quality.label).tag(quality)
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 2) {
-                            Image(systemName: "waveform")
-                            Text(playback.quality.label.components(separatedBy: " ").first ?? "标准")
-                        }
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.white.opacity(0.8))
-                        .cornerRadius(4)
-                    }
-                    
-                    Spacer()
-
-                    Text(TimeFormatting.string(from: playback.duration))
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.5))
-                        .monospacedDigit()
-                }
-            }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 24)
-
-            // Transport Controls
-            HStack(spacing: 40) {
-                // Shuffle
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        if playback.playMode == .shuffle {
-                            playback.setPlayMode(.list)
-                        } else {
-                            playback.setPlayMode(.shuffle)
-                        }
-                    }
-                }) {
-                    Image(systemName: "shuffle")
-                        .font(.system(size: 22))
-                        .foregroundStyle(playback.playMode == .shuffle ? .white : .white.opacity(0.4))
-                        .symbolEffect(.bounce, value: playback.playMode == .shuffle)
-                }
-
-                Button(action: playback.previous) {
-                    Image(systemName: "backward.fill")
-                        .font(.system(size: 40))
-                        .foregroundStyle(.white)
-                }
-                
-                Button(action: playback.togglePlayPause) {
-                    Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 54))
-                        .symbolRenderingMode(.hierarchical) 
-                        .foregroundStyle(.white)
-                }
-                
-                Button(action: playback.next) {
-                    Image(systemName: "forward.fill")
-                        .font(.system(size: 40))
-                        .foregroundStyle(.white)
-                }
-
-                // Repeat
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        switch playback.playMode {
-                        case .off: playback.setPlayMode(.list)
-                        case .list: playback.setPlayMode(.single)
-                        case .single: playback.setPlayMode(.off)
-                        case .shuffle: playback.setPlayMode(.single)
-                        }
-                    }
-                }) {
-                    Image(systemName: playback.playMode == .single ? "repeat.1" : "repeat")
-                        .font(.system(size: 22))
-                        .foregroundStyle(playback.playMode == .off || playback.playMode == .shuffle ? .white.opacity(0.4) : .white)
-                        .symbolEffect(.bounce, value: playback.playMode)
-                }
-            }
-            .padding(.bottom, 32)
-            
-            // Volume
-            HStack(spacing: 12) {
-                Image(systemName: "speaker.fill")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.5))
-                
-                VolumeView()
-                    .frame(height: 20)
-                    .tint(Color.white)
-                    
-                Image(systemName: "speaker.wave.3.fill")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.5))
-            }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 32)
-
-            // Bottom Actions
-            HStack(spacing: 40) { 
-                 AirPlayView()
-                     .frame(width: 44, height: 44)
-
-                 Button(action: { showFavorites.toggle() }) {
-                     Image(systemName: "heart.fill")
-                         .font(.system(size: 24))
-                         .foregroundStyle(showFavorites ? .pink : .white.opacity(0.4)) 
-                         .symbolEffect(.bounce, value: showFavorites)
-                 }
-
-                 Button(action: { 
-                     withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
-                         showLyrics.toggle() 
-                     }
-                 }) {
-                     Image(systemName: "quote.bubble.fill")
-                         .font(.system(size: 24))
-                         .foregroundStyle(showLyrics ? .white : .white.opacity(0.4))
-                         .background(
-                             Group {
-                                 if showLyrics {
-                                     Circle()
-                                         .fill(Color.white.opacity(0.2))
-                                         .blur(radius: 6)
-                                         .frame(width: 40, height: 40)
-                                 }
-                             }
-                         )
-                         .symbolEffect(.bounce, value: showLyrics)
-                 }
-                 
-                 Button(action: { showQueue.toggle() }) {
-                     Image(systemName: "list.bullet")
-                         .font(.system(size: 24))
-                         .foregroundStyle(.white.opacity(0.6))
-                 }
-            }
-            .padding(.bottom, 20)
+            SeekBarView(playback: playback)
+            TransportControlsView(playback: playback)
+            VolumeControlView()
+            BottomActionsView(
+                showQueue: $showQueue,
+                showFavorites: $showFavorites,
+                showLyrics: $showLyrics
+            )
         }
+    }
+}
+
+struct SeekBarView: View {
+    @ObservedObject var playback: PlaybackManager
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Slider(
+                value: Binding(
+                    get: { playback.duration == 0 ? 0 : playback.position / max(playback.duration, 0.1) },
+                    set: { progress in playback.seek(to: progress) }
+                ),
+                in: 0...1
+            )
+            .tint(.white.opacity(0.5))
+            
+            HStack {
+                Text(TimeFormatting.string(from: playback.position))
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.5))
+                    .monospacedDigit()
+                
+                Spacer()
+                
+                // Quality Badge
+                Menu {
+                    Picker("音质选择", selection: Binding(
+                        get: { playback.quality },
+                        set: { playback.setQuality($0) }
+                    )) {
+                        ForEach(SongQuality.allCases) { quality in
+                            Text(quality.label).tag(quality)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 2) {
+                        Image(systemName: "waveform")
+                        Text(playback.quality.label.components(separatedBy: " ").first ?? "标准")
+                    }
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.white.opacity(0.8))
+                    .cornerRadius(4)
+                }
+                
+                Spacer()
+
+                Text(TimeFormatting.string(from: playback.duration))
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.5))
+                    .monospacedDigit()
+            }
+        }
+        .padding(.horizontal, 32)
+        .padding(.bottom, 24)
+    }
+}
+
+struct TransportControlsView: View {
+    @ObservedObject var playback: PlaybackManager
+
+    var body: some View {
+        HStack(spacing: 40) {
+            // Shuffle
+            Button(action: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    if playback.playMode == .shuffle {
+                        playback.setPlayMode(.list)
+                    } else {
+                        playback.setPlayMode(.shuffle)
+                    }
+                }
+            }) {
+                Image(systemName: "shuffle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(playback.playMode == .shuffle ? .white : .white.opacity(0.4))
+                    .symbolEffect(.bounce, value: playback.playMode == .shuffle)
+            }
+
+            Button(action: playback.previous) {
+                Image(systemName: "backward.fill")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.white)
+            }
+            
+            Button(action: playback.togglePlayPause) {
+                Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 54))
+                    .symbolRenderingMode(.hierarchical) 
+                    .foregroundStyle(.white)
+            }
+            
+            Button(action: playback.next) {
+                Image(systemName: "forward.fill")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.white)
+            }
+
+            // Repeat
+            Button(action: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    switch playback.playMode {
+                    case .off: playback.setPlayMode(.list)
+                    case .list: playback.setPlayMode(.single)
+                    case .single: playback.setPlayMode(.off)
+                    case .shuffle: playback.setPlayMode(.single)
+                    }
+                }
+            }) {
+                Image(systemName: playback.playMode == .single ? "repeat.1" : "repeat")
+                    .font(.system(size: 22))
+                    .foregroundStyle(playback.playMode == .off || playback.playMode == .shuffle ? .white.opacity(0.4) : .white)
+                    .symbolEffect(.bounce, value: playback.playMode)
+            }
+        }
+        .padding(.bottom, 32)
+    }
+}
+
+struct VolumeControlView: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "speaker.fill")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.5))
+            
+            VolumeView()
+                .frame(height: 20)
+                .tint(Color.white)
+                
+            Image(systemName: "speaker.wave.3.fill")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.5))
+        }
+        .padding(.horizontal, 32)
+        .padding(.bottom, 32)
+    }
+}
+
+struct BottomActionsView: View {
+    @Binding var showQueue: Bool
+    @Binding var showFavorites: Bool
+    @Binding var showLyrics: Bool
+
+    var body: some View {
+        HStack(spacing: 40) { 
+             AirPlayView()
+                 .frame(width: 44, height: 44)
+
+             Button(action: { showFavorites.toggle() }) {
+                 Image(systemName: "heart.fill")
+                     .font(.system(size: 24))
+                     .foregroundStyle(showFavorites ? .pink : .white.opacity(0.4)) 
+                     .symbolEffect(.bounce, value: showFavorites)
+             }
+
+             Button(action: { 
+                 withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
+                     showLyrics.toggle() 
+                 }
+             }) {
+                 Image(systemName: "quote.bubble.fill")
+                     .font(.system(size: 24))
+                     .foregroundStyle(showLyrics ? .white : .white.opacity(0.4))
+                     .background(
+                         Group {
+                             if showLyrics {
+                                 Circle()
+                                     .fill(Color.white.opacity(0.2))
+                                     .blur(radius: 6)
+                                     .frame(width: 40, height: 40)
+                             }
+                         }
+                     )
+                     .symbolEffect(.bounce, value: showLyrics)
+             }
+             
+             Button(action: { showQueue.toggle() }) {
+                 Image(systemName: "list.bullet")
+                     .font(.system(size: 24))
+                     .foregroundStyle(.white.opacity(0.6))
+             }
+        }
+        .padding(.bottom, 20)
     }
 }
 
