@@ -146,19 +146,31 @@ struct ContentView: View {
                             .foregroundStyle(.white.opacity(0.5))
                             .monospacedDigit()
                         
+                        
                         Spacer()
                         
                         // Quality Badge
-                        HStack(spacing: 2) {
-                            Image(systemName: "waveform")
-                            Text("无损") // Lossless
+                        Menu {
+                            Picker("音质选择", selection: Binding(
+                                get: { playback.quality },
+                                set: { playback.setQuality($0) }
+                            )) {
+                                ForEach(SongQuality.allCases) { quality in
+                                    Text(quality.label).tag(quality)
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 2) {
+                                Image(systemName: "waveform")
+                                Text(playback.quality.label.components(separatedBy: " ").first ?? "标准")
+                            }
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.white.opacity(0.8))
+                            .cornerRadius(4)
                         }
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.white.opacity(0.8))
-                        .cornerRadius(4)
                         
                         Spacer()
 
