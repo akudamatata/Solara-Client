@@ -13,8 +13,10 @@ struct SearchSheet: View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Source Selector (Pills)
+                // Source Selector (Pills)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
+                        Spacer(minLength: 0)
                         ForEach(SongSource.allCases) { source in
                             Button(action: {
                                 withAnimation {
@@ -31,9 +33,11 @@ struct SearchSheet: View {
                                     .clipShape(Capsule())
                             }
                         }
+                        Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
+                    .frame(minWidth: UIScreen.main.bounds.width) // Ensure full width for centering
                 }
                 .background(Color(.systemBackground))
                 
