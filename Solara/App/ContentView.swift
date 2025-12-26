@@ -202,12 +202,16 @@ struct StandardPlayerView: View {
                 HStack {
                     Button(action: { playback.startRadar() }) {
                         HStack(spacing: 4) {
-                            if playback.isRadarLoading {
-                                ProgressView()
-                                    .tint(.white)
-                                    .scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "sparkles")
+                            ForEach(playback.favorites) { song in
+                            SongRow(
+                                song: song,
+                                isCurrent: playback.currentSong?.identity == song.identity,
+                                artworkOverrideURL: (playback.currentSong?.identity == song.identity) ? playback.artworkURL : nil,
+                                onAddToQueue: {
+                                    playback.enqueue(song)
+                                }
+                            ) {
+                                playback.play(song: song)
                             }
                             Text(playback.isRadarLoading ? "加载中" : "探索")
                         }
@@ -384,9 +388,10 @@ struct TransportControlsView: View {
                 }
             }) {
                 Image(systemName: "shuffle")
-                    .font(.system(size: 22))
+                    .font(.system(size: 20)) // Reduced from 22
                     .foregroundStyle(playback.playMode == .shuffle ? .white : .white.opacity(0.4))
                     .symbolEffect(.bounce, value: playback.playMode == .shuffle)
+                    .frame(height: 20) // Ensure vertical alignment
             }
 
             Button(action: playback.previous) {
@@ -420,9 +425,10 @@ struct TransportControlsView: View {
                 }
             }) {
                 Image(systemName: playback.playMode == .single ? "repeat.1" : "repeat")
-                    .font(.system(size: 22))
+                    .font(.system(size: 20)) // Reduced from 22
                     .foregroundStyle(playback.playMode == .off || playback.playMode == .shuffle ? .white.opacity(0.4) : .white)
                     .symbolEffect(.bounce, value: playback.playMode)
+                    .frame(height: 20) // Ensure vertical alignment
             }
         }
         .padding(.bottom, 32)
@@ -456,16 +462,6 @@ struct BottomActionsView: View {
 
     var body: some View {
         HStack(spacing: 40) { 
-             AirPlayView()
-                 .frame(width: 44, height: 44)
-
-             Button(action: { showFavorites.toggle() }) {
-                 Image(systemName: "heart.fill")
-                     .font(.system(size: 24))
-                     .foregroundStyle(showFavorites ? .pink : .white.opacity(0.4)) 
-                     .symbolEffect(.bounce, value: showFavorites)
-             }
-
              Button(action: { 
                  withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
                      showLyrics.toggle() 
@@ -476,9 +472,9 @@ struct BottomActionsView: View {
                      .foregroundStyle(showLyrics ? .white : .white.opacity(0.4))
                      .background(
                          Group {
-                             if showLyrics {
-                                 Circle()
-                                     .fill(Color.white.opacity(0.2))
+                             SongRow(song: current, isCurrent: true, artworkOverrideURL: playback.artworkURL) {
+                                // Already playing
+                            }         .fill(Color.white.opacity(0.2))
                                      .blur(radius: 6)
                                      .frame(width: 40, height: 40)
                              }
@@ -486,7 +482,17 @@ struct BottomActionsView: View {
                      )
                      .symbolEffect(.bounce, value: showLyrics)
              }
+
+             Button(action: { showFavorites.toggle() }) {
+                 Image(systemName: "heart.fill")
+                     .font(.system(size: 24))
+                     .foregroundStyle(showFavorites ? .pink : .white.opacity(0.4)) 
+                     .symbolEffect(.bounce, value: showFavorites)
+             }
              
+             AirPlayView()
+                 .frame(width: 30, height: 30) // Smaller than buttons (usually 44)
+
              Button(action: { showQueue.toggle() }) {
                  Image(systemName: "list.bullet")
                      .font(.system(size: 24))

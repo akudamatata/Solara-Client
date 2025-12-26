@@ -5,6 +5,7 @@ struct SongRow: View {
     let song: Song
     var isCurrent: Bool = false
     var showCover: Bool = true
+    var artworkOverrideURL: URL? = nil // New parameter
     var onAddToQueue: (() -> Void)? = nil
     var onTap: (() -> Void)?
     
@@ -18,7 +19,14 @@ struct SongRow: View {
             HStack(spacing: 16) {
                 if showCover {
                     ZStack {
-                        if let artworkId = song.artworkId, let url = URL(string: artworkId) {
+                        if let override = artworkOverrideURL {
+                             RemoteImageView(
+                                url: override,
+                                placeholderImage: nil,
+                                imageLoader: imageLoader,
+                                contentMode: .fill
+                             )
+                        } else if let artworkId = song.artworkId, let url = URL(string: artworkId) {
                              RemoteImageView(
                                 url: url,
                                 placeholderImage: nil,
