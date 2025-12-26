@@ -169,6 +169,10 @@ final class PlaybackManager: ObservableObject {
         Task { await startPlaybackFromCurrent() }
     }
 
+    func playNext() {
+        next()
+    }
+
     func previous() {
         guard !queue.isEmpty else { return }
         switch playMode {
