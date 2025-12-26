@@ -330,7 +330,7 @@ struct LyricsView: View {
                     .ignoresSafeArea()
             }
 
-            .frame(width: UIScreen.main.bounds.width)
+
 
             VStack(spacing: 0) {
                 // Header (Artwork + Info)
