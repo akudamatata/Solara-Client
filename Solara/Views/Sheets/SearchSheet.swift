@@ -68,10 +68,7 @@ struct SearchSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("清空") {
-                        viewModel.keyword = ""
-                        viewModel.results = [:]
-                        viewModel.aggregated = []
-                        viewModel.clearSelection()
+                        viewModel.reset()
                     }
                 }
             }

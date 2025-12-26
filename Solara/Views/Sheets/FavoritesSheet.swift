@@ -6,22 +6,24 @@ struct FavoritesSheet: View {
 
     var body: some View {
         NavigationStack {
-            if playback.favoriteSongs().isEmpty {
-                ContentUnavailableView("暂无收藏", systemImage: "heart")
-            } else {
-                List(playback.favoriteSongs(), id: \.identity) { song in
-                    SongRow(song: song) {
-                        onPlay(song)
-                    }
-                    .contextMenu {
-                        Button(role: .destructive) {
-                            playback.toggleFavorite(song)
-                        } label: {
-                            Label("移除收藏", systemImage: "trash")
+            Group {
+                if playback.favoriteSongs().isEmpty {
+                    ContentUnavailableView("暂无收藏", systemImage: "heart")
+                } else {
+                    List(playback.favoriteSongs(), id: \.identity) { song in
+                        SongRow(song: song) {
+                            onPlay(song)
+                        }
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                playback.toggleFavorite(song)
+                            } label: {
+                                Label("移除收藏", systemImage: "trash")
+                            }
                         }
                     }
+                    .listStyle(.insetGrouped)
                 }
-                .listStyle(.insetGrouped)
             }
             .navigationTitle("收藏")
         }

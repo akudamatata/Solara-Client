@@ -28,6 +28,13 @@ final class SearchViewModel: ObservableObject {
         selected.removeAll()
     }
 
+    func reset() {
+        keyword = ""
+        results = [:]
+        aggregated = []
+        clearSelection()
+    }
+
     func searchAllSources() {
         searchTask?.cancel()
         let query = keyword.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -132,8 +132,8 @@ final class PlaybackManager: ObservableObject {
 
     func moveSong(from source: IndexSet, to destination: Int) {
         queue.move(fromOffsets: source, toOffset: destination)
-        if let currentIndex {
-            currentIndex = min(currentIndex, queue.count - 1)
+        if let index = currentIndex {
+            self.currentIndex = min(index, queue.count - 1)
         }
         persistState()
     }
@@ -260,7 +260,7 @@ final class PlaybackManager: ObservableObject {
             artworkURL = nil
         } else if let url = try? await apiClient.resolveArtworkURL(for: song, size: 512) {
             artworkURL = url
-            if let url { await loadArtwork(from: url, identity: song.identity) }
+            await loadArtwork(from: url, identity: song.identity)
         } else {
             artwork = nil
             artworkURL = nil
