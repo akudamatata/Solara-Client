@@ -383,24 +383,6 @@ struct TransportControlsView: View {
 
     var body: some View {
         HStack(spacing: 40) {
-            // Shuffle
-            Button(action: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    if playback.playMode == .shuffle {
-                        playback.setPlayMode(.list)
-                    } else {
-                        playback.setPlayMode(.shuffle)
-                    }
-                }
-            }) {
-                Image(systemName: "shuffle")
-                    .font(.system(size: 18)) 
-                    .foregroundStyle(playback.playMode == .shuffle ? .white : .white.opacity(0.4))
-                    .symbolEffect(.bounce, value: playback.playMode == .shuffle)
-                    .frame(height: 18) 
-                    .offset(x: 8)
-            }
-
             Button(action: playback.previous) {
                 Image(systemName: "backward.fill")
                     .font(.system(size: 40))
@@ -418,25 +400,6 @@ struct TransportControlsView: View {
                 Image(systemName: "forward.fill")
                     .font(.system(size: 40))
                     .foregroundStyle(.white)
-            }
-
-            // Repeat
-            Button(action: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    switch playback.playMode {
-                    case .off: playback.setPlayMode(.list)
-                    case .list: playback.setPlayMode(.single)
-                    case .single: playback.setPlayMode(.off)
-                    case .shuffle: playback.setPlayMode(.single)
-                    }
-                }
-            }) {
-                Image(systemName: playback.playMode == .single ? "repeat.1" : "repeat")
-                    .font(.system(size: 18)) 
-                    .foregroundStyle(playback.playMode == .off || playback.playMode == .shuffle ? .white.opacity(0.4) : .white)
-                    .symbolEffect(.bounce, value: playback.playMode)
-                    .frame(height: 18) 
-                    .offset(x: -8)
             }
         }
         .padding(.bottom, 32)
@@ -498,8 +461,16 @@ struct BottomActionsView: View {
                      .symbolEffect(.bounce, value: showFavorites)
              }
              
-             AirPlayView()
-                 .frame(width: 34, height: 34) 
+             Button(action: { 
+                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                     playback.togglePlayMode()
+                 }
+             }) {
+                 Image(systemName: playback.playMode.iconName)
+                     .font(.system(size: 24))
+                     .foregroundStyle(.white.opacity(0.6))
+                     .contentTransition(.symbolEffect(.replace))
+             }
 
              Button(action: { showQueue.toggle() }) {
                  Image(systemName: "list.bullet")

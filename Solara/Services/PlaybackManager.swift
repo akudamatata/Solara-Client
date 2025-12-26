@@ -232,12 +232,14 @@ final class PlaybackManager: ObservableObject {
     }
 
     func togglePlayMode() {
-        guard let index = PlayMode.allCases.firstIndex(of: playMode) else {
+        switch playMode {
+        case .list:
+            setPlayMode(.single)
+        case .single:
+            setPlayMode(.shuffle)
+        case .shuffle, .off:
             setPlayMode(.list)
-            return
         }
-        let nextIndex = (index + 1) % PlayMode.allCases.count
-        setPlayMode(PlayMode.allCases[nextIndex])
     }
 
     func toggleFavorite(_ song: Song) {
