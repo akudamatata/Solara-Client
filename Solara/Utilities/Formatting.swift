@@ -9,3 +9,7 @@ enum TimeFormatting {
         return String(format: "%02d:%02d", minutes, seconds)
     }
 }
+
+func FormatTime(_ time: TimeInterval) -> String {
+    TimeFormatting.string(from: time)
+}

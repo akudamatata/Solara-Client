@@ -223,6 +223,15 @@ final class PlaybackManager: ObservableObject {
         persistState()
     }
 
+    func togglePlayMode() {
+        guard let index = PlayMode.allCases.firstIndex(of: playMode) else {
+            setPlayMode(.list)
+            return
+        }
+        let nextIndex = (index + 1) % PlayMode.allCases.count
+        setPlayMode(PlayMode.allCases[nextIndex])
+    }
+
     func toggleFavorite(_ song: Song) {
         if favorites.contains(where: { $0.identity == song.identity }) {
             favorites.removeAll { $0.identity == song.identity }
