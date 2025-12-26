@@ -97,7 +97,7 @@ struct ContentView: View {
                         .contentShape(Rectangle()) // Make entire header area tappable
                         .onTapGesture {
                             // Tap header to collapse lyrics
-                            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
                                 showLyrics = false
                             }
                         }
