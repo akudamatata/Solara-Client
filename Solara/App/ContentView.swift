@@ -272,7 +272,23 @@ struct ContentView: View {
                     .padding(.bottom, 24)
 
                     // Playback Controls
-                    HStack(spacing: 50) {
+                    HStack(spacing: 40) {
+                        // Shuffle (Left)
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                if playback.playMode == .shuffle {
+                                    playback.setPlayMode(.list) // Toggle off -> List
+                                } else {
+                                    playback.setPlayMode(.shuffle)
+                                }
+                            }
+                        }) {
+                            Image(systemName: "shuffle")
+                                .font(.system(size: 22))
+                                .foregroundStyle(playback.playMode == .shuffle ? .white : .white.opacity(0.4))
+                                .symbolEffect(.bounce, value: playback.playMode == .shuffle)
+                        }
+
                         Button(action: playback.previous) {
                             Image(systemName: "backward.fill")
                                 .font(.system(size: 40))
@@ -290,6 +306,23 @@ struct ContentView: View {
                             Image(systemName: "forward.fill")
                                 .font(.system(size: 40))
                                 .foregroundStyle(.white)
+                        }
+
+                        // Repeat (Right)
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                switch playback.playMode {
+                                case .off: playback.setPlayMode(.list)
+                                case .list: playback.setPlayMode(.single)
+                                case .single: playback.setPlayMode(.off)
+                                case .shuffle: playback.setPlayMode(.single) // Exit shuffle to Repeat One
+                                }
+                            }
+                        }) {
+                            Image(systemName: playback.playMode == .single ? "repeat.1" : "repeat")
+                                .font(.system(size: 22))
+                                .foregroundStyle(playback.playMode == .off || playback.playMode == .shuffle ? .white.opacity(0.4) : .white)
+                                .symbolEffect(.bounce, value: playback.playMode)
                         }
                     }
                     .padding(.bottom, 32)
@@ -312,39 +345,16 @@ struct ContentView: View {
                     .padding(.bottom, 32)
 
                     // Bottom Actions
-                    HStack(spacing: 40) { // Reduced spacing to fit 4 items comfortably
-                         // 1. Cycle Button (Apple Music Style)
-                         Button(action: {
-                             // Logic: Off -> List -> Single -> Off
-                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                 switch playback.playMode {
-                                 case .off: playback.setPlayMode(.list)
-                                 case .list: playback.setPlayMode(.single)
-                                 case .single: playback.setPlayMode(.off)
-                                 default: playback.setPlayMode(.off)
-                                 }
-                             }
-                         }) {
-                             Image(systemName: playback.playMode == .single ? "repeat.1" : "repeat")
-                                 .font(.system(size: 22))
-                                 .foregroundStyle(playback.playMode == .off ? .white.opacity(0.4) : .white) // Dim if off
-                                 .symbolEffect(.bounce, value: playback.playMode)
-                                 .padding(8)
-                                 .background(
-                                    Group {
-                                        if playback.playMode != .off {
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .fill(Color.white.opacity(0.1))
-                                        }
-                                    }
-                                 )
-                         }
+                    HStack(spacing: 40) { 
+                         // 1. AirPlay (Replaces Cycle)
+                         AirPlayView()
+                             .frame(width: 44, height: 44)
 
                          // 2. Favorite Button
                          Button(action: { showFavorites.toggle() }) {
                              Image(systemName: "heart.fill")
                                  .font(.system(size: 24))
-                                 .foregroundStyle(showFavorites ? .pink : .white.opacity(0.4)) // Matched opacity style
+                                 .foregroundStyle(showFavorites ? .pink : .white.opacity(0.4)) 
                                  .symbolEffect(.bounce, value: showFavorites)
                          }
 
