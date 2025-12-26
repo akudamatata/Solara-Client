@@ -80,7 +80,7 @@ struct QueueSheet: View {
                          ForEach(Array(playback.queue.enumerated()), id: \.element.identity) { index, song in
                             // Filter out current song (it's in its own section)
                             if index != playback.currentIndex {
-                                SongRow(song: song, isCurrent: false) {
+                                SongRow(song: song, isCurrent: false, showCover: false) {
                                     playback.play(song: song)
                                 }
                                 .listRowBackground(Color.clear)

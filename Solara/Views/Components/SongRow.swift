@@ -3,6 +3,7 @@ import SwiftUI
 struct SongRow: View {
     let song: Song
     var isCurrent: Bool = false
+    var showCover: Bool = true
     var onTap: (() -> Void)?
     
     private let imageLoader = ImageLoader.shared
@@ -14,35 +15,50 @@ struct SongRow: View {
         }) {
             HStack(spacing: 16) {
                 // Artwork with loading state
-                ZStack {
-                    if let url = URL(string: "https://music.163.com/api/v1/song/artwork/\(song.identity)?size=128") { // Placeholder approach if song doesn't have URL directly
-                         RemoteImageView(
-                            url: url,
-                            placeholderImage: nil,
-                            imageLoader: imageLoader,
-                            contentMode: .fill
-                         )
-                         .frame(width: 48, height: 48)
-                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                    } else {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.white.opacity(0.1))
-                            .frame(width: 48, height: 48)
-                            .overlay(
-                                Image(systemName: "music.note")
-                                    .foregroundStyle(.white.opacity(0.4))
-                            )
-                    }
-                    
-                    if isCurrent {
-                        Color.black.opacity(0.3)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                if showCover {
+                    ZStack {
+                        if let artworkId = song.artworkId, let url = URL(string: artworkId) {
+                             RemoteImageView(
+                                url: url,
+                                placeholderImage: nil,
+                                imageLoader: imageLoader,
+                                contentMode: .fill
+                             )
+                             .frame(width: 48, height: 48)
+                             .clipShape(RoundedRectangle(cornerRadius: 8))
+                        } else if let url = URL(string: "https://music.163.com/api/v1/song/artwork/\(song.identity)?size=128") { // Fallback
+                             RemoteImageView(
+                                url: url,
+                                placeholderImage: nil,
+                                imageLoader: imageLoader,
+                                contentMode: .fill
+                             )
+                             .frame(width: 48, height: 48)
+                             .clipShape(RoundedRectangle(cornerRadius: 8))
+                        } else {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.white.opacity(0.1))
+                                .frame(width: 48, height: 48)
+                                .overlay(
+                                    Image(systemName: "music.note")
+                                        .foregroundStyle(.white.opacity(0.4))
+                                )
+                        }
                         
-                        NowPlayingAnimation()
-                            .frame(width: 16, height: 16)
+                        if isCurrent {
+                            Color.black.opacity(0.3)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            
+                            NowPlayingAnimation()
+                                .frame(width: 16, height: 16)
+                        }
                     }
+                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                } else if isCurrent {
+                     // If cover is hidden but song is playing, show a small indicator
+                    NowPlayingAnimation()
+                        .frame(width: 16, height: 16)
                 }
-                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(song.name)

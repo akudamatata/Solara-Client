@@ -137,7 +137,7 @@ struct SearchSheet: View {
                          .listRowSeparator(.hidden)
                     } else {
                         ForEach(viewModel.results) { song in
-                            SongRow(song: song, isCurrent: playback.currentSong?.identity == song.identity) {
+                            SongRow(song: song, isCurrent: playback.currentSong?.identity == song.identity, showCover: false) {
                                 onPlayNow([song])
                                 dismiss()
                             }
