@@ -1,3 +1,5 @@
+import SwiftUI
+
 struct ContentView: View {
     @EnvironmentObject var playback: PlaybackManager
     @StateObject private var searchViewModel = SearchViewModel(apiClient: APIClient.shared)
