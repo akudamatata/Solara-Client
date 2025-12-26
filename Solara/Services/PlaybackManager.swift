@@ -114,6 +114,14 @@ final class PlaybackManager: ObservableObject {
     func next() {
         guard !queue.isEmpty else { return }
         switch playMode {
+        case .off:
+            if let current = currentIndex, current < queue.count - 1 {
+                currentIndex = current + 1
+            } else {
+                // Stop playback if at end
+                pause()
+                return 
+            }
         case .list:
             let nextIndex = ((currentIndex ?? -1) + 1) % queue.count
             currentIndex = nextIndex
@@ -128,6 +136,10 @@ final class PlaybackManager: ObservableObject {
     func previous() {
         guard !queue.isEmpty else { return }
         switch playMode {
+        case .off:
+            if let current = currentIndex, current > 0 {
+                currentIndex = current - 1
+            }
         case .list:
             let previousIndex = ((currentIndex ?? 0) - 1 + queue.count) % queue.count
             currentIndex = previousIndex
@@ -245,7 +257,7 @@ final class PlaybackManager: ObservableObject {
         switch playMode {
         case .single:
             Task { await startPlaybackFromCurrent() }
-        case .list, .shuffle:
+        case .list, .shuffle, .off:
             next()
         }
     }

@@ -52,6 +52,7 @@ enum SongQuality: String, Codable, CaseIterable, Identifiable {
 }
 
 enum PlayMode: String, Codable, CaseIterable, Identifiable {
+    case off
     case list
     case single
     case shuffle
@@ -60,7 +61,8 @@ enum PlayMode: String, Codable, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .list: return "顺序播放"
+        case .off: return "不循环"
+        case .list: return "列表循环"
         case .single: return "单曲循环"
         case .shuffle: return "随机播放"
         }
