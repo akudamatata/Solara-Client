@@ -35,7 +35,7 @@ struct ContentView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.8))
                         .textCase(.uppercase)
-                        .frame(maxWidth: .infinity)
+                        // Removed frame(maxWidth: .infinity) to prevent ZStack expansion issues
                     
                     // Buttons (Left & Right)
                     HStack {
@@ -255,6 +255,7 @@ struct ContentView: View {
                 }
                 .padding(.bottom, 20)
             }
+            .frame(maxWidth: .infinity) // Ensure content doesn't overflow screen width
         }
         .sheet(isPresented: $showFavorites) {
             FavoritesSheet().environmentObject(playback)
