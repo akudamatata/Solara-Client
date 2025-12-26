@@ -110,6 +110,29 @@ final class APIClient {
         return LyricLine.parse(value)
     }
 
+    // MARK: - Radar / Discovery
+    
+    private let radarPlaylistIDs = [
+        "3778678",  // Hot
+        "3779629",  // New
+        "2884035",  // Original
+        "19723756", // Soaring
+        "5059661515", // Global Pop
+        "5059642708", // Global Electro
+        "1978921795"  // Viral
+    ]
+    
+    func fetchRadarSongs() async throws -> [Song] {
+        // 1. Pick a random playlist ID
+        guard let randomID = radarPlaylistIDs.randomElement() else { return [] }
+        
+        // 2. Fetch the playlist
+        let songs = try await fetchPlaylist(id: randomID, limit: 100)
+        
+        // 3. Shuffle and return a subset to simulate "Discovery"
+        return Array(songs.shuffled().prefix(20))
+    }
+
     private func get(parameters: [String: String]) async throws -> Any {
         var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)!
         var query = parameters

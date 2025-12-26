@@ -62,6 +62,19 @@ final class PlaybackManager: ObservableObject {
         persistState()
     }
 
+    func startRadar() {
+        Task {
+            do {
+                let songs = try await APIClient.shared.fetchRadarSongs()
+                await MainActor.run {
+                    self.playImmediately(songs)
+                }
+            } catch {
+                print("Radar failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
     func play(song: Song) {
         if let index = queue.firstIndex(where: { $0.identity == song.identity }) {
             currentIndex = index

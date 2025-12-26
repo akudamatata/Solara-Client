@@ -41,7 +41,7 @@ struct ContentView: View {
                     HStack {
                         Button(action: {
                             // Explore Radar Function
-                            Task { playback.next() }
+                            playback.startRadar()
                         }) {
                             HStack(spacing: 4) {
                                 Image(systemName: "sparkles")
