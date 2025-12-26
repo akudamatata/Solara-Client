@@ -69,6 +69,9 @@ struct FavoritesSheet: View {
 
                         // Song List
                         ForEach(playback.favorites) { song in
+                            SongRow(song: song, isCurrent: playback.currentSong?.identity == song.identity, onAddToQueue: {
+                                playback.enqueue(song)
+                            }) {
                                 playback.play(song: song)
                             }
                             .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
@@ -92,6 +95,16 @@ struct FavoritesSheet: View {
             .frame(maxWidth: UIScreen.main.bounds.width) // Prevent horizontal overflow
             .navigationTitle("我的收藏")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        playback.clearFavorites()
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundStyle(.white)
+                    }
+                }
+            }
             .environment(\.colorScheme, .dark)
         }
     }

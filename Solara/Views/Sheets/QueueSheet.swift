@@ -39,9 +39,9 @@ struct QueueSheet: View {
                         Spacer()
                         
                         Button {
-                            dismiss()
+                            playback.clearQueue()
                         } label: {
-                            Image(systemName: "xmark.circle.fill")
+                            Image(systemName: "trash.circle.fill")
                                 .font(.system(size: 24))
                                 .foregroundStyle(.white.opacity(0.3))
                                 .symbolRenderingMode(.hierarchical)

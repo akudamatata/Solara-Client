@@ -57,9 +57,28 @@ final class PlaybackManager: ObservableObject {
         Task { await startPlaybackFromCurrent() }
     }
 
+    func enqueue(_ song: Song) {
+        if !queue.contains(where: { $0.identity == song.identity }) {
+            queue.append(song)
+            persistState()
+        }
+    }
+
     func enqueue(_ songs: [Song]) {
         let deduped = songs.filter { song in !queue.contains(where: { $0.identity == song.identity }) }
         queue.append(contentsOf: deduped)
+        persistState()
+    }
+    
+    func clearQueue() {
+        queue.removeAll()
+        currentIndex = nil
+        pause() // Stop playback if queue is cleared
+        persistState()
+    }
+
+    func clearFavorites() {
+        favorites.removeAll()
         persistState()
     }
 
