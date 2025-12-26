@@ -29,39 +29,42 @@ struct ContentView: View {
 
             VStack(spacing: 0) {
                 // Top Bar
-                HStack {
-                    Button(action: {
-                        // Explore Radar Function
-                        Task { playback.next() }
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "sparkles")
-                            Text("探索")
-                        }
-                        .font(.subheadline.bold())
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Capsule())
-                    }
-                    
-                    Spacer()
-                    
+                ZStack {
+                    // Title (Centered)
                     Text("SOLARA")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.8))
                         .textCase(.uppercase)
+                        .frame(maxWidth: .infinity)
                     
-                    Spacer()
-                    
-                    Button(action: { showSearch.toggle() }) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 20)) // Keep circle/size consistent
+                    // Buttons (Left & Right)
+                    HStack {
+                        Button(action: {
+                            // Explore Radar Function
+                            Task { playback.next() }
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "sparkles")
+                                Text("探索")
+                            }
+                            .font(.subheadline.bold())
                             .foregroundStyle(.white)
-                            .padding(10)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
                             .background(Color.white.opacity(0.1))
-                            .clipShape(Circle())
+                            .clipShape(Capsule())
+                        }
+                        
+                        Spacer()
+                        
+                        Button(action: { showSearch.toggle() }) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.white)
+                                .padding(10)
+                                .background(Color.white.opacity(0.1))
+                                .clipShape(Circle())
+                        }
                     }
                 }
                 .padding(.horizontal, 20)

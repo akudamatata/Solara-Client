@@ -170,7 +170,7 @@ final class PlaybackManager: ObservableObject {
 
     private func setupAudioSession() {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, policy: .longFormAudio, options: [.allowBluetooth, .mixWithOthers])
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, policy: .longFormAudio, options: [.allowBluetooth])
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             errorMessage = error.localizedDescription
