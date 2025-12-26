@@ -497,7 +497,7 @@ struct BottomActionsView: View {
              }
              
              AirPlayView()
-                 .frame(width: 30, height: 30) // Smaller than buttons (usually 44)
+                 .frame(width: 34, height: 34) 
 
              Button(action: { showQueue.toggle() }) {
                  Image(systemName: "list.bullet")
