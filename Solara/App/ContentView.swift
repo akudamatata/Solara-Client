@@ -120,8 +120,14 @@ struct ContentView: View {
                             HStack {
                                 Button(action: { playback.startRadar() }) {
                                     HStack(spacing: 4) {
-                                        Image(systemName: "sparkles")
-                                        Text("探索")
+                                        if playback.isRadarLoading {
+                                            ProgressView()
+                                                .tint(.white)
+                                                .scaleEffect(0.8)
+                                        } else {
+                                            Image(systemName: "sparkles")
+                                        }
+                                        Text(playback.isRadarLoading ? "加载中" : "探索")
                                     }
                                     .font(.subheadline.bold())
                                     .foregroundStyle(.white)
