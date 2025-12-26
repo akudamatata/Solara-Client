@@ -151,6 +151,7 @@ struct SearchSheet: View {
                 .scrollContentBackground(.hidden)
                 .environment(\.colorScheme, .dark)
             }
+            .frame(maxWidth: UIScreen.main.bounds.width) // Prevent horizontal overflow
         }
     }
 }
