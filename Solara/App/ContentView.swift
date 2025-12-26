@@ -226,8 +226,15 @@ struct ContentView: View {
                 .padding(.bottom, 32)
 
                 // Bottom Actions
-                HStack(spacing: 60) {
-                     Button(action: { /* Lyrics */ }) {
+                HStack(spacing: 50) {
+                     Button(action: { showFavorites.toggle() }) {
+                         Image(systemName: "heart.fill")
+                             .font(.system(size: 24))
+                             .foregroundStyle(showFavorites ? .pink : .white.opacity(0.6))
+                             .symbolEffect(.bounce, value: showFavorites)
+                     }
+
+                     Button(action: { showLyrics.toggle() }) {
                          Image(systemName: "quote.bubble")
                              .font(.system(size: 24))
                              .foregroundStyle(showLyrics ? .white : .white.opacity(0.6))
@@ -248,6 +255,9 @@ struct ContentView: View {
                 }
                 .padding(.bottom, 20)
             }
+        }
+        .sheet(isPresented: $showFavorites) {
+            FavoritesSheet().environmentObject(playback)
         }
         .sheet(isPresented: $showQueue) {
             QueueSheet().environmentObject(playback)
