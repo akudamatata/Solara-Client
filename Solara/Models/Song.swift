@@ -82,7 +82,7 @@ struct SongAudio: Codable, Hashable {
 }
 
 struct LyricLine: Codable, Hashable, Identifiable {
-    let id = UUID()
+    var id = UUID()
     let time: TimeInterval
     let text: String
 

@@ -205,15 +205,19 @@ final class PlaybackManager: ObservableObject {
     private func setupObservers() {
         timeObserver = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.4, preferredTimescale: CMTimeScale(NSEC_PER_SEC)), queue: .main) { [weak self] time in
             guard let self else { return }
-            position = time.seconds
-            if let duration = player.currentItem?.duration.seconds, duration.isFinite {
-                self.duration = duration
+            Task { @MainActor in
+                self.position = time.seconds
+                if let duration = self.player.currentItem?.duration.seconds, duration.isFinite {
+                    self.duration = duration
+                }
+                self.updateNowPlayingInfo(playbackRate: self.player.rate)
             }
-            updateNowPlayingInfo(playbackRate: player.rate)
         }
 
         NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: nil, queue: .main) { [weak self] _ in
-            self?.handleItemFinished()
+            Task { @MainActor in
+                self?.handleItemFinished()
+            }
         }
     }
 

@@ -213,7 +213,7 @@ struct ContentView: View {
                     
                     VolumeView()
                         .frame(height: 20) // MPVolumeView needs a frame, usually 20-40pt height
-                        .tint(.white) // Fallback
+                        .tint(Color.white) // Fallback
                         
                     Image(systemName: "speaker.wave.3.fill")
                         .font(.caption)
@@ -262,5 +262,29 @@ struct ContentView: View {
     private var isCurrentFavorite: Bool {
         guard let song = playback.currentSong else { return false }
         return playback.favoriteSongs().contains(where: { $0.identity == song.identity })
+    }
+}
+
+import MediaPlayer
+
+struct VolumeView: UIViewRepresentable {
+    func makeUIView(context: Context) -> MPVolumeView {
+        let volumeView = MPVolumeView(frame: .zero)
+        volumeView.showsVolumeSlider = true
+        // Remove the route button if present (we have a separate AirPlay button)
+        volumeView.showsRouteButton = false
+        // Customize thumb
+        let config = UIImage.SymbolConfiguration(pointSize: 12, weight: .bold)
+        let thumb = UIImage(systemName: "circle.fill", withConfiguration: config)?.withTintColor(.white, renderingMode: .alwaysOriginal)
+        volumeView.setVolumeThumbImage(thumb, for: .normal)
+        return volumeView
+    }
+
+    func updateUIView(_ uiView: MPVolumeView, context: Context) {
+        // Traverse subviews for styling if needed
+        if let slider = uiView.subviews.first(where: { $0 is UISlider }) as? UISlider {
+            slider.minimumTrackTintColor = .white
+            slider.maximumTrackTintColor = UIColor.white.withAlphaComponent(0.2)
+        }
     }
 }
