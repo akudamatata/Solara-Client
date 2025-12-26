@@ -18,19 +18,37 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 // Top Bar
                 HStack {
-                    Button(action: { /* Dismiss or Minimize */ }) {
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 20))
-                            .foregroundStyle(.secondary)
+                    Button(action: {
+                        // Explore Radar Function
+                        Task {
+                            // TODO: Implement actual Radar logic (e.g. random recommendation)
+                            // For now, we can play a default playlist or show a "Coming Soon" toast
+                             playback.next() // Placeholder
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "sparkles")
+                            Text("探索")
+                        }
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Capsule())
                     }
+                    
                     Spacer()
-                    Text(playback.currentSong?.artist ?? "Solara")
+                    
+                    Text(playback.currentSong?.artist ?? "SOLARA")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
+                    
                     Spacer()
-                    Button(action: { /* Timer or Options */ }) {
-                        Image(systemName: "timer")
+                    
+                    Button(action: { showSearch.toggle() }) {
+                        Image(systemName: "magnifyingglass")
                             .font(.system(size: 20))
                             .foregroundStyle(.secondary)
                     }

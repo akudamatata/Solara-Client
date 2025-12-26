@@ -12,8 +12,28 @@ struct SearchSheet: View {
             VStack(spacing: 12) {
                 TextField("搜索歌曲/艺术家", text: $viewModel.keyword)
                     .textFieldStyle(.roundedBorder)
-                    .onSubmit { viewModel.searchAllSources() }
-                    .submitLabel(.search)
+                // Source Selector
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach([SongSource.netease, .kuwo, .joox], id: \.self) { source in
+                            Button(action: {
+                                if viewModel.selectedSources.contains(source) {
+                                    viewModel.selectedSources.remove(source)
+                                } else {
+                                    viewModel.selectedSources.insert(source)
+                                }
+                            }) {
+                                Text(source.label)
+                                    .font(.caption)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(viewModel.selectedSources.contains(source) ? Color.pink : Color.secondary.opacity(0.1))
+                                    .foregroundStyle(viewModel.selectedSources.contains(source) ? .white : .primary)
+                                    .clipShape(Capsule())
+                            }
+                        }
+                    }
+                }
 
                 HStack {
                     Button("搜索") { viewModel.searchAllSources() }

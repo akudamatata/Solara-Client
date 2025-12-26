@@ -7,6 +7,7 @@ final class SearchViewModel: ObservableObject {
     @Published private(set) var results: [SongSource: [Song]] = [:]
     @Published private(set) var aggregated: [Song] = []
     @Published var selected: Set<String> = []
+    @Published var selectedSources: Set<SongSource> = Set(SongSource.allCases)
     @Published var lastError: String?
 
     private let apiClient: APIClient
@@ -51,11 +52,16 @@ final class SearchViewModel: ObservableObject {
         }
     }
 
+    @Published var selectedSources: Set<SongSource> = Set(SongSource.allCases)
+
+    // ... (existing code)
+
     private func performAggregatedSearch(query: String) async {
         var container: [SongSource: [Song]] = [:]
         do {
             try await withThrowingTaskGroup(of: (SongSource, [Song]).self) { group in
                 for source in SongSource.allCases {
+                    guard selectedSources.contains(source) else { continue }
                     group.addTask {
                         let songs = try await self.apiClient.search(keyword: query, source: source)
                         return (source, songs)

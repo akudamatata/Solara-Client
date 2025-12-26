@@ -6,6 +6,7 @@ enum SongSource: String, Codable, CaseIterable, Identifiable {
     case kuwo
     case kugou
     case migu
+    case joox
 
     var id: String { rawValue }
 
@@ -16,6 +17,7 @@ enum SongSource: String, Codable, CaseIterable, Identifiable {
         case .kuwo: return "酷我"
         case .kugou: return "酷狗"
         case .migu: return "咪咕"
+        case .joox: return "JOOX"
         }
     }
 
@@ -26,6 +28,7 @@ enum SongSource: String, Codable, CaseIterable, Identifiable {
         case .kuwo: return "kuwo"
         case .kugou: return "kugou"
         case .migu: return "migu"
+        case .joox: return "joox"
         }
     }
 }
