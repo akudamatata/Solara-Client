@@ -73,11 +73,7 @@ struct QueueSheet: View {
                                 .foregroundStyle(.white.opacity(0.5))
                                 .textCase(.uppercase)
                         }
-                        .listRowBackground(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.white.opacity(0.08))
-                                .padding(.horizontal, 8)
-                        )
+                        .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                     }
 
