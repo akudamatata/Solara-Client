@@ -7,23 +7,7 @@ struct FavoritesSheet: View {
     @Environment(\.dismiss) var dismiss // Although not strictly used in header if we match QueueSheet exactly, might be useful later.
 
     var body: some View {
-        ZStack {
-            // Dynamic Background
-            if let url = playback.artworkURL {
-                RemoteImageView(
-                    url: url,
-                    placeholderImage: playback.artwork,
-                    imageLoader: imageLoader,
-                    contentMode: .fill
-                )
-                .ignoresSafeArea()
-                .blur(radius: 60)
-                .overlay(Color.black.opacity(0.5))
-            } else {
-                Color(red: 0.11, green: 0.11, blue: 0.12)
-                    .ignoresSafeArea()
-            }
-
+        Group {
             if playback.favorites.isEmpty {
                 VStack(spacing: 0) {
                     // Custom Header (Empty State)
@@ -160,7 +144,25 @@ struct FavoritesSheet: View {
                 }
             }
         }
-        .frame(maxWidth: UIScreen.main.bounds.width) // Prevent horizontal overflow
+        .frame(maxWidth: UIScreen.main.bounds.width, maxHeight: .infinity) // Prevent horizontal overflow
+        .background(
+            Group {
+                // Dynamic Background
+                if let url = playback.artworkURL {
+                    RemoteImageView(
+                        url: url,
+                        placeholderImage: playback.artwork,
+                        imageLoader: imageLoader,
+                        contentMode: .fill
+                    )
+                    .blur(radius: 60)
+                    .overlay(Color.black.opacity(0.5))
+                } else {
+                    Color(red: 0.11, green: 0.11, blue: 0.12)
+                }
+            }
+            .ignoresSafeArea()
+        )
         .environment(\.colorScheme, .dark)
     }
 }
