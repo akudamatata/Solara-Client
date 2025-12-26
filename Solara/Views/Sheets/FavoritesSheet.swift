@@ -69,9 +69,9 @@ struct FavoritesSheet: View {
 
                         // Song List
                         ForEach(playback.favorites) { song in
-                            SongRow(song: song, isCurrent: playback.currentSong?.identity == song.identity) {
                                 playback.play(song: song)
                             }
+                            .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
                             .listRowBackground(Color.clear)
                             .listRowSeparatorTint(.white.opacity(0.2))
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
