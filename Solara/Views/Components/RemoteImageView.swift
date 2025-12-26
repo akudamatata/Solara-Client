@@ -27,7 +27,10 @@ struct RemoteImageView: View {
                 }
             }
         }
-        .task(id: url) { await loadImage() }
+        .task(id: url) { 
+            image = nil // Reset when URL changes
+            await loadImage() 
+        }
         .animation(.easeInOut, value: image)
     }
 

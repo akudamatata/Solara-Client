@@ -276,7 +276,7 @@ final class PlaybackManager: ObservableObject {
     private func loadMetadata(for song: Song) async {
         if let cached = artworkCache.object(forKey: song.identity as NSString) {
             artwork = cached
-            artworkURL = nil
+            artworkURL = try? await apiClient.resolveArtworkURL(for: song, size: 512)
         } else if let url = try? await apiClient.resolveArtworkURL(for: song, size: 512) {
             artworkURL = url
             await loadArtwork(from: url, identity: song.identity)
