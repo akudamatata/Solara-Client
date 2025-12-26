@@ -7,95 +7,79 @@ struct SearchSheet: View {
     let onAddToQueue: ([Song]) -> Void
     let onPlayNow: ([Song]) -> Void
 
+    // Simplified Search Sheet matching Apple Music Design
+    
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
-                TextField("搜索歌曲/艺术家", text: $viewModel.keyword)
-                    .textFieldStyle(.roundedBorder)
-                // Source Selector
+            VStack(spacing: 0) {
+                // Source Selector (Pills)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach([SongSource.netease, .kuwo, .joox], id: \.self) { source in
+                        ForEach(SongSource.allCases) { source in
                             Button(action: {
-                                if viewModel.selectedSources.contains(source) {
-                                    viewModel.selectedSources.remove(source)
-                                } else {
-                                    viewModel.selectedSources.insert(source)
+                                withAnimation {
+                                    viewModel.selectedSource = source
                                 }
                             }) {
                                 Text(source.label)
-                                    .font(.caption)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(viewModel.selectedSources.contains(source) ? Color.pink : Color.secondary.opacity(0.1))
-                                    .foregroundStyle(viewModel.selectedSources.contains(source) ? .white : .primary)
+                                    .font(.subheadline)
+                                    .fontWeight(viewModel.selectedSource == source ? .semibold : .regular)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(viewModel.selectedSource == source ? Color.pink : Color(.secondarySystemFill))
+                                    .foregroundStyle(viewModel.selectedSource == source ? .white : .primary)
                                     .clipShape(Capsule())
                             }
                         }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                 }
-
-                HStack {
-                    Button("搜索") { viewModel.searchAllSources() }
-                        .buttonStyle(.borderedProminent)
-                    Spacer()
-                    Menu {
-                        Button("加入队列") {
-                            let songs = selectedSongs()
-                            onAddToQueue(songs)
-                            viewModel.clearSelection()
+                .background(Color(.systemBackground))
+                
+                // Results List
+                List {
+                    if viewModel.isSearching {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
                         }
-                        Button("立即播放") {
-                            let songs = selectedSongs()
-                            onPlayNow(songs)
-                            viewModel.clearSelection()
-                        }
-                    } label: {
-                        Label("批量操作", systemImage: "plus.circle")
-                    }
-                    .disabled(viewModel.selected.isEmpty)
-                }
-
-                if viewModel.isSearching {
-                    ProgressView("搜索中…")
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
-
-                if let error = viewModel.lastError {
-                    ContentUnavailableView(error, systemImage: "exclamationmark.triangle")
-                }
-
-                List(viewModel.aggregated, id: \.identity) { song in
-                    SongRow(song: song, isCurrent: playback.currentSong?.identity == song.identity) {
-                        playback.play(song: song)
-                    }
-                    .listRowBackground(viewModel.selected.contains(song.identity) ? Color.pink.opacity(0.08) : nil)
-                    .contextMenu {
-                        Button("加入队列") { onAddToQueue([song]) }
-                        Button("立即播放") { onPlayNow([song]) }
-                        Button(viewModel.selected.contains(song.identity) ? "取消选择" : "选择") {
-                            viewModel.toggleSelection(for: song)
+                        .listRowSeparator(.hidden)
+                    } else if let error = viewModel.lastError {
+                        ContentUnavailableView(error, systemImage: "exclamationmark.triangle")
+                    } else if viewModel.results.isEmpty && !viewModel.keyword.isEmpty {
+                        ContentUnavailableView("无结果", systemImage: "magnifyingglass")
+                    } else {
+                        ForEach(viewModel.results) { song in
+                            Button {
+                                onPlayNow([song])
+                            } label: {
+                                SongRow(song: song, isCurrent: playback.currentSong?.identity == song.identity) {
+                                    onPlayNow([song])
+                                }
+                            }
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         }
                     }
-                    .onTapGesture {
-                        viewModel.toggleSelection(for: song)
-                    }
                 }
-                .listStyle(.insetGrouped)
+                .listStyle(.plain)
             }
-            .padding()
             .navigationTitle("搜索")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("清空") {
-                        viewModel.reset()
-                    }
+            .navigationBarTitleDisplayMode(.large)
+            .searchable(text: $viewModel.keyword, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索歌曲或艺术家")
+            .onSubmit(of: .search) {
+                viewModel.search()
+            }
+            .onChange(of: viewModel.keyword) { newValue in
+                if newValue.isEmpty {
+                    viewModel.reset()
                 }
             }
         }
     }
 
     private func selectedSongs() -> [Song] {
-        viewModel.aggregated.filter { viewModel.selected.contains($0.identity) }
+        [] // Deprecated
     }
 }

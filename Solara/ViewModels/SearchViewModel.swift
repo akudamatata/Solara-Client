@@ -4,10 +4,14 @@ import Foundation
 final class SearchViewModel: ObservableObject {
     @Published var keyword: String = ""
     @Published private(set) var isSearching: Bool = false
-    @Published private(set) var results: [SongSource: [Song]] = [:]
-    @Published private(set) var aggregated: [Song] = []
-    @Published var selected: Set<String> = []
-    @Published var selectedSources: Set<SongSource> = Set(SongSource.allCases)
+    @Published private(set) var results: [Song] = []
+    @Published var selectedSource: SongSource = .netease {
+        didSet {
+            if !keyword.isEmpty {
+                search()
+            }
+        }
+    }
     @Published var lastError: String?
 
     private let apiClient: APIClient
@@ -17,66 +21,43 @@ final class SearchViewModel: ObservableObject {
         self.apiClient = apiClient
     }
 
-    func toggleSelection(for song: Song) {
-        if selected.contains(song.identity) {
-            selected.remove(song.identity)
-        } else {
-            selected.insert(song.identity)
-        }
-    }
-
-    func clearSelection() {
-        selected.removeAll()
-    }
-
     func reset() {
         keyword = ""
-        results = [:]
-        aggregated = []
-        clearSelection()
+        results = []
+        lastError = nil
     }
 
-    func searchAllSources() {
+    func search() {
         searchTask?.cancel()
         let query = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else {
-            aggregated = []
-            results = [:]
+            results = []
             return
         }
         isSearching = true
         lastError = nil
-        searchTask = Task { [weak self] in
+        
+        searchTask = Task { [weak self, selectedSource] in
             guard let self else { return }
-            await performAggregatedSearch(query: query)
+            await performSearch(query: query, source: selectedSource)
         }
     }
 
-
-    private func performAggregatedSearch(query: String) async {
-        var container: [SongSource: [Song]] = [:]
+    private func performSearch(query: String, source: SongSource) async {
         do {
-            try await withThrowingTaskGroup(of: (SongSource, [Song]).self) { group in
-                for source in SongSource.allCases {
-                    guard selectedSources.contains(source) else { continue }
-                    group.addTask {
-                        let songs = try await self.apiClient.search(keyword: query, source: source)
-                        return (source, songs)
-                    }
+            let songs = try await apiClient.search(keyword: query, source: source)
+            if !Task.isCancelled {
+                await MainActor.run {
+                    self.results = songs
+                    self.isSearching = false
                 }
-                for try await result in group {
-                    container[result.0] = result.1
-                }
-            }
-            await MainActor.run {
-                results = container
-                aggregated = SongSource.allCases.flatMap { container[$0] ?? [] }
-                isSearching = false
             }
         } catch {
-            await MainActor.run {
-                lastError = error.localizedDescription
-                isSearching = false
+            if !Task.isCancelled {
+                await MainActor.run {
+                    self.lastError = error.localizedDescription
+                    self.isSearching = false
+                }
             }
         }
     }
