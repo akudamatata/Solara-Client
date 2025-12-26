@@ -24,5 +24,18 @@ jobs:
             -scheme Solara \
             -destination 'generic/platform=iOS' \
             -configuration Release \
+            -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             clean build
+
+      - name: Package IPA
+        run: |
+          mkdir Payload
+          cp -r build/Build/Products/Release-iphoneos/Solara.app Payload/
+          zip -r Solara.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Solara-IPA
+          path: Solara.ipa
