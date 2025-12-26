@@ -52,9 +52,6 @@ final class SearchViewModel: ObservableObject {
         }
     }
 
-    @Published var selectedSources: Set<SongSource> = Set(SongSource.allCases)
-
-    // ... (existing code)
 
     private func performAggregatedSearch(query: String) async {
         var container: [SongSource: [Song]] = [:]
