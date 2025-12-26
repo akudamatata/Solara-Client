@@ -202,16 +202,12 @@ struct StandardPlayerView: View {
                 HStack {
                     Button(action: { playback.startRadar() }) {
                         HStack(spacing: 4) {
-                            ForEach(playback.favorites) { song in
-                            SongRow(
-                                song: song,
-                                isCurrent: playback.currentSong?.identity == song.identity,
-                                artworkOverrideURL: (playback.currentSong?.identity == song.identity) ? playback.artworkURL : nil,
-                                onAddToQueue: {
-                                    playback.enqueue(song)
-                                }
-                            ) {
-                                playback.play(song: song)
+                            if playback.isRadarLoading {
+                                ProgressView()
+                                    .tint(.white)
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "sparkles")
                             }
                             Text(playback.isRadarLoading ? "加载中" : "探索")
                         }
@@ -472,9 +468,9 @@ struct BottomActionsView: View {
                      .foregroundStyle(showLyrics ? .white : .white.opacity(0.4))
                      .background(
                          Group {
-                             SongRow(song: current, isCurrent: true, artworkOverrideURL: playback.artworkURL) {
-                                // Already playing
-                            }         .fill(Color.white.opacity(0.2))
+                             if showLyrics {
+                                 Circle()
+                                     .fill(Color.white.opacity(0.2))
                                      .blur(radius: 6)
                                      .frame(width: 40, height: 40)
                              }

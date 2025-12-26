@@ -64,7 +64,7 @@ struct QueueSheet: View {
                     // Now Playing Section
                     if let current = playback.currentSong {
                         Section {
-                            SongRow(song: current, isCurrent: true) {
+                            SongRow(song: current, isCurrent: true, artworkOverrideURL: playback.artworkURL) {
                                 // Already playing
                             }
                         } header: {
@@ -77,12 +77,20 @@ struct QueueSheet: View {
                         .listRowSeparator(.hidden)
                     }
 
-                    // Up Next Section
-                    Section {
-                         ForEach(Array(playback.queue.enumerated()), id: \.element.identity) { index, song in
-                            // Filter out current song (it's in its own section)
-                            if index != playback.currentIndex {
-                                SongRow(song: song, isCurrent: false, showCover: false) {
+                     // Up Next Section
+                     if !playback.queue.isEmpty {
+                        Section {
+                             ForEach(Array(playback.queue.enumerated()), id: \.element.identity) { index, song in
+                                // Filter out current song
+                                if index != playback.currentIndex {
+                                    SongRow(
+                                    song: song,
+                                    isCurrent: playback.currentSong?.identity == song.identity,
+                                    artworkOverrideURL: (playback.currentSong?.identity == song.identity) ? playback.artworkURL : nil,
+                                    onAddToQueue: {
+                                        playback.enqueue(song)
+                                    }
+                                ) {
                                     playback.play(song: song)
                                 }
                                 .listRowBackground(Color.clear)

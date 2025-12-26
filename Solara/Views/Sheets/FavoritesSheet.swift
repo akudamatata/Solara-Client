@@ -120,9 +120,14 @@ struct FavoritesSheet: View {
 
                         // Song List
                         ForEach(playback.favorites) { song in
-                            SongRow(song: song, isCurrent: playback.currentSong?.identity == song.identity, onAddToQueue: {
-                                playback.enqueue(song)
-                            }) {
+                            SongRow(
+                                song: song,
+                                isCurrent: playback.currentSong?.identity == song.identity,
+                                artworkOverrideURL: (playback.currentSong?.identity == song.identity) ? playback.artworkURL : nil,
+                                onAddToQueue: {
+                                    playback.enqueue(song)
+                                }
+                            ) {
                                 playback.play(song: song)
                             }
                             .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
