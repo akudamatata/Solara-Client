@@ -15,7 +15,6 @@ struct SongRow: View {
             onTap?() 
         }) {
             HStack(spacing: 16) {
-                // Artwork with loading state
                 if showCover {
                     ZStack {
                         if let artworkId = song.artworkId, let url = URL(string: artworkId) {
@@ -25,8 +24,6 @@ struct SongRow: View {
                                 imageLoader: imageLoader,
                                 contentMode: .fill
                              )
-                             .frame(width: 48, height: 48)
-                             .clipShape(RoundedRectangle(cornerRadius: 8))
                         } else if let url = URL(string: "https://music.163.com/api/v1/song/artwork/\(song.identity)?size=128") { // Fallback
                              RemoteImageView(
                                 url: url,
@@ -34,12 +31,9 @@ struct SongRow: View {
                                 imageLoader: imageLoader,
                                 contentMode: .fill
                              )
-                             .frame(width: 48, height: 48)
-                             .clipShape(RoundedRectangle(cornerRadius: 8))
                         } else {
                             RoundedRectangle(cornerRadius: 8)
                                 .fill(Color.white.opacity(0.1))
-                                .frame(width: 48, height: 48)
                                 .overlay(
                                     Image(systemName: "music.note")
                                         .foregroundStyle(.white.opacity(0.4))
@@ -48,12 +42,13 @@ struct SongRow: View {
                         
                         if isCurrent {
                             Color.black.opacity(0.3)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
                             
                             NowPlayingAnimation()
                                 .frame(width: 16, height: 16)
                         }
                     }
+                    .frame(width: 48, height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                     .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
                 } else if isCurrent {
                      // If cover is hidden but song is playing, show a small indicator
