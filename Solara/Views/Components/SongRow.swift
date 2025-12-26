@@ -44,7 +44,6 @@ struct SongRow: View {
                             Color.black.opacity(0.3)
                             
                             NowPlayingAnimation()
-                                .frame(width: 16, height: 16)
                         }
                     }
                     .frame(width: 48, height: 48)
@@ -53,7 +52,6 @@ struct SongRow: View {
                 } else if isCurrent {
                      // If cover is hidden but song is playing, show a small indicator
                     NowPlayingAnimation()
-                        .frame(width: 16, height: 16)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
