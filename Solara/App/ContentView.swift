@@ -427,6 +427,7 @@ struct VolumeControlView: View {
 }
 
 struct BottomActionsView: View {
+    @EnvironmentObject var playback: PlaybackManager
     @Binding var showQueue: Bool
     @Binding var showFavorites: Bool
     @Binding var showLyrics: Bool
