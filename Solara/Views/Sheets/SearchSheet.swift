@@ -128,7 +128,7 @@ struct SearchSheet: View {
                                 .font(.system(size: 60))
                                 .foregroundStyle(.white.opacity(0.2))
                             Text("未找到相关歌曲")
-                                .font(.title3.semibold())
+                                .font(.title3.weight(.semibold))
                                 .foregroundStyle(.white.opacity(0.4))
                          }
                          .frame(maxWidth: .infinity)
