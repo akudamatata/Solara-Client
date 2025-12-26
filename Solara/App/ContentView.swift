@@ -4,10 +4,12 @@ struct ContentView: View {
     @EnvironmentObject var playback: PlaybackManager
     @StateObject private var searchViewModel = SearchViewModel(apiClient: APIClient.shared)
     private let imageLoader = ImageLoader.shared
+    @Namespace private var animation // Animation Namespace for transitions
 
     @State private var showQueue = false
     @State private var showFavorites = false
     @State private var showSearch = false
+    @State private var showLyrics = false // Moved State here for visibility
 
     var body: some View {
         ZStack {
@@ -33,22 +35,25 @@ struct ContentView: View {
                     // MARK: - LYRICS MODE
                     VStack(spacing: 0) {
                         // 1. Header Section (Small Artwork + Info + Actions)
-                        HStack(spacing: 16) {
-                            // Small Artwork
+                        // This replaces the TopBar and occupies the top area
+                        HStack(spacing: 12) {
+                            // Small Artwork (Transition Target)
                             if let artworkURL = playback.artworkURL {
                                  RemoteImageView(url: artworkURL, placeholderImage: playback.artwork, imageLoader: imageLoader, contentMode: .fill)
                                     .frame(width: 56, height: 56)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                                     .shadow(radius: 8)
+                                    .matchedGeometryEffect(id: "artwork", in: animation)
                             } else {
                                 Image(systemName: "music.note")
                                     .frame(width: 56, height: 56)
                                     .background(Color.white.opacity(0.1))
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .matchedGeometryEffect(id: "artwork", in: animation)
                             }
                             
-                            // Info
-                            VStack(alignment: .leading, spacing: 4) {
+                            // Info (Transition Target)
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(playback.currentSong?.name ?? "未知歌曲")
                                     .font(.title3.bold())
                                     .foregroundStyle(.white)
@@ -58,6 +63,7 @@ struct ContentView: View {
                                     .foregroundStyle(.white.opacity(0.6))
                                     .lineLimit(1)
                             }
+                            .matchedGeometryEffect(id: "info", in: animation)
                             
                             Spacer()
                             
@@ -69,7 +75,7 @@ struct ContentView: View {
                                     }
                                 } label: {
                                     Image(systemName: isCurrentFavorite ? "star.fill" : "star")
-                                        .font(.system(size: 22))
+                                        .font(.system(size: 20)) // Slightly smaller in header
                                         .foregroundStyle(isCurrentFavorite ? .yellow : .white.opacity(0.4))
                                         .symbolEffect(.bounce, value: isCurrentFavorite)
                                 }
@@ -78,23 +84,23 @@ struct ContentView: View {
                                     // More
                                 } label: {
                                     Image(systemName: "ellipsis.circle.fill")
-                                        .font(.system(size: 24))
+                                        .font(.system(size: 20))
                                         .foregroundStyle(.white.opacity(0.4))
                                 }
                             }
                         }
-                        .padding(.horizontal, 32)
-                        .padding(.top, 48) // Safe area top adjustment
+                        .padding(.horizontal, 24) // Slightly tighter for header
+                        .padding(.top, 48) // Status bar space
                         .padding(.bottom, 20)
                         
                         // 2. Lyrics List
                         LyricsScrollView().environmentObject(playback)
                     }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    // .transition(.opacity) // matchedGeometry handles movement, but we might want opacity for list
                 } else {
                     // MARK: - STANDARD MODE (Cover Art)
                     VStack(spacing: 0) {
-                        // Top Bar
+                        // Top Bar (Explore, Title, Search)
                         ZStack {
                             Text("SOLARA")
                                 .font(.subheadline.weight(.semibold))
@@ -127,10 +133,11 @@ struct ContentView: View {
                         }
                         .padding(.horizontal, 20)
                         .padding(.top, 10)
+                        .transition(.move(edge: .top).combined(with: .opacity)) // Fade out when lyrics appear
                         
                         Spacer()
                         
-                        // Large Artwork
+                        // Large Artwork (Transition Source)
                         let artworkSize = UIScreen.main.bounds.width - 48
                         RemoteImageView(
                             url: playback.artworkURL,
@@ -140,11 +147,11 @@ struct ContentView: View {
                         .frame(width: artworkSize, height: artworkSize)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
-                        .scaleEffect(playback.isPlaying ? 1.0 : 0.82)
-                        .animation(.spring(response: 0.5, dampingFraction: 0.6), value: playback.isPlaying)
+                        // .scaleEffect removal: matchedGeometry handles size interpolation
+                        .matchedGeometryEffect(id: "artwork", in: animation)
                         .padding(.bottom, 32)
                         
-                        // Track Info Row
+                        // Track Info Row (Transition Source)
                         HStack(alignment: .center) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(playback.currentSong?.name ?? "Not Playing")
@@ -158,6 +165,7 @@ struct ContentView: View {
                                     .foregroundStyle(.white.opacity(0.7))
                                     .lineLimit(1)
                             }
+                            .matchedGeometryEffect(id: "info", in: animation) // Match info block
                             
                             Spacer()
                             
@@ -182,10 +190,11 @@ struct ContentView: View {
                         .padding(.horizontal, 32)
                         .padding(.bottom, 24)
                     }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
                 // MARK: - SHARED CONTROLS (Always Visible)
+                // ... (Remains Same) -> Just need to close the VStack properly in the file merge
+
                 VStack(spacing: 0) {
                     // Seek Bar with Quality Badge
                     VStack(spacing: 12) {
