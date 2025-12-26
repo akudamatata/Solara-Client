@@ -369,10 +369,12 @@ struct LyricsView: View {
                                     Text(line.text)
                                         .font(.system(size: isCurrentLine(line) ? 32 : 22, weight: isCurrentLine(line) ? .bold : .semibold))
                                         .foregroundStyle(isCurrentLine(line) ? .white : .white.opacity(0.4))
+                                        .frame(maxWidth: .infinity, alignment: .leading) // Ensure consistent width and alignment
                                         .blur(radius: isCurrentLine(line) ? 0 : 0.8)
                                         .scaleEffect(isCurrentLine(line) ? 1.05 : 1.0)
                                         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isCurrentLine(line))
                                         .id(line.id)
+                                        .contentShape(Rectangle()) // Make full width tappable
                                         .onTapGesture {
                                             guard playback.duration > 0 else { return }
                                             playback.seek(to: line.time / playback.duration) 

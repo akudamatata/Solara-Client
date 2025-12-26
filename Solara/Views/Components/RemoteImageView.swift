@@ -18,9 +18,13 @@ struct RemoteImageView: View {
             } else if isLoading {
                 ProgressView()
             } else {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.thinMaterial)
-                    .overlay(Image(systemName: "music.note").foregroundStyle(.secondary))
+                // Default Placeholder
+                ZStack {
+                    Color(red: 0.15, green: 0.15, blue: 0.16)
+                    Image(systemName: "music.note")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.white.opacity(0.2))
+                }
             }
         }
         .task(id: url) { await loadImage() }
