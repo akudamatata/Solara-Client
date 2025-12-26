@@ -11,20 +11,159 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(red: 0.06, green: 0.07, blue: 0.1), Color(red: 0.16, green: 0.17, blue: 0.23)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            // Dark Background
+            Color(red: 0.11, green: 0.13, blue: 0.18)
+                .ignoresSafeArea()
 
-            VStack(spacing: 24) {
-                header
-                PlayerView(imageLoader: imageLoader)
-                playbackControls
+            VStack(spacing: 0) {
+                // Top Bar
+                HStack {
+                    Button(action: { /* Dismiss or Minimize */ }) {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text(playback.currentSong?.artist ?? "Solara")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    Spacer()
+                    Button(action: { /* Timer or Options */ }) {
+                        Image(systemName: "timer")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top, 10)
+
+                Spacer()
+
+                // Artwork
+                RemoteImageView(
+                    url: playback.artworkURL,
+                    placeholderImage: playback.artwork,
+                    imageLoader: imageLoader
+                )
+                .aspectRatio(1, contentMode: .fit)
+                .cornerRadius(12)
+                .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 10)
+                .padding(.horizontal, 32)
+
+                Spacer()
+
+                // Song Info
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(playback.currentSong?.name ?? "未播放")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        
+                        Text(playback.currentSong?.artist ?? "请选择歌曲")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                    Button {
+                        if let song = playback.currentSong {
+                            playback.toggleFavorite(song)
+                        } else {
+                            showFavorites.toggle()
+                        }
+                    } label: {
+                        Image(systemName: isCurrentFavorite ? "heart.fill" : "heart")
+                            .font(.title2)
+                            .foregroundStyle(isCurrentFavorite ? .red : .secondary)
+                    }
+                }
+                .padding(.horizontal, 32)
+                .padding(.bottom, 24)
+
+                // Progress Bar
+                VStack(spacing: 8) {
+                    Slider(
+                        value: Binding(
+                            get: { playback.duration == 0 ? 0 : playback.position / max(playback.duration, 0.1) },
+                            set: { progress in playback.seek(to: progress) }
+                        ),
+                        in: 0...1
+                    )
+                    .tint(.white.opacity(0.4))
+                    
+                    HStack {
+                        Text(TimeFormatting.string(from: playback.position))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(TimeFormatting.string(from: playback.duration))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 32)
+                .padding(.bottom, 32)
+
+                // Controls
+                HStack(spacing: 0) {
+                    // Loop Mode
+                    Button(action: {
+                        let modes: [PlayMode] = [.list, .single, .shuffle]
+                        if let index = modes.firstIndex(of: playback.playMode) {
+                            playback.setPlayMode(modes[(index + 1) % modes.count])
+                        }
+                    }) {
+                        Image(systemName: symbol(for: playback.playMode))
+                            .font(.title2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    // Previous
+                    Button(action: playback.previous) {
+                        Image(systemName: "backward.fill")
+                            .font(.title2)
+                            .foregroundStyle(.white)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    // Play/Pause
+                    Button(action: playback.togglePlayPause) {
+                        ZStack {
+                            Circle()
+                                .fill(Color(red: 1.0, green: 0.2, blue: 0.3)) // Pinkish Red
+                                .frame(width: 72, height: 72)
+                            Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                                .font(.largeTitle)
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    // Next
+                    Button(action: playback.next) {
+                        Image(systemName: "forward.fill")
+                            .font(.title2)
+                            .foregroundStyle(.white)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    // Queue/Menu
+                    Button(action: { showSearch.toggle() }) {
+                        Image(systemName: "list.bullet")
+                            .font(.title2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 48)
             }
-            .padding()
         }
+        .preferredColorScheme(.dark)
         .sheet(isPresented: $showQueue) {
             QueueSheet().environmentObject(playback)
         }
@@ -44,101 +183,9 @@ struct ContentView: View {
         }
     }
 
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Solara")
-                    .font(.largeTitle.bold())
-                Text("原生 iOS 播放体验")
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            HStack(spacing: 12) {
-                Button {
-                    showFavorites.toggle()
-                } label: {
-                    Label("收藏", systemImage: "heart.fill")
-                        .labelStyle(.iconOnly)
-                        .foregroundStyle(.pink)
-                }
-                Button {
-                    showQueue.toggle()
-                } label: {
-                    Label("队列", systemImage: "music.note.list")
-                        .labelStyle(.iconOnly)
-                }
-                Button {
-                    showSearch.toggle()
-                } label: {
-                    Label("搜索", systemImage: "magnifyingglass")
-                        .labelStyle(.iconOnly)
-                }
-            }
-            .buttonStyle(.bordered)
-            .tint(.white.opacity(0.14))
-        }
-    }
-
-    private var playbackControls: some View {
-        VStack(spacing: 16) {
-            VStack {
-                Slider(
-                    value: Binding(
-                        get: { playback.duration == 0 ? 0 : playback.position / max(playback.duration, 0.1) },
-                        set: { progress in playback.seek(to: progress) }
-                    ),
-                    in: 0...1
-                )
-                HStack {
-                    Text(TimeFormatting.string(from: playback.position))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(TimeFormatting.string(from: playback.duration))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            HStack(spacing: 16) {
-                Picker("音质", selection: Binding(
-                    get: { playback.quality },
-                    set: { playback.setQuality($0) }
-                )) {
-                    ForEach(SongQuality.allCases) { quality in
-                        Text(quality.label).tag(quality)
-                    }
-                }
-                .pickerStyle(.menu)
-                .tint(.pink)
-
-                Spacer()
-
-                Button(action: playback.previous) {
-                    Image(systemName: "backward.fill")
-                        .font(.title2)
-                }
-                Button(action: playback.togglePlayPause) {
-                    Image(systemName: playback.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                        .font(.system(size: 44))
-                        .foregroundStyle(.pink)
-                }
-                Button(action: playback.next) {
-                    Image(systemName: "forward.fill")
-                        .font(.title2)
-                }
-                Menu {
-                    ForEach(PlayMode.allCases) { mode in
-                        Button(action: { playback.setPlayMode(mode) }) {
-                            Label(mode.label, systemImage: playback.playMode == mode ? "checkmark" : "")
-                        }
-                    }
-                } label: {
-                    Image(systemName: symbol(for: playback.playMode))
-                }
-            }
-        }
-        .foregroundStyle(.white)
+    private var isCurrentFavorite: Bool {
+        guard let song = playback.currentSong else { return false }
+        return playback.favoriteSongs().contains(where: { $0.identity == song.identity })
     }
 
     private func symbol(for mode: PlayMode) -> String {
