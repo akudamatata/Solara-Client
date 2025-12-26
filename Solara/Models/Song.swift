@@ -2,10 +2,7 @@ import Foundation
 
 enum SongSource: String, Codable, CaseIterable, Identifiable {
     case netease
-    case qq
     case kuwo
-    case kugou
-    case migu
     case joox
 
     var id: String { rawValue }
@@ -13,10 +10,7 @@ enum SongSource: String, Codable, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .netease: return "网易云"
-        case .qq: return "QQ 音乐"
         case .kuwo: return "酷我"
-        case .kugou: return "酷狗"
-        case .migu: return "咪咕"
         case .joox: return "JOOX"
         }
     }
@@ -24,10 +18,7 @@ enum SongSource: String, Codable, CaseIterable, Identifiable {
     var parameter: String {
         switch self {
         case .netease: return "netease"
-        case .qq: return "qq"
         case .kuwo: return "kuwo"
-        case .kugou: return "kugou"
-        case .migu: return "migu"
         case .joox: return "joox"
         }
     }

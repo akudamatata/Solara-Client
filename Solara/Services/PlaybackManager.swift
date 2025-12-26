@@ -16,6 +16,7 @@ final class PlaybackManager: ObservableObject {
     @Published private(set) var lyrics: [LyricLine] = []
     @Published private(set) var artwork: UIImage?
     @Published private(set) var artworkURL: URL?
+    @Published private(set) var isRadarLoading = false
     @Published var errorMessage: String?
 
     var currentSong: Song? {
@@ -63,14 +64,18 @@ final class PlaybackManager: ObservableObject {
     }
 
     func startRadar() {
+        guard !isRadarLoading else { return }
+        isRadarLoading = true
         Task {
             do {
                 let songs = try await APIClient.shared.fetchRadarSongs()
                 await MainActor.run {
                     self.playImmediately(songs)
+                    self.isRadarLoading = false
                 }
             } catch {
                 print("Radar failed: \(error.localizedDescription)")
+                await MainActor.run { self.isRadarLoading = false }
             }
         }
     }
