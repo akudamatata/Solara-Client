@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import AVKit
 
 struct ContentView: View {
     @EnvironmentObject var playback: PlaybackManager
@@ -562,7 +563,7 @@ struct LyricsScrollView: View {
                         userScrollTimeoutTask?.cancel()
                     }.onEnded { _ in startResumeAutoScrollTimer() }
                 )
-                .onChange(of: playback.position) { newTime in
+                .onChange(of: playback.position) { _, newTime in
                      guard !isUserScrolling else { return }
                      if let currentLine = currentLine(at: newTime) {
                          withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
@@ -593,3 +594,16 @@ struct LyricsScrollView: View {
 }
 
 
+struct AirPlayView: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let routePickerView = AVRoutePickerView()
+        routePickerView.activeTintColor = .white
+        routePickerView.tintColor = .white.withAlphaComponent(0.6)
+        routePickerView.prioritizesVideoDevices = false // Audio only preference
+        return routePickerView
+    }
+
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {
+        // No updates needed typically
+    }
+}
