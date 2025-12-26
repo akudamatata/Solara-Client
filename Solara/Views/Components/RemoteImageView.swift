@@ -4,6 +4,7 @@ struct RemoteImageView: View {
     let url: URL?
     let placeholderImage: UIImage?
     let imageLoader: ImageLoader
+    var contentMode: ContentMode = .fit
 
     @State private var image: UIImage?
     @State private var isLoading = false
@@ -13,7 +14,7 @@ struct RemoteImageView: View {
             if let displayImage = image ?? placeholderImage {
                 Image(uiImage: displayImage)
                     .resizable()
-                    .scaledToFit()
+                    .aspectRatio(contentMode: contentMode)
             } else if isLoading {
                 ProgressView()
             } else {
