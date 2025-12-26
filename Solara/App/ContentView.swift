@@ -70,21 +70,17 @@ struct ContentView: View {
                 Spacer()
 
                 // Artwork
-                GeometryReader { geometry in
-                    let size = geometry.size.width - 48 // Tighter margins
-                    RemoteImageView(
-                        url: playback.artworkURL,
-                        placeholderImage: playback.artwork,
-                        imageLoader: imageLoader
-                    )
-                    .frame(width: size, height: size)
-                    .clipShape(RoundedRectangle(cornerRadius: 12)) // Tighter corner radius
-                    .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
-                    .scaleEffect(playback.isPlaying ? 1.0 : 0.82)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.6), value: playback.isPlaying)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                .frame(height: UIScreen.main.bounds.width - 48)
+                let artworkSize = UIScreen.main.bounds.width - 48
+                RemoteImageView(
+                    url: playback.artworkURL,
+                    placeholderImage: playback.artwork,
+                    imageLoader: imageLoader
+                )
+                .frame(width: artworkSize, height: artworkSize)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
+                .scaleEffect(playback.isPlaying ? 1.0 : 0.82)
+                .animation(.spring(response: 0.5, dampingFraction: 0.6), value: playback.isPlaying)
                 .padding(.bottom, 32)
                 
                 // Track Info Row
