@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @EnvironmentObject var playback: PlaybackManager
@@ -9,11 +10,11 @@ struct ContentView: View {
     @State private var showQueue = false
     @State private var showFavorites = false
     @State private var showSearch = false
-    @State private var showLyrics = false // Moved State here for visibility
+    @State private var showLyrics = false
 
     var body: some View {
         ZStack {
-            // Dynamic Background
+            // Background
             if let url = playback.artworkURL {
                 RemoteImageView(
                     url: url,
@@ -30,367 +31,37 @@ struct ContentView: View {
             }
 
             VStack(spacing: 0) {
-                // CONTENT AREA (Swappable)
                 if showLyrics {
                     // MARK: - LYRICS MODE
-                    VStack(spacing: 0) {
-                        // 1. Header Section (Small Artwork + Info + Actions)
-                        // This replaces the TopBar and occupies the top area
-                        HStack(spacing: 12) {
-                            // Small Artwork (Transition Target)
-                            if let artworkURL = playback.artworkURL {
-                                 RemoteImageView(url: artworkURL, placeholderImage: playback.artwork, imageLoader: imageLoader, contentMode: .fill)
-                                    .matchedGeometryEffect(id: "artwork", in: animation)
-                                    .frame(width: 56, height: 56)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    .shadow(radius: 8)
-                            } else {
-                                Image(systemName: "music.note")
-                                    .matchedGeometryEffect(id: "artwork", in: animation)
-                                    .frame(width: 56, height: 56)
-                                    .background(Color.white.opacity(0.1))
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                            }
-                            
-                            // Info (Transition Target)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(playback.currentSong?.name ?? "未知歌曲")
-                                    .font(.title3.bold())
-                                    .foregroundStyle(.white)
-                                    .lineLimit(1)
-                                    .matchedGeometryEffect(id: "title", in: animation)
-                                
-                                Text(playback.currentSong?.artist ?? "未知艺术家")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.white.opacity(0.6))
-                                    .lineLimit(1)
-                                    .matchedGeometryEffect(id: "artist", in: animation)
-                            }
-                            
-                            Spacer()
-                            
-                            // Actions (Favorite & More)
-                            HStack(spacing: 20) {
-                                Button {
-                                     if let song = playback.currentSong {
-                                        playback.toggleFavorite(song)
-                                    }
-                                } label: {
-                                    Image(systemName: isCurrentFavorite ? "heart.fill" : "heart")
-                                        .font(.system(size: 20)) // Slightly smaller in header
-                                        .foregroundStyle(isCurrentFavorite ? .red : .white.opacity(0.4))
-                                        .symbolEffect(.bounce, value: isCurrentFavorite)
-                                }
-                                
-                                Button {
-                                    // More
-                                } label: {
-                                    Image(systemName: "ellipsis.circle.fill")
-                                        .font(.system(size: 20))
-                                        .foregroundStyle(.white.opacity(0.4))
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 24) // Slightly tighter for header
-                        .padding(.top, 48) // Status bar space
-                        .padding(.bottom, 20)
-                        .contentShape(Rectangle()) // Make entire header area tappable
-                        .onTapGesture {
-                            // Tap header to collapse lyrics
-                            withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
-                                showLyrics = false
-                            }
-                        }
-                        
-                        // 2. Lyrics List
-                        LyricsScrollView().environmentObject(playback)
-                    }
+                    LyricsModeView(
+                        showLyrics: $showLyrics,
+                        animation: animation,
+                        imageLoader: imageLoader
+                    )
                     .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .zIndex(1) // Ensure Lyrics view floats ON TOP during transition
+                    .zIndex(1)
+                    .environmentObject(playback)
                 } else {
-                    // MARK: - STANDARD MODE (Cover Art)
-                    VStack(spacing: 0) {
-                        // Top Bar (Explore, Title, Search)
-                        ZStack {
-                            Text("SOLARA")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.8))
-                                .textCase(.uppercase)
-                            
-                            HStack {
-                                Button(action: { playback.startRadar() }) {
-                                    HStack(spacing: 4) {
-                                        if playback.isRadarLoading {
-                                            ProgressView()
-                                                .tint(.white)
-                                                .scaleEffect(0.8)
-                                        } else {
-                                            Image(systemName: "sparkles")
-                                        }
-                                        Text(playback.isRadarLoading ? "加载中" : "探索")
-                                    }
-                                    .font(.subheadline.bold())
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(Color.white.opacity(0.1))
-                                    .clipShape(Capsule())
-                                }
-                                Spacer()
-                                Button(action: { showSearch.toggle() }) {
-                                    Image(systemName: "magnifyingglass")
-                                        .font(.system(size: 20))
-                                        .foregroundStyle(.white)
-                                        .padding(10)
-                                        .background(Color.white.opacity(0.1))
-                                        .clipShape(Circle())
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 10)
-                        .transition(.move(edge: .top).combined(with: .opacity)) // Fade out when lyrics appear
-                        
-                        Spacer()
-                        
-                        // Large Artwork (Transition Source)
-                        let artworkSize = UIScreen.main.bounds.width - 48
-                        RemoteImageView(
-                            url: playback.artworkURL,
-                            placeholderImage: playback.artwork,
-                            imageLoader: imageLoader
-                        )
-                        .matchedGeometryEffect(id: "artwork", in: animation) // Apply ID BEFORE frame for better interpolation? No, usually after frame is better for "size" matching, but let's try standard order.
-                                                                             // Actually, for Images, matchedGeometryEffect works best if it's strictly matching the content.
-                                                                             // Apple recommends: matchedGeometryEffect(id: "...", in: ...) .frame(...)
-                                                                             // Let's swap: matchedGeometryEffect THEN frame.
-                        .frame(width: artworkSize, height: artworkSize)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
-                        .padding(.bottom, 32)
-                        
-                        // Track Info Row (Transition Source)
-                        HStack(alignment: .center) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(playback.currentSong?.name ?? "Not Playing")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(.white)
-                                    .lineLimit(1)
-                                    .matchedGeometryEffect(id: "title", in: animation)
-                                
-                                Text(playback.currentSong?.artist ?? "Solara Music")
-                                    .font(.title3)
-                                    .foregroundStyle(.white.opacity(0.7))
-                                    .lineLimit(1)
-                                    .matchedGeometryEffect(id: "artist", in: animation)
-                            }
-                            // Removed .matchedGeometryEffect(id: "info", ...) container match
-                            // Matching individual text elements is smoother for font size changes/positioning
-                            
-                            Spacer()
-                            
-                            HStack(spacing: 20) {
-                                Button {} label: {
-                                     Image(systemName: "ellipsis.circle.fill")
-                                         .font(.system(size: 24))
-                                         .foregroundStyle(.white.opacity(0.4))
-                                }
-                                Button {
-                                     if let song = playback.currentSong {
-                                        playback.toggleFavorite(song)
-                                    }
-                                } label: {
-                                    Image(systemName: isCurrentFavorite ? "heart.fill" : "heart")
-                                        .font(.system(size: 24))
-                                        .foregroundStyle(isCurrentFavorite ? .red : .white.opacity(0.4))
-                                        .symbolEffect(.bounce, value: isCurrentFavorite)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 32)
-                        .padding(.bottom, 24)
-                    }
+                    // MARK: - STANDARD MODE
+                    StandardPlayerView(
+                        showSearch: $showSearch,
+                        animation: animation,
+                        imageLoader: imageLoader
+                    )
+                    .transition(.move(edge: .top).combined(with: .opacity))
                     .zIndex(0)
+                    .environmentObject(playback)
                 }
 
-                // MARK: - SHARED CONTROLS (Always Visible)
-                // ... (Remains Same) -> Just need to close the VStack properly in the file merge
-
-                VStack(spacing: 0) {
-                    // Seek Bar with Quality Badge
-                    VStack(spacing: 12) {
-                        Slider(
-                            value: Binding(
-                                get: { playback.duration == 0 ? 0 : playback.position / max(playback.duration, 0.1) },
-                                set: { progress in playback.seek(to: progress) }
-                            ),
-                            in: 0...1
-                        )
-                        .tint(.white.opacity(0.5))
-                        
-                        HStack {
-                            Text(TimeFormatting.string(from: playback.position))
-                                .font(.caption2)
-                                .foregroundStyle(.white.opacity(0.5))
-                                .monospacedDigit()
-                            
-                            Spacer()
-                            
-                            // Quality Badge
-                            Menu {
-                                Picker("音质选择", selection: Binding(
-                                    get: { playback.quality },
-                                    set: { playback.setQuality($0) }
-                                )) {
-                                    ForEach(SongQuality.allCases) { quality in
-                                        Text(quality.label).tag(quality)
-                                    }
-                                }
-                            } label: {
-                                HStack(spacing: 2) {
-                                    Image(systemName: "waveform")
-                                    Text(playback.quality.label.components(separatedBy: " ").first ?? "标准")
-                                }
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(.black)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.white.opacity(0.8))
-                                .cornerRadius(4)
-                            }
-                            
-                            Spacer()
-
-                            Text(TimeFormatting.string(from: playback.duration))
-                                .font(.caption2)
-                                .foregroundStyle(.white.opacity(0.5))
-                                .monospacedDigit()
-                        }
-                    }
-                    .padding(.horizontal, 32)
-                    .padding(.bottom, 24)
-
-                    // Playback Controls
-                    HStack(spacing: 40) {
-                        // Shuffle (Left)
-                        Button(action: {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                if playback.playMode == .shuffle {
-                                    playback.setPlayMode(.list) // Toggle off -> List
-                                } else {
-                                    playback.setPlayMode(.shuffle)
-                                }
-                            }
-                        }) {
-                            Image(systemName: "shuffle")
-                                .font(.system(size: 22))
-                                .foregroundStyle(playback.playMode == .shuffle ? .white : .white.opacity(0.4))
-                                .symbolEffect(.bounce, value: playback.playMode == .shuffle)
-                        }
-
-                        Button(action: playback.previous) {
-                            Image(systemName: "backward.fill")
-                                .font(.system(size: 40))
-                                .foregroundStyle(.white)
-                        }
-                        
-                        Button(action: playback.togglePlayPause) {
-                            Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                                .font(.system(size: 54))
-                                .symbolRenderingMode(.hierarchical) 
-                                .foregroundStyle(.white)
-                        }
-                        
-                        Button(action: playback.next) {
-                            Image(systemName: "forward.fill")
-                                .font(.system(size: 40))
-                                .foregroundStyle(.white)
-                        }
-
-                        // Repeat (Right)
-                        Button(action: {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                switch playback.playMode {
-                                case .off: playback.setPlayMode(.list)
-                                case .list: playback.setPlayMode(.single)
-                                case .single: playback.setPlayMode(.off)
-                                case .shuffle: playback.setPlayMode(.single) // Exit shuffle to Repeat One
-                                }
-                            }
-                        }) {
-                            Image(systemName: playback.playMode == .single ? "repeat.1" : "repeat")
-                                .font(.system(size: 22))
-                                .foregroundStyle(playback.playMode == .off || playback.playMode == .shuffle ? .white.opacity(0.4) : .white)
-                                .symbolEffect(.bounce, value: playback.playMode)
-                        }
-                    }
-                    .padding(.bottom, 32)
-                    
-                    // Volume Slider Section
-                    HStack(spacing: 12) {
-                        Image(systemName: "speaker.fill")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.5))
-                        
-                        VolumeView()
-                            .frame(height: 20)
-                            .tint(Color.white)
-                            
-                        Image(systemName: "speaker.wave.3.fill")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.5))
-                    }
-                    .padding(.horizontal, 32)
-                    .padding(.bottom, 32)
-
-                    // Bottom Actions
-                    HStack(spacing: 40) { 
-                         // 1. AirPlay (Replaces Cycle)
-                         AirPlayView()
-                             .frame(width: 44, height: 44)
-
-                         // 2. Favorite Button
-                         Button(action: { showFavorites.toggle() }) {
-                             Image(systemName: "heart.fill")
-                                 .font(.system(size: 24))
-                                 .foregroundStyle(showFavorites ? .pink : .white.opacity(0.4)) 
-                                 .symbolEffect(.bounce, value: showFavorites)
-                         }
-
-                         // 3. Lyrics Button
-                         Button(action: { 
-                             withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
-                                 showLyrics.toggle() 
-                             }
-                         }) {
-                             Image(systemName: "quote.bubble.fill")
-                                 .font(.system(size: 24))
-                                 .foregroundStyle(showLyrics ? .white : .white.opacity(0.4))
-                                 .background(
-                                     Group {
-                                         if showLyrics {
-                                             Circle()
-                                                 .fill(Color.white.opacity(0.2))
-                                                 .blur(radius: 6)
-                                                 .frame(width: 40, height: 40)
-                                         }
-                                     }
-                                 )
-                                 .symbolEffect(.bounce, value: showLyrics)
-                         }
-                         
-                         // 4. Queue Button
-                         Button(action: { showQueue.toggle() }) {
-                             Image(systemName: "list.bullet")
-                                 .font(.system(size: 24))
-                                 .foregroundStyle(.white.opacity(0.6))
-                         }
-                    }
-                    .padding(.bottom, 20)
-                }
+                // MARK: - SHARED CONTROLS
+                PlayerControlsView(
+                    showQueue: $showQueue,
+                    showFavorites: $showFavorites,
+                    showLyrics: $showLyrics
+                )
+                .environmentObject(playback)
             }
-            .frame(width: UIScreen.main.bounds.width) // Strictly enforce screen width to prevent overflow bug
+            .frame(width: UIScreen.main.bounds.width)
         }
         .sheet(isPresented: $showFavorites) {
             FavoritesSheet().environmentObject(playback)
@@ -408,10 +79,382 @@ struct ContentView: View {
         }
         // Removed separate Lyrics sheet
     }
+}
 
+// MARK: - Subviews
+
+struct LyricsModeView: View {
+    @EnvironmentObject var playback: PlaybackManager
+    @Binding var showLyrics: Bool
+    var animation: Namespace.ID
+    let imageLoader: ImageLoader
+    
+    // Derived property for favorite status to keep view simple
     private var isCurrentFavorite: Bool {
         guard let song = playback.currentSong else { return false }
         return playback.favoriteSongs().contains(where: { $0.identity == song.identity })
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // 1. Header Section
+            HStack(spacing: 12) {
+                // Small Artwork
+                if let artworkURL = playback.artworkURL {
+                     RemoteImageView(url: artworkURL, placeholderImage: playback.artwork, imageLoader: imageLoader, contentMode: .fill)
+                        .matchedGeometryEffect(id: "artwork", in: animation)
+                        .frame(width: 56, height: 56)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .shadow(radius: 8)
+                } else {
+                    Image(systemName: "music.note")
+                        .matchedGeometryEffect(id: "artwork", in: animation)
+                        .frame(width: 56, height: 56)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                
+                // Info
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(playback.currentSong?.name ?? "未知歌曲")
+                        .font(.title3.bold())
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .matchedGeometryEffect(id: "title", in: animation)
+                    
+                    Text(playback.currentSong?.artist ?? "未知艺术家")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.6))
+                        .lineLimit(1)
+                        .matchedGeometryEffect(id: "artist", in: animation)
+                }
+                
+                Spacer()
+                
+                // Actions
+                HStack(spacing: 20) {
+                    Button {
+                         if let song = playback.currentSong {
+                            playback.toggleFavorite(song)
+                        }
+                    } label: {
+                        Image(systemName: isCurrentFavorite ? "heart.fill" : "heart")
+                            .font(.system(size: 20))
+                            .foregroundStyle(isCurrentFavorite ? .red : .white.opacity(0.4))
+                            .symbolEffect(.bounce, value: isCurrentFavorite)
+                    }
+                    
+                    Button {
+                        // More
+                    } label: {
+                        Image(systemName: "ellipsis.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.white.opacity(0.4))
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 48)
+            .padding(.bottom, 20)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
+                    showLyrics = false
+                }
+            }
+            
+            // 2. Lyrics List
+            LyricsScrollView().environmentObject(playback)
+        }
+    }
+}
+
+struct StandardPlayerView: View {
+    @EnvironmentObject var playback: PlaybackManager
+    @Binding var showSearch: Bool
+    var animation: Namespace.ID
+    let imageLoader: ImageLoader
+    
+    private var isCurrentFavorite: Bool {
+        guard let song = playback.currentSong else { return false }
+        return playback.favoriteSongs().contains(where: { $0.identity == song.identity })
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Top Bar
+            ZStack {
+                Text("SOLARA")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.8))
+                    .textCase(.uppercase)
+                
+                HStack {
+                    Button(action: { playback.startRadar() }) {
+                        HStack(spacing: 4) {
+                            if playback.isRadarLoading {
+                                ProgressView()
+                                    .tint(.white)
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "sparkles")
+                            }
+                            Text(playback.isRadarLoading ? "加载中" : "探索")
+                        }
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Capsule())
+                    }
+                    Spacer()
+                    Button(action: { showSearch.toggle() }) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.white)
+                            .padding(10)
+                            .background(Color.white.opacity(0.1))
+                            .clipShape(Circle())
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            
+            Spacer()
+            
+            // Large Artwork
+            let artworkSize = UIScreen.main.bounds.width - 48
+            RemoteImageView(
+                url: playback.artworkURL,
+                placeholderImage: playback.artwork,
+                imageLoader: imageLoader
+            )
+            .matchedGeometryEffect(id: "artwork", in: animation)
+            .frame(width: artworkSize, height: artworkSize)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
+            .padding(.bottom, 32)
+            
+            // Track Info
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(playback.currentSong?.name ?? "Not Playing")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .matchedGeometryEffect(id: "title", in: animation)
+                    
+                    Text(playback.currentSong?.artist ?? "Solara Music")
+                        .font(.title3)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .lineLimit(1)
+                        .matchedGeometryEffect(id: "artist", in: animation)
+                }
+                
+                Spacer()
+                
+                HStack(spacing: 20) {
+                    Button {} label: {
+                         Image(systemName: "ellipsis.circle.fill")
+                             .font(.system(size: 24))
+                             .foregroundStyle(.white.opacity(0.4))
+                    }
+                    Button {
+                         if let song = playback.currentSong {
+                            playback.toggleFavorite(song)
+                        }
+                    } label: {
+                        Image(systemName: isCurrentFavorite ? "heart.fill" : "heart")
+                            .font(.system(size: 24))
+                            .foregroundStyle(isCurrentFavorite ? .red : .white.opacity(0.4))
+                            .symbolEffect(.bounce, value: isCurrentFavorite)
+                    }
+                }
+            }
+            .padding(.horizontal, 32)
+            .padding(.bottom, 24)
+        }
+    }
+}
+
+struct PlayerControlsView: View {
+    @EnvironmentObject var playback: PlaybackManager
+    @Binding var showQueue: Bool
+    @Binding var showFavorites: Bool
+    @Binding var showLyrics: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Seek Bar
+            VStack(spacing: 12) {
+                Slider(
+                    value: Binding(
+                        get: { playback.duration == 0 ? 0 : playback.position / max(playback.duration, 0.1) },
+                        set: { progress in playback.seek(to: progress) }
+                    ),
+                    in: 0...1
+                )
+                .tint(.white.opacity(0.5))
+                
+                HStack {
+                    Text(TimeFormatting.string(from: playback.position))
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .monospacedDigit()
+                    
+                    Spacer()
+                    
+                    // Quality Badge
+                    Menu {
+                        Picker("音质选择", selection: Binding(
+                            get: { playback.quality },
+                            set: { playback.setQuality($0) }
+                        )) {
+                            ForEach(SongQuality.allCases) { quality in
+                                Text(quality.label).tag(quality)
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 2) {
+                            Image(systemName: "waveform")
+                            Text(playback.quality.label.components(separatedBy: " ").first ?? "标准")
+                        }
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.white.opacity(0.8))
+                        .cornerRadius(4)
+                    }
+                    
+                    Spacer()
+
+                    Text(TimeFormatting.string(from: playback.duration))
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .monospacedDigit()
+                }
+            }
+            .padding(.horizontal, 32)
+            .padding(.bottom, 24)
+
+            // Transport Controls
+            HStack(spacing: 40) {
+                // Shuffle
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        if playback.playMode == .shuffle {
+                            playback.setPlayMode(.list)
+                        } else {
+                            playback.setPlayMode(.shuffle)
+                        }
+                    }
+                }) {
+                    Image(systemName: "shuffle")
+                        .font(.system(size: 22))
+                        .foregroundStyle(playback.playMode == .shuffle ? .white : .white.opacity(0.4))
+                        .symbolEffect(.bounce, value: playback.playMode == .shuffle)
+                }
+
+                Button(action: playback.previous) {
+                    Image(systemName: "backward.fill")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.white)
+                }
+                
+                Button(action: playback.togglePlayPause) {
+                    Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 54))
+                        .symbolRenderingMode(.hierarchical) 
+                        .foregroundStyle(.white)
+                }
+                
+                Button(action: playback.next) {
+                    Image(systemName: "forward.fill")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.white)
+                }
+
+                // Repeat
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        switch playback.playMode {
+                        case .off: playback.setPlayMode(.list)
+                        case .list: playback.setPlayMode(.single)
+                        case .single: playback.setPlayMode(.off)
+                        case .shuffle: playback.setPlayMode(.single)
+                        }
+                    }
+                }) {
+                    Image(systemName: playback.playMode == .single ? "repeat.1" : "repeat")
+                        .font(.system(size: 22))
+                        .foregroundStyle(playback.playMode == .off || playback.playMode == .shuffle ? .white.opacity(0.4) : .white)
+                        .symbolEffect(.bounce, value: playback.playMode)
+                }
+            }
+            .padding(.bottom, 32)
+            
+            // Volume
+            HStack(spacing: 12) {
+                Image(systemName: "speaker.fill")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.5))
+                
+                VolumeView()
+                    .frame(height: 20)
+                    .tint(Color.white)
+                    
+                Image(systemName: "speaker.wave.3.fill")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+            .padding(.horizontal, 32)
+            .padding(.bottom, 32)
+
+            // Bottom Actions
+            HStack(spacing: 40) { 
+                 AirPlayView()
+                     .frame(width: 44, height: 44)
+
+                 Button(action: { showFavorites.toggle() }) {
+                     Image(systemName: "heart.fill")
+                         .font(.system(size: 24))
+                         .foregroundStyle(showFavorites ? .pink : .white.opacity(0.4)) 
+                         .symbolEffect(.bounce, value: showFavorites)
+                 }
+
+                 Button(action: { 
+                     withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
+                         showLyrics.toggle() 
+                     }
+                 }) {
+                     Image(systemName: "quote.bubble.fill")
+                         .font(.system(size: 24))
+                         .foregroundStyle(showLyrics ? .white : .white.opacity(0.4))
+                         .background(
+                             Group {
+                                 if showLyrics {
+                                     Circle()
+                                         .fill(Color.white.opacity(0.2))
+                                         .blur(radius: 6)
+                                         .frame(width: 40, height: 40)
+                                 }
+                             }
+                         )
+                         .symbolEffect(.bounce, value: showLyrics)
+                 }
+                 
+                 Button(action: { showQueue.toggle() }) {
+                     Image(systemName: "list.bullet")
+                         .font(.system(size: 24))
+                         .foregroundStyle(.white.opacity(0.6))
+                 }
+            }
+            .padding(.bottom, 20)
+        }
     }
 }
 
