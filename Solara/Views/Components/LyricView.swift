@@ -39,3 +39,23 @@ struct LyricView: View {
         lyrics.last(where: { $0.time <= position }) ?? lyrics.first
     }
 }
+
+struct LyricsScrollView: View {
+    @EnvironmentObject var playback: PlaybackManager
+
+    var body: some View {
+        if playback.lyrics.isEmpty {
+            VStack(spacing: 8) {
+                Text("暂无歌词")
+                    .font(.headline)
+                    .foregroundStyle(.white.opacity(0.8))
+                Text("正在为你加载歌词…")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.6))
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            LyricView(lyrics: playback.lyrics, position: playback.position)
+        }
+    }
+}
