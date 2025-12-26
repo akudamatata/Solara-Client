@@ -211,16 +211,9 @@ struct ContentView: View {
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.5))
                     
-                    // Simple simulated volume slider (since MPVolumeView is tricky in pure SwiftUI preview)
-                    // In real app, bind to system volume or AVPlayer volume.
-                    Capsule()
-                        .fill(Color.white.opacity(0.2))
-                        .frame(height: 4)
-                        .overlay(alignment: .leading) {
-                            Capsule()
-                                .fill(Color.white)
-                                .frame(width: 80, height: 4) // Fixed 30% volume
-                        }
+                    VolumeView()
+                        .frame(height: 20) // MPVolumeView needs a frame, usually 20-40pt height
+                        .tint(.white) // Fallback
                         
                     Image(systemName: "speaker.wave.3.fill")
                         .font(.caption)
