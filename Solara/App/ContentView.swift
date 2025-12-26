@@ -28,33 +28,66 @@ struct ContentView: View {
             }
 
             VStack(spacing: 0) {
-                // Top Handle / Header
-                Capsule()
-                    .fill(Color.white.opacity(0.3))
-                    .frame(width: 40, height: 4)
-                    .padding(.top, 12)
-                
+                // Top Bar
+                HStack {
+                    Button(action: {
+                        // Explore Radar Function
+                        Task { playback.next() }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "sparkles")
+                            Text("探索")
+                        }
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Capsule())
+                    }
+                    
+                    Spacer()
+                    
+                    Text("SOLARA")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .textCase(.uppercase)
+                    
+                    Spacer()
+                    
+                    Button(action: { showSearch.toggle() }) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 20)) // Keep circle/size consistent
+                            .foregroundStyle(.white)
+                            .padding(10)
+                            .background(Color.white.opacity(0.1))
+                            .clipShape(Circle())
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+
                 Spacer()
 
                 // Artwork
                 GeometryReader { geometry in
-                    let size = geometry.size.width - 64
+                    let size = geometry.size.width - 48 // Tighter margins
                     RemoteImageView(
                         url: playback.artworkURL,
                         placeholderImage: playback.artwork,
                         imageLoader: imageLoader
                     )
                     .frame(width: size, height: size)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: 12)) // Tighter corner radius
                     .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
-                    .scaleEffect(playback.isPlaying ? 1.0 : 0.85) // Breathing effect
+                    .scaleEffect(playback.isPlaying ? 1.0 : 0.82)
                     .animation(.spring(response: 0.5, dampingFraction: 0.6), value: playback.isPlaying)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(height: UIScreen.main.bounds.width - 64)
+                .frame(height: UIScreen.main.bounds.width - 48)
                 .padding(.bottom, 32)
                 
-                // Track Info & Main Actions
+                // Track Info Row
                 HStack(alignment: .center) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(playback.currentSong?.name ?? "Not Playing")
@@ -62,33 +95,41 @@ struct ContentView: View {
                             .fontWeight(.bold)
                             .foregroundStyle(.white)
                             .lineLimit(1)
-                            .padding(.trailing, 8) // Marquee space if needed
                         
                         Text(playback.currentSong?.artist ?? "Solara Music")
                             .font(.title3)
-                            .foregroundStyle(.white.opacity(0.7))
+                            .foregroundStyle(.white.opacity(0.7)) // Slightly lighter than secondary
                             .lineLimit(1)
                     }
                     
                     Spacer()
                     
-                    Button {
-                        // TODO: Implement "More" menu or similar, currently Heart/Fav
-                         if let song = playback.currentSong {
-                            playback.toggleFavorite(song)
+                    HStack(spacing: 20) {
+                        Button {
+                             // More Action
+                        } label: {
+                             Image(systemName: "ellipsis.circle.fill") // Or just circle
+                                 .font(.system(size: 24))
+                                 .foregroundStyle(.white.opacity(0.4))
                         }
-                    } label: {
-                        Image(systemName: isCurrentFavorite ? "heart.fill" : "heart")
-                            .font(.system(size: 24))
-                            .foregroundStyle(isCurrentFavorite ? .red : .white.opacity(0.7))
-                            .symbolEffect(.bounce, value: isCurrentFavorite)
+
+                        Button {
+                             if let song = playback.currentSong {
+                                playback.toggleFavorite(song)
+                            }
+                        } label: {
+                            Image(systemName: isCurrentFavorite ? "star.fill" : "star")
+                                .font(.system(size: 24))
+                                .foregroundStyle(isCurrentFavorite ? .yellow : .white.opacity(0.4))
+                                .symbolEffect(.bounce, value: isCurrentFavorite)
+                        }
                     }
                 }
                 .padding(.horizontal, 32)
                 .padding(.bottom, 24)
 
-                // Seek Bar
-                VStack(spacing: 8) {
+                // Seek Bar with Quality Badge
+                VStack(spacing: 12) {
                     Slider(
                         value: Binding(
                             get: { playback.duration == 0 ? 0 : playback.position / max(playback.duration, 0.1) },
@@ -96,71 +137,111 @@ struct ContentView: View {
                         ),
                         in: 0...1
                     )
-                    .tint(.white.opacity(0.8))
-                    .onAppear {
-                        // Custom styling usually requires UIKit appearance proxy or custom generic view
-                        // For vanilla SwiftUI, default is decent but thin on iOS 17
-                    }
+                    .tint(.white.opacity(0.5))
+                    // .onAppear { ... customize slider appearance ... }
                     
                     HStack {
                         Text(TimeFormatting.string(from: playback.position))
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.6))
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.5))
                             .monospacedDigit()
+                        
                         Spacer()
+                        
+                        // Quality Badge
+                        HStack(spacing: 2) {
+                            Image(systemName: "waveform")
+                            Text("无损") // Lossless
+                        }
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.white.opacity(0.8))
+                        .cornerRadius(4)
+                        
+                        Spacer()
+
                         Text(TimeFormatting.string(from: playback.duration))
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.6))
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.5))
                             .monospacedDigit()
                     }
                 }
                 .padding(.horizontal, 32)
-                .padding(.bottom, 40)
+                .padding(.bottom, 24)
 
                 // Playback Controls
-                HStack(spacing: 48) {
+                HStack(spacing: 50) {
                     Button(action: playback.previous) {
                         Image(systemName: "backward.fill")
-                            .font(.system(size: 36)) // SF Pro standard size
+                            .font(.system(size: 40))
                             .foregroundStyle(.white)
                     }
                     
                     Button(action: playback.togglePlayPause) {
                         Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 54))
+                            .font(.system(size: 54)) // Fixed large size
+                            .symbolRenderingMode(.hierarchical) 
                             .foregroundStyle(.white)
-                            .symbolEffect(.bounce, value: playback.isPlaying)
+                            // Note: For a solid white filled circle background like Apple Music, 
+                            // one might use a ZStack with Circle().fill(.white) if systemName isn't enough.
+                            // But usually play.fill is solid enough.
                     }
                     
                     Button(action: playback.next) {
                         Image(systemName: "forward.fill")
-                            .font(.system(size: 36))
+                            .font(.system(size: 40))
                             .foregroundStyle(.white)
                     }
                 }
-                .padding(.bottom, 48)
+                .padding(.bottom, 32)
                 
-                // Bottom Actions (Volume/Route/List) - Using as Feature Toggles
-                HStack(spacing: 40) {
-                     Button(action: { /* Radar/Explore */ }) {
-                         Image(systemName: "quote.bubble") // Lyrics or Radar
-                             .font(.system(size: 22))
+                // Volume Slider Section
+                HStack(spacing: 12) {
+                    Image(systemName: "speaker.fill")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.5))
+                    
+                    // Simple simulated volume slider (since MPVolumeView is tricky in pure SwiftUI preview)
+                    // In real app, bind to system volume or AVPlayer volume.
+                    Capsule()
+                        .fill(Color.white.opacity(0.2))
+                        .frame(height: 4)
+                        .overlay(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.white)
+                                .frame(width: 80, height: 4) // Fixed 30% volume
+                        }
+                        
+                    Image(systemName: "speaker.wave.3.fill")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                .padding(.horizontal, 32)
+                .padding(.bottom, 32)
+
+                // Bottom Actions
+                HStack(spacing: 60) {
+                     Button(action: { /* Lyrics */ }) {
+                         Image(systemName: "quote.bubble")
+                             .font(.system(size: 24))
                              .foregroundStyle(.white.opacity(0.6))
                      }
                      
-                     Button(action: { /* AirPlay/Devices */ }) {
+                     Button(action: { /* AirPlay */ }) {
                          Image(systemName: "airplayaudio")
-                             .font(.system(size: 22))
+                             .font(.system(size: 24))
                              .foregroundStyle(.white.opacity(0.6))
                      }
                      
                      Button(action: { showQueue.toggle() }) {
                          Image(systemName: "list.bullet")
-                             .font(.system(size: 22))
+                             .font(.system(size: 24))
                              .foregroundStyle(.white.opacity(0.6))
                      }
                 }
-                .padding(.bottom, 32)
+                .padding(.bottom, 20)
             }
         }
         .sheet(isPresented: $showQueue) {
