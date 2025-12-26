@@ -330,17 +330,33 @@ struct LyricsView: View {
                     .ignoresSafeArea()
             }
 
+            .frame(width: UIScreen.main.bounds.width)
+
             VStack(spacing: 0) {
-                // Header
-                HStack {
-                    Spacer()
-                    Capsule()
-                        .fill(Color.white.opacity(0.2))
-                        .frame(width: 40, height: 4)
-                        .padding(.top, 8)
+                // Header (Artwork + Info)
+                HStack(spacing: 20) {
+                    if let artworkURL = playback.artworkURL {
+                         RemoteImageView(url: artworkURL, placeholderImage: playback.artwork, imageLoader: ImageLoader.shared, contentMode: .fill)
+                            .frame(width: 80, height: 80)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .shadow(radius: 10)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(playback.currentSong?.name ?? "")
+                            .font(.title3.bold())
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Text(playback.currentSong?.artist ?? "")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.6))
+                            .lineLimit(1)
+                    }
                     Spacer()
                 }
-                .frame(height: 20)
+                .padding(.horizontal, 32)
+                .padding(.top, 60) // Safe area top
+                .padding(.bottom, 20)
                 
                 if playback.lyrics.isEmpty {
                     ContentUnavailableView("暂无歌词", systemImage: "music.mic")
@@ -348,12 +364,12 @@ struct LyricsView: View {
                 } else {
                     ScrollViewReader { proxy in
                         ScrollView(showsIndicators: false) {
-                            VStack(alignment: .leading, spacing: 24) {
+                            VStack(alignment: .leading, spacing: 30) {
                                 ForEach(playback.lyrics) { line in
                                     Text(line.text)
-                                        .font(.system(size: isCurrentLine(line) ? 28 : 20, weight: isCurrentLine(line) ? .bold : .medium))
-                                        .foregroundStyle(isCurrentLine(line) ? .white : .white.opacity(0.5))
-                                        .blur(radius: isCurrentLine(line) ? 0 : 0.5)
+                                        .font(.system(size: isCurrentLine(line) ? 32 : 22, weight: isCurrentLine(line) ? .bold : .semibold))
+                                        .foregroundStyle(isCurrentLine(line) ? .white : .white.opacity(0.4))
+                                        .blur(radius: isCurrentLine(line) ? 0 : 0.8)
                                         .scaleEffect(isCurrentLine(line) ? 1.05 : 1.0)
                                         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isCurrentLine(line))
                                         .id(line.id)
@@ -363,7 +379,7 @@ struct LyricsView: View {
                                         }
                                 }
                             }
-                            .padding(.vertical, UIScreen.main.bounds.height / 2.5) // Large padding for center focus
+                            .padding(.vertical, UIScreen.main.bounds.height / 3) // Adjust padding
                             .padding(.horizontal, 32)
                         }
                         // Detect user scroll start (Simultaneous gesture not easy on ScrollView directly in SwiftUI, use DragGesture on overlay or simplified timeout)
@@ -388,6 +404,7 @@ struct LyricsView: View {
                     }
                 }
             }
+            .frame(width: UIScreen.main.bounds.width)
         }
     }
 
