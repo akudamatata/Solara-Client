@@ -394,10 +394,11 @@ struct TransportControlsView: View {
                 }
             }) {
                 Image(systemName: "shuffle")
-                    .font(.system(size: 20)) // Reduced from 22
+                    .font(.system(size: 18)) 
                     .foregroundStyle(playback.playMode == .shuffle ? .white : .white.opacity(0.4))
                     .symbolEffect(.bounce, value: playback.playMode == .shuffle)
-                    .frame(height: 20) // Ensure vertical alignment
+                    .frame(height: 18) 
+                    .offset(x: 8)
             }
 
             Button(action: playback.previous) {
@@ -431,10 +432,11 @@ struct TransportControlsView: View {
                 }
             }) {
                 Image(systemName: playback.playMode == .single ? "repeat.1" : "repeat")
-                    .font(.system(size: 20)) // Reduced from 22
+                    .font(.system(size: 18)) 
                     .foregroundStyle(playback.playMode == .off || playback.playMode == .shuffle ? .white.opacity(0.4) : .white)
                     .symbolEffect(.bounce, value: playback.playMode)
-                    .frame(height: 20) // Ensure vertical alignment
+                    .frame(height: 18) 
+                    .offset(x: -8)
             }
         }
         .padding(.bottom, 32)
