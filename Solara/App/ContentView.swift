@@ -353,7 +353,6 @@ struct ContentView: View {
         }
         // Removed separate Lyrics sheet
     }
-    }
 
     @State private var showLyrics = false
 
