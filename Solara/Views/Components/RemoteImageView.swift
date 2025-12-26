@@ -32,6 +32,7 @@ struct RemoteImageView: View {
             await loadImage() 
         }
         .animation(.easeInOut, value: image)
+        .clipped()
     }
 
     private func loadImage() async {
