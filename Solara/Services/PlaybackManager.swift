@@ -187,6 +187,10 @@ final class PlaybackManager: ObservableObject {
         Task { await startPlaybackFromCurrent() }
     }
 
+    func playPrevious() {
+        previous()
+    }
+
     func removeSong(at offsets: IndexSet) {
         queue.remove(atOffsets: offsets)
         if let currentIndex, offsets.contains(currentIndex) {
@@ -221,6 +225,15 @@ final class PlaybackManager: ObservableObject {
     func setPlayMode(_ mode: PlayMode) {
         playMode = mode
         persistState()
+    }
+
+    func togglePlayMode() {
+        guard let index = PlayMode.allCases.firstIndex(of: playMode) else {
+            setPlayMode(.list)
+            return
+        }
+        let nextIndex = (index + 1) % PlayMode.allCases.count
+        setPlayMode(PlayMode.allCases[nextIndex])
     }
 
     func toggleFavorite(_ song: Song) {

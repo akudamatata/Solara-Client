@@ -67,6 +67,19 @@ enum PlayMode: String, Codable, CaseIterable, Identifiable {
         case .shuffle: return "随机播放"
         }
     }
+
+    var iconName: String {
+        switch self {
+        case .off:
+            return "repeat"
+        case .list:
+            return "repeat"
+        case .single:
+            return "repeat.1"
+        case .shuffle:
+            return "shuffle"
+        }
+    }
 }
 
 struct SongAudio: Codable, Hashable {
