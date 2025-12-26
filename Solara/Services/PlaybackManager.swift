@@ -89,7 +89,7 @@ final class PlaybackManager: ObservableObject {
             do {
                 let songs = try await APIClient.shared.fetchRadarSongs()
                 await MainActor.run {
-                    self.playImmediately(songs)
+                    self.enqueue(songs) // Append instead of replace
                     self.isRadarLoading = false
                 }
             } catch {
@@ -310,38 +310,63 @@ final class PlaybackManager: ObservableObject {
     }
 
     private func loadMetadata(for song: Song) async {
-        if let cached = artworkCache.object(forKey: song.identity as NSString) {
-            artwork = cached
+        let currentIdentity = song.identity
+        
+        // 1. Artwork
+        if let cached = artworkCache.object(forKey: currentIdentity as NSString) {
+            if self.currentSong?.identity == currentIdentity {
+                artwork = cached
+            }
             artworkURL = try? await apiClient.resolveArtworkURL(for: song, size: 512)
         } else if let url = try? await apiClient.resolveArtworkURL(for: song, size: 512) {
-            artworkURL = url
-            await loadArtwork(from: url, identity: song.identity)
+            // Check race condition AGAIN before starting load
+            if self.currentSong?.identity == currentIdentity {
+                 artworkURL = url
+            }
+            await loadArtwork(from: url, identity: currentIdentity)
         } else {
-            artwork = nil
-            artworkURL = nil
+             if self.currentSong?.identity == currentIdentity {
+                artwork = nil
+                artworkURL = nil
+             }
         }
 
-        if let cachedLyrics = lyricCache[song.identity] {
-            lyrics = cachedLyrics
+        // 2. Lyrics
+        if let cachedLyrics = lyricCache[currentIdentity] {
+             if self.currentSong?.identity == currentIdentity {
+                lyrics = cachedLyrics
+             }
         } else if let newLyrics = try? await apiClient.fetchLyrics(for: song) {
-            lyricCache[song.identity] = newLyrics
-            lyrics = newLyrics
+             lyricCache[currentIdentity] = newLyrics
+             // Check race condition AGAIN after fetch
+             if self.currentSong?.identity == currentIdentity {
+                lyrics = newLyrics
+             }
         } else {
-            lyrics = []
+             if self.currentSong?.identity == currentIdentity {
+                lyrics = []
+             }
         }
 
-        updateNowPlayingInfo()
+        if self.currentSong?.identity == currentIdentity {
+            updateNowPlayingInfo()
+        }
     }
 
     private func loadArtwork(from url: URL, identity: String) async {
         do {
             let image = try await imageLoader.loadImage(from: url)
             artworkCache.setObject(image, forKey: identity as NSString)
-            artwork = image
-            artworkURL = url
+            // Final race check
+            if self.currentSong?.identity == identity {
+                artwork = image
+                artworkURL = url
+            }
         } catch {
-            artwork = nil
-            artworkURL = nil
+            if self.currentSong?.identity == identity {
+                artwork = nil
+                artworkURL = nil
+            }
         }
     }
 
