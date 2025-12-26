@@ -230,7 +230,8 @@ struct ContentView: View {
                      Button(action: { /* Lyrics */ }) {
                          Image(systemName: "quote.bubble")
                              .font(.system(size: 24))
-                             .foregroundStyle(.white.opacity(0.6))
+                             .foregroundStyle(showLyrics ? .white : .white.opacity(0.6))
+                             .symbolEffect(.bounce, value: showLyrics)
                      }
                      
                      Button(action: { /* AirPlay */ }) {
@@ -259,8 +260,12 @@ struct ContentView: View {
             }
             .environmentObject(playback)
         }
-
+        .sheet(isPresented: $showLyrics) {
+            LyricsView().environmentObject(playback)
+        }
     }
+
+    @State private var showLyrics = false
 
     private var isCurrentFavorite: Bool {
         guard let song = playback.currentSong else { return false }
