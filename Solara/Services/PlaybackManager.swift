@@ -170,10 +170,12 @@ final class PlaybackManager: ObservableObject {
 
     private func setupAudioSession() {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, policy: .longFormAudio, options: [.allowBluetooth])
-            try AVAudioSession.sharedInstance().setActive(true)
+            // Strictly enforce playback category to ignore Silent Switch
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .default, options: [.allowBluetooth])
+            try session.setActive(true)
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = "Audio Session Error: \(error.localizedDescription)"
         }
         configureRemoteCommands()
     }
