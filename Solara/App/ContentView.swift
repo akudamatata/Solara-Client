@@ -40,16 +40,16 @@ struct ContentView: View {
                             // Small Artwork (Transition Target)
                             if let artworkURL = playback.artworkURL {
                                  RemoteImageView(url: artworkURL, placeholderImage: playback.artwork, imageLoader: imageLoader, contentMode: .fill)
+                                    .matchedGeometryEffect(id: "artwork", in: animation)
                                     .frame(width: 56, height: 56)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                                     .shadow(radius: 8)
-                                    .matchedGeometryEffect(id: "artwork", in: animation)
                             } else {
                                 Image(systemName: "music.note")
+                                    .matchedGeometryEffect(id: "artwork", in: animation)
                                     .frame(width: 56, height: 56)
                                     .background(Color.white.opacity(0.1))
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    .matchedGeometryEffect(id: "artwork", in: animation)
                             }
                             
                             // Info (Transition Target)
@@ -58,12 +58,14 @@ struct ContentView: View {
                                     .font(.title3.bold())
                                     .foregroundStyle(.white)
                                     .lineLimit(1)
+                                    .matchedGeometryEffect(id: "title", in: animation)
+                                
                                 Text(playback.currentSong?.artist ?? "未知艺术家")
                                     .font(.subheadline)
                                     .foregroundStyle(.white.opacity(0.6))
                                     .lineLimit(1)
+                                    .matchedGeometryEffect(id: "artist", in: animation)
                             }
-                            .matchedGeometryEffect(id: "info", in: animation)
                             
                             Spacer()
                             
@@ -92,11 +94,19 @@ struct ContentView: View {
                         .padding(.horizontal, 24) // Slightly tighter for header
                         .padding(.top, 48) // Status bar space
                         .padding(.bottom, 20)
+                        .contentShape(Rectangle()) // Make entire header area tappable
+                        .onTapGesture {
+                            // Tap header to collapse lyrics
+                            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                                showLyrics = false
+                            }
+                        }
                         
                         // 2. Lyrics List
                         LyricsScrollView().environmentObject(playback)
                     }
-                    // .transition(.opacity) // matchedGeometry handles movement, but we might want opacity for list
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(1) // Ensure Lyrics view floats ON TOP during transition
                 } else {
                     // MARK: - STANDARD MODE (Cover Art)
                     VStack(spacing: 0) {
@@ -144,11 +154,13 @@ struct ContentView: View {
                             placeholderImage: playback.artwork,
                             imageLoader: imageLoader
                         )
+                        .matchedGeometryEffect(id: "artwork", in: animation) // Apply ID BEFORE frame for better interpolation? No, usually after frame is better for "size" matching, but let's try standard order.
+                                                                             // Actually, for Images, matchedGeometryEffect works best if it's strictly matching the content.
+                                                                             // Apple recommends: matchedGeometryEffect(id: "...", in: ...) .frame(...)
+                                                                             // Let's swap: matchedGeometryEffect THEN frame.
                         .frame(width: artworkSize, height: artworkSize)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
-                        // .scaleEffect removal: matchedGeometry handles size interpolation
-                        .matchedGeometryEffect(id: "artwork", in: animation)
                         .padding(.bottom, 32)
                         
                         // Track Info Row (Transition Source)
@@ -159,13 +171,16 @@ struct ContentView: View {
                                     .fontWeight(.bold)
                                     .foregroundStyle(.white)
                                     .lineLimit(1)
+                                    .matchedGeometryEffect(id: "title", in: animation)
                                 
                                 Text(playback.currentSong?.artist ?? "Solara Music")
                                     .font(.title3)
                                     .foregroundStyle(.white.opacity(0.7))
                                     .lineLimit(1)
+                                    .matchedGeometryEffect(id: "artist", in: animation)
                             }
-                            .matchedGeometryEffect(id: "info", in: animation) // Match info block
+                            // Removed .matchedGeometryEffect(id: "info", ...) container match
+                            // Matching individual text elements is smoother for font size changes/positioning
                             
                             Spacer()
                             
@@ -190,6 +205,7 @@ struct ContentView: View {
                         .padding(.horizontal, 32)
                         .padding(.bottom, 24)
                     }
+                    .zIndex(0)
                 }
 
                 // MARK: - SHARED CONTROLS (Always Visible)
