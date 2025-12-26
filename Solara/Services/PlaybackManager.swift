@@ -187,6 +187,10 @@ final class PlaybackManager: ObservableObject {
         Task { await startPlaybackFromCurrent() }
     }
 
+    func playPrevious() {
+        previous()
+    }
+
     func removeSong(at offsets: IndexSet) {
         queue.remove(atOffsets: offsets)
         if let currentIndex, offsets.contains(currentIndex) {
