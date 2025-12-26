@@ -11,7 +11,9 @@ struct ContentView: View {
     @State private var showQueue = false
     @State private var showFavorites = false
     @State private var showSearch = false
+    @State private var showSearch = false
     @State private var showLyrics = false
+    @State private var showSettings = false
 
     var body: some View {
         ZStack {
@@ -33,6 +35,7 @@ struct ContentView: View {
                     // MARK: - STANDARD MODE
                     StandardPlayerView(
                         showSearch: $showSearch,
+                        showSettings: $showSettings,
                         animation: animation,
                         imageLoader: imageLoader
                     )
@@ -70,7 +73,10 @@ struct ContentView: View {
             }
             .environmentObject(playback)
         }
-        // Removed separate Lyrics sheet
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsSheet().environmentObject(playback)
+        }
     }
 }
 
@@ -187,6 +193,7 @@ struct LyricsModeView: View {
 struct StandardPlayerView: View {
     @EnvironmentObject var playback: PlaybackManager
     @Binding var showSearch: Bool
+    @Binding var showSettings: Bool // Pass binding to trigger from subviews if needed, though gesture is localized
     var animation: Namespace.ID
     let imageLoader: ImageLoader
     
@@ -203,6 +210,10 @@ struct StandardPlayerView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.8))
                     .textCase(.uppercase)
+                    .contentShape(Rectangle()) // Make tappable
+                    .onTapGesture(count: 2) {
+                        showSettings.toggle()
+                    }
                 
                 HStack {
                     Button(action: { playback.startRadar() }) {

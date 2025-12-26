@@ -85,11 +85,28 @@ final class PlaybackManager: ObservableObject {
     func startRadar() {
         guard !isRadarLoading else { return }
         isRadarLoading = true
+        
+        let settings = PersistenceManager.shared.loadSettings()
+        let genres = Array(settings.radarGenres)
+        // If genres empty (shouldn't happen due to default), fallback to "Pop"
+        let keyword = genres.randomElement() ?? "Pop"
+        
         Task {
             do {
-                let songs = try await APIClient.shared.fetchRadarSongs()
+                // Use search instead of fixed playlist to respect genres
+                // Source: .netease (default usually best for general search) or random? 
+                // Let's use .netease for consistency
+                let songs = try await APIClient.shared.search(
+                    keyword: keyword,
+                    source: .netease,
+                    limit: 50, // Fetch more to shuffle
+                    page: 1
+                )
+                
+                let shuffled = Array(songs.shuffled().prefix(20))
+                
                 await MainActor.run {
-                    self.enqueue(songs) // Append instead of replace
+                    self.enqueue(shuffled)
                     self.isRadarLoading = false
                 }
             } catch {
@@ -390,44 +407,47 @@ final class PlaybackManager: ObservableObject {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 
+    // ... (Existing methods)
+
     private func persistState() {
-        let snapshot = PlaybackSnapshot(
-            queue: queue,
-            favorites: favorites,
+        let metadata = PersistenceManager.PlaybackMetadata(
             currentIdentity: currentSong?.identity,
-            quality: quality,
             playMode: playMode,
+            quality: quality,
             position: position,
-            duration: duration,
-            artwork: nil
+            duration: duration
         )
-        do {
-            let data = try JSONEncoder().encode(snapshot)
-            try FileManager.default.createDirectory(at: persistenceURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try data.write(to: persistenceURL, options: .atomic)
-        } catch {
-            // Ignore persistence errors in production use.
-        }
+        let pm = PersistenceManager.shared
+        pm.saveQueue(queue)
+        pm.saveFavorites(favorites)
+        pm.savePlaybackMetadata(metadata)
     }
 
     private func loadPersistedState() async {
-        guard let data = try? Data(contentsOf: persistenceURL) else { return }
-        do {
-            let snapshot = try JSONDecoder().decode(PlaybackSnapshot.self, from: data)
-            queue = snapshot.queue
-            favorites = snapshot.favorites
-            quality = snapshot.quality
-            playMode = snapshot.playMode
-            position = snapshot.position
-            duration = snapshot.duration
-            if let identity = snapshot.currentIdentity, let index = queue.firstIndex(where: { $0.identity == identity }) {
-                currentIndex = index
-                await startPlaybackFromCurrent()
+        let pm = PersistenceManager.shared
+        let loadedQueue = pm.loadQueue()
+        let loadedFavorites = pm.loadFavorites()
+        let metadata = pm.loadPlaybackMetadata()
+        
+        await MainActor.run {
+            self.queue = loadedQueue
+            self.favorites = loadedFavorites
+            if let meta = metadata {
+                self.playMode = meta.playMode
+                self.quality = meta.quality
+                self.position = meta.position
+                self.duration = meta.duration
+                
+                if let identity = meta.currentIdentity, 
+                   let index = self.queue.firstIndex(where: { $0.identity == identity }) {
+                    self.currentIndex = index
+                    // Don't auto-start playback, just restore state
+                    // self.play() // Uncomment if auto-play desired, but usually annoying
+                }
             }
-        } catch {
-            // ignore corrupted state
         }
     }
+
 
     private func resumeFromRemote() async {
         if player.currentItem == nil {
