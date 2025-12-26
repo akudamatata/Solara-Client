@@ -18,7 +18,7 @@ struct LyricView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
             }
-            .onChange(of: position) { _ in
+            .onChange(of: position) { _, _ in
                 if let active = activeLine()?.id {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         proxy.scrollTo(active, anchor: .center)
@@ -29,7 +29,7 @@ struct LyricView: View {
     }
 
     private func isActive(_ line: LyricLine) -> Bool {
-        guard let next = lyrics.drop { $0.id != line.id }.dropFirst().first else {
+        guard let next = lyrics.drop(while: { $0.id != line.id }).dropFirst().first else {
             return position >= line.time
         }
         return position >= line.time && position < next.time
