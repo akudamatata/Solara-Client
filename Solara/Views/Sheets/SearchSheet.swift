@@ -104,7 +104,13 @@ struct SearchSheet: View {
                     }
                     .padding(.bottom, 16)
                 }
-                .background(Color.black.opacity(0.2)) // Unified dark header
+                .background(
+                    LinearGradient(
+                        colors: [Color.black.opacity(0.6), Color.black.opacity(0.0)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
 
                 // Results List
                 List {
