@@ -267,18 +267,7 @@ struct ContentView: View {
             }
             .environmentObject(playback)
         }
-        .overlay(alignment: .topTrailing) {
-             // Search Button Overlay
-             Button(action: { showSearch.toggle() }) {
-                 Image(systemName: "magnifyingglass")
-                     .font(.system(size: 20, weight: .semibold))
-                     .foregroundStyle(.white.opacity(0.8))
-                     .padding(20)
-                     .background(.ultraThinMaterial, in: Circle())
-                     .padding(.top, 40)
-                     .padding(.trailing, 20)
-             }
-        }
+
     }
 
     private var isCurrentFavorite: Bool {
