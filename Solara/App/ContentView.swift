@@ -309,7 +309,7 @@ struct VolumeView: UIViewRepresentable {
     }
 }
 
-// MARK: - LyricsView (Moved here because new file not added to project)
+// MARK: - LyricsView (Full Player Overlay)
 struct LyricsView: View {
     @EnvironmentObject var playback: PlaybackManager
     @Environment(\.dismiss) var dismiss
@@ -317,83 +317,115 @@ struct LyricsView: View {
     @State private var isUserScrolling = false
     @State private var userScrollTimeoutTask: Task<Void, Never>?
 
+    // Computed property for Favorite status
+    private var isCurrentFavorite: Bool {
+        guard let song = playback.currentSong else { return false }
+        return playback.favoriteSongs().contains(where: { $0.identity == song.identity })
+    }
+
     var body: some View {
         ZStack {
-            // Background Blur
+            // Dynamic Background (Replicate Main Player)
             if let artworkURL = playback.artworkURL {
                 RemoteImageView(url: artworkURL, placeholderImage: playback.artwork, imageLoader: ImageLoader.shared, contentMode: .fill)
                     .ignoresSafeArea()
                     .blur(radius: 60)
                     .overlay(Color.black.opacity(0.6))
             } else {
-                Color(red: 0.1, green: 0.1, blue: 0.1)
-                    .ignoresSafeArea()
+                Color(red: 0.1, green: 0.1, blue: 0.1).ignoresSafeArea()
             }
 
-
-
             VStack(spacing: 0) {
-                // Header (Artwork + Info)
-                HStack(spacing: 20) {
+                // 1. Header Section
+                // Small Artwork + Info + Actions
+                HStack(spacing: 16) {
+                    // Small Artwork
                     if let artworkURL = playback.artworkURL {
                          RemoteImageView(url: artworkURL, placeholderImage: playback.artwork, imageLoader: ImageLoader.shared, contentMode: .fill)
-                            .frame(width: 80, height: 80)
+                            .frame(width: 56, height: 56) // Smaller, standard list size
                             .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .shadow(radius: 10)
+                            .shadow(radius: 8)
+                    } else {
+                        Image(systemName: "music.note")
+                            .frame(width: 56, height: 56)
+                            .background(Color.white.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                     
+                    // Info
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(playback.currentSong?.name ?? "")
+                        Text(playback.currentSong?.name ?? "未知歌曲")
                             .font(.title3.bold())
                             .foregroundStyle(.white)
                             .lineLimit(1)
-                        Text(playback.currentSong?.artist ?? "")
+                        Text(playback.currentSong?.artist ?? "未知艺术家")
                             .font(.subheadline)
                             .foregroundStyle(.white.opacity(0.6))
                             .lineLimit(1)
                     }
+                    
                     Spacer()
+                    
+                    // Actions (Favorite & More)
+                    HStack(spacing: 20) {
+                        Button {
+                             if let song = playback.currentSong {
+                                playback.toggleFavorite(song)
+                            }
+                        } label: {
+                            Image(systemName: isCurrentFavorite ? "star.fill" : "star")
+                                .font(.system(size: 22))
+                                .foregroundStyle(isCurrentFavorite ? .yellow : .white.opacity(0.4))
+                                .symbolEffect(.bounce, value: isCurrentFavorite)
+                        }
+                        
+                        Button {
+                            // More
+                        } label: {
+                            Image(systemName: "ellipsis.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundStyle(.white.opacity(0.4))
+                        }
+                    }
                 }
                 .padding(.horizontal, 32)
-                .padding(.top, 60) // Safe area top
+                .padding(.top, 40) // Shift down slightly from very top edge
                 .padding(.bottom, 20)
                 
+                // 2. Lyrics Scroll Area
                 if playback.lyrics.isEmpty {
                     ContentUnavailableView("暂无歌词", systemImage: "music.mic")
                         .foregroundStyle(.white.opacity(0.6))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollViewReader { proxy in
                         ScrollView(showsIndicators: false) {
                             VStack(alignment: .leading, spacing: 30) {
                                 ForEach(playback.lyrics) { line in
                                     Text(line.text)
-                                        .font(.system(size: isCurrentLine(line) ? 32 : 22, weight: isCurrentLine(line) ? .bold : .semibold))
+                                        .font(.system(size: isCurrentLine(line) ? 32 : 24, weight: isCurrentLine(line) ? .bold : .semibold))
                                         .foregroundStyle(isCurrentLine(line) ? .white : .white.opacity(0.4))
-                                        .frame(maxWidth: .infinity, alignment: .leading) // Ensure consistent width and alignment
+                                        .frame(maxWidth: .infinity, alignment: .leading)
                                         .blur(radius: isCurrentLine(line) ? 0 : 0.8)
                                         .scaleEffect(isCurrentLine(line) ? 1.05 : 1.0)
                                         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isCurrentLine(line))
                                         .id(line.id)
-                                        .contentShape(Rectangle()) // Make full width tappable
+                                        .contentShape(Rectangle())
                                         .onTapGesture {
                                             guard playback.duration > 0 else { return }
                                             playback.seek(to: line.time / playback.duration) 
                                         }
                                 }
                             }
-                            .padding(.vertical, UIScreen.main.bounds.height / 3) // Adjust padding
+                            .padding(.vertical, UIScreen.main.bounds.height / 3)
                             .padding(.horizontal, 32)
                         }
-                        // Detect user scroll start (Simultaneous gesture not easy on ScrollView directly in SwiftUI, use DragGesture on overlay or simplified timeout)
+                        .scrollDisabled(false)
                         .simultaneousGesture(
-                            DragGesture()
-                                .onChanged { _ in
-                                    isUserScrolling = true
-                                    userScrollTimeoutTask?.cancel()
-                                }
-                                .onEnded { _ in
-                                    startResumeAutoScrollTimer()
-                                }
+                            DragGesture().onChanged { _ in
+                                isUserScrolling = true
+                                userScrollTimeoutTask?.cancel()
+                            }.onEnded { _ in startResumeAutoScrollTimer() }
                         )
                         .onChange(of: playback.position) { newTime in
                              guard !isUserScrolling else { return }
@@ -405,9 +437,112 @@ struct LyricsView: View {
                         }
                     }
                 }
+                
+                Spacer() // Push controls to bottom
+                
+                // 3. Bottom Player Controls (Replicated)
+                VStack(spacing: 20) {
+                    // Seek Bar
+                    VStack(spacing: 8) {
+                        Slider(
+                            value: Binding(
+                                get: { playback.duration == 0 ? 0 : playback.position / max(playback.duration, 0.1) },
+                                set: { progress in playback.seek(to: progress) }
+                            ),
+                            in: 0...1
+                        )
+                        .tint(.white.opacity(0.6))
+                        
+                        HStack {
+                            Text(TimeFormatting.string(from: playback.position))
+                            Spacer()
+                            Text(TimeFormatting.string(from: playback.duration))
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .monospacedDigit()
+                    }
+                    .padding(.horizontal, 32)
+                    
+                    // Buttons: Prev / Play / Next
+                    HStack(spacing: 60) {
+                        Button(action: playback.previous) {
+                            Image(systemName: "backward.fill")
+                                .font(.system(size: 32))
+                                .foregroundStyle(.white)
+                        }
+                        
+                        Button(action: playback.togglePlayPause) {
+                            Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                                .font(.system(size: 44))
+                                .symbolRenderingMode(.hierarchical) 
+                                .foregroundStyle(.white)
+                        }
+                        
+                        Button(action: playback.next) {
+                            Image(systemName: "forward.fill")
+                                .font(.system(size: 32))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    
+                    // Volume
+                    HStack(spacing: 12) {
+                        Image(systemName: "speaker.fill").font(.caption).foregroundStyle(.white.opacity(0.5))
+                        VolumeView().frame(height: 20).tint(.white)
+                        Image(systemName: "speaker.wave.3.fill").font(.caption).foregroundStyle(.white.opacity(0.5))
+                    }
+                    .padding(.horizontal, 32)
+                    
+                    // Bottom Actions (Lyrics active)
+                    HStack(spacing: 50) {
+                         // Favorites (Bottom one redundant vs top? Apple Music keeps bottom bar clean usually, but standard player has it.)
+                         // Reference image has: Message (Lyrics?), AirPlay, Playlist
+                         // We will keep our standard 4 icons but highlight Lyrics
+                         
+                         Button(action: { /* No-op or dismiss if we want dual functionality */ }) {
+                             Image(systemName: "heart.fill")
+                                 .font(.system(size: 24))
+                                 .foregroundStyle(isCurrentFavorite ? .pink : .white.opacity(0.4))
+                         }
+                         .disabled(true) // We have it at the top 
+
+                         Button(action: { dismiss() }) { // Toggle Lyrics OFF -> Dismiss
+                             Image(systemName: "quote.bubble.fill") // Filled to show active
+                                 .font(.system(size: 24))
+                                 .foregroundStyle(.white) // Active white
+                                 .mask {
+                                     // Optional: Add a "glow" or background capsule if we want to mimic the reference selection state perfectly
+                                     // Reference has a small circle/capsule background?
+                                     // For now, just white color is standard active state.
+                                     Image(systemName: "quote.bubble.fill")
+                                 }
+                                 .background(
+                                     Circle()
+                                         .fill(Color.white.opacity(0.2))
+                                         .frame(width: 44, height: 44)
+                                         .blur(radius: 5)
+                                 )
+                         }
+                         
+                         Button(action: { /* AirPlay */ }) {
+                             Image(systemName: "airplayaudio")
+                                 .font(.system(size: 24))
+                                 .foregroundStyle(.white.opacity(0.6))
+                         }
+                         
+                         Button(action: { /* Queue */ }) {
+                             Image(systemName: "list.bullet")
+                                 .font(.system(size: 24))
+                                 .foregroundStyle(.white.opacity(0.6))
+                         }
+                    }
+                    .padding(.bottom, 20)
+                }
+                .padding(.bottom, 20) // Bottom safe area
             }
-            .frame(width: UIScreen.main.bounds.width)
         }
+        .frame(width: UIScreen.main.bounds.width)
     }
 
     private func isCurrentLine(_ line: LyricLine) -> Bool {
@@ -416,17 +551,14 @@ struct LyricsView: View {
     }
 
     private func currentLine(at position: TimeInterval) -> LyricLine? {
-        // Find the last line that has time <= current position
         return playback.lyrics.last { $0.time <= position }
     }
     
     private func startResumeAutoScrollTimer() {
         userScrollTimeoutTask?.cancel()
         userScrollTimeoutTask = Task {
-            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds delay
-            await MainActor.run {
-                isUserScrolling = false
-            }
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            await MainActor.run { isUserScrolling = false }
         }
     }
 }
