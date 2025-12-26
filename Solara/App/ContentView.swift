@@ -354,8 +354,6 @@ struct ContentView: View {
         // Removed separate Lyrics sheet
     }
 
-    @State private var showLyrics = false
-
     private var isCurrentFavorite: Bool {
         guard let song = playback.currentSong else { return false }
         return playback.favoriteSongs().contains(where: { $0.identity == song.identity })
