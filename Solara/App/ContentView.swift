@@ -312,23 +312,51 @@ struct ContentView: View {
                     .padding(.bottom, 32)
 
                     // Bottom Actions
-                    HStack(spacing: 50) {
+                    HStack(spacing: 40) { // Reduced spacing to fit 4 items comfortably
+                         // 1. Cycle Button (Apple Music Style)
+                         Button(action: {
+                             // Logic: Off -> List -> Single -> Off
+                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                 switch playback.playMode {
+                                 case .off: playback.setPlayMode(.list)
+                                 case .list: playback.setPlayMode(.single)
+                                 case .single: playback.setPlayMode(.off)
+                                 default: playback.setPlayMode(.off)
+                                 }
+                             }
+                         }) {
+                             Image(systemName: playback.playMode == .single ? "repeat.1" : "repeat")
+                                 .font(.system(size: 22))
+                                 .foregroundStyle(playback.playMode == .off ? .white.opacity(0.4) : .white) // Dim if off
+                                 .symbolEffect(.bounce, value: playback.playMode)
+                                 .padding(8)
+                                 .background(
+                                    Group {
+                                        if playback.playMode != .off {
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .fill(Color.white.opacity(0.1))
+                                        }
+                                    }
+                                 )
+                         }
+
+                         // 2. Favorite Button
                          Button(action: { showFavorites.toggle() }) {
                              Image(systemName: "heart.fill")
                                  .font(.system(size: 24))
-                                 .foregroundStyle(showFavorites ? .pink : .white.opacity(0.6))
+                                 .foregroundStyle(showFavorites ? .pink : .white.opacity(0.4)) // Matched opacity style
                                  .symbolEffect(.bounce, value: showFavorites)
                          }
 
+                         // 3. Lyrics Button
                          Button(action: { 
-                             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                             withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
                                  showLyrics.toggle() 
                              }
                          }) {
-                             Image(systemName: "quote.bubble.fill") // Use fill for lyrics
+                             Image(systemName: "quote.bubble.fill")
                                  .font(.system(size: 24))
-                                 .foregroundStyle(showLyrics ? .white : .white.opacity(0.6))
-                                 // Add background bubble if active to match style
+                                 .foregroundStyle(showLyrics ? .white : .white.opacity(0.4))
                                  .background(
                                      Group {
                                          if showLyrics {
@@ -342,12 +370,7 @@ struct ContentView: View {
                                  .symbolEffect(.bounce, value: showLyrics)
                          }
                          
-                         Button(action: { /* AirPlay */ }) {
-                             Image(systemName: "airplayaudio")
-                                 .font(.system(size: 24))
-                                 .foregroundStyle(.white.opacity(0.6))
-                         }
-                         
+                         // 4. Queue Button
                          Button(action: { showQueue.toggle() }) {
                              Image(systemName: "list.bullet")
                                  .font(.system(size: 24))
