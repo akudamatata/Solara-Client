@@ -31,8 +31,8 @@ struct RemoteImageView: View {
             image = nil // Reset when URL changes
             await loadImage() 
         }
-        .animation(.easeInOut, value: image)
-        .clipped()
+        .animation(.easeInOut, value: image != nil)
+        .clipShape(Rectangle())
     }
 
     private func loadImage() async {
