@@ -343,10 +343,12 @@ struct SeekBarView: View {
     @ObservedObject var playback: PlaybackManager
     @State private var isDragging = false
     @State private var dragStarted = false
+    @State private var scrubbedPosition: TimeInterval?
 
     var body: some View {
         let duration = playback.duration
-        let progress = duration > 0 ? min(max(playback.position / duration, 0), 1) : 0
+        let displayedPosition = scrubbedPosition ?? playback.position
+        let progress = duration > 0 ? min(max(displayedPosition / duration, 0), 1) : 0
         let trackHeight: CGFloat = isDragging ? 8 : 4.5
         let hitSlop: CGFloat = 24
         let trackFrameHeight: CGFloat = 14
@@ -378,10 +380,11 @@ struct SeekBarView: View {
                                 }
                                 dragStarted = true
                                 isDragging = true
+                                playback.beginScrubbing()
                             }
                             guard dragStarted else { return }
                             let clampedX = min(max(0, value.location.x), width)
-                            playback.seek(to: clampedX / width)
+                            scrubbedPosition = duration * (clampedX / width)
                         }
                         .onEnded { value in
                             guard dragStarted else {
@@ -391,6 +394,8 @@ struct SeekBarView: View {
                             }
                             let clampedX = min(max(0, value.location.x), width)
                             playback.seek(to: clampedX / width)
+                            playback.endScrubbing()
+                            scrubbedPosition = nil
                             isDragging = false
                             dragStarted = false
                         }
@@ -399,7 +404,7 @@ struct SeekBarView: View {
             .frame(height: trackFrameHeight)
             
             HStack {
-                Text(TimeFormatting.string(from: playback.position))
+                Text(TimeFormatting.string(from: displayedPosition))
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.5))
                     .monospacedDigit()
