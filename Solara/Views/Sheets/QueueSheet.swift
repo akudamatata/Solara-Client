@@ -6,25 +6,30 @@ struct QueueSheet: View {
     private let imageLoader = ImageLoader.shared
 
     var body: some View {
-        ZStack {
-            // Immersive Dynamic Background
-            if let url = playback.artworkURL {
-                RemoteImageView(
-                    url: url,
-                    placeholderImage: playback.artwork,
-                    imageLoader: imageLoader,
-                    contentMode: .fill
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea()
-                .blur(radius: 80)
-                .overlay(Color.black.opacity(0.6))
-            } else {
-                Color(red: 0.05, green: 0.05, blue: 0.06)
+        GeometryReader { proxy in
+            ZStack {
+                let insets = proxy.safeAreaInsets
+                let extendedWidth = proxy.size.width + insets.leading + insets.trailing
+                let extendedHeight = proxy.size.height + insets.top + insets.bottom
+                // Immersive Dynamic Background
+                if let url = playback.artworkURL {
+                    RemoteImageView(
+                        url: url,
+                        placeholderImage: playback.artwork,
+                        imageLoader: imageLoader,
+                        contentMode: .fill
+                    )
+                    .frame(width: extendedWidth, height: extendedHeight)
+                    .offset(x: -insets.leading, y: -insets.top)
+                    .blur(radius: 80)
+                    .overlay(Color.black.opacity(0.6))
                     .ignoresSafeArea()
-            }
+                } else {
+                    Color(red: 0.05, green: 0.05, blue: 0.06)
+                        .ignoresSafeArea()
+                }
 
-            VStack(spacing: 0) {
+                VStack(spacing: 0) {
                 // Premium Header
                 VStack(spacing: 8) {
                     Capsule()
@@ -111,9 +116,10 @@ struct QueueSheet: View {
                 .listStyle(.grouped)
                 .scrollContentBackground(.hidden)
                 .environment(\.colorScheme, .dark)
+                }
+                .frame(width: proxy.size.width, height: proxy.size.height)
             }
-            .frame(maxWidth: .infinity)
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
