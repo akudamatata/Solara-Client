@@ -340,17 +340,51 @@ struct PlayerControlsView: View {
 
 struct SeekBarView: View {
     @ObservedObject var playback: PlaybackManager
+    @State private var isDragging = false
 
     var body: some View {
+        let duration = playback.duration
+        let progress = duration > 0 ? min(max(playback.position / duration, 0), 1) : 0
+        let trackHeight: CGFloat = 3
+        let thumbSize: CGFloat = 8
+
         VStack(spacing: 12) {
-            Slider(
-                value: Binding(
-                    get: { playback.duration == 0 ? 0 : playback.position / max(playback.duration, 0.1) },
-                    set: { progress in playback.seek(to: progress) }
-                ),
-                in: 0...1
-            )
-            .tint(.white.opacity(0.5))
+            GeometryReader { proxy in
+                let width = max(proxy.size.width, 1)
+
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.white.opacity(0.25))
+                        .frame(height: trackHeight)
+
+                    Capsule()
+                        .fill(Color.white.opacity(0.85))
+                        .frame(width: width * progress, height: trackHeight)
+
+                    if isDragging {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: thumbSize, height: thumbSize)
+                            .offset(x: min(max(0, width * progress - thumbSize / 2), width - thumbSize))
+                    }
+                }
+                .frame(height: max(trackHeight, thumbSize))
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            isDragging = true
+                            let clampedX = min(max(0, value.location.x), width)
+                            playback.seek(to: clampedX / width)
+                        }
+                        .onEnded { value in
+                            let clampedX = min(max(0, value.location.x), width)
+                            playback.seek(to: clampedX / width)
+                            isDragging = false
+                        }
+                )
+            }
+            .frame(height: max(trackHeight, thumbSize))
             
             HStack {
                 Text(TimeFormatting.string(from: playback.position))
