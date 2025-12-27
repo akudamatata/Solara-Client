@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import AVKit
+import AVFoundation
 
 struct ContentView: View {
     @EnvironmentObject var playback: PlaybackManager
@@ -341,16 +342,18 @@ struct PlayerControlsView: View {
 struct SeekBarView: View {
     @ObservedObject var playback: PlaybackManager
     @State private var isDragging = false
+    @State private var dragStarted = false
 
     var body: some View {
         let duration = playback.duration
         let progress = duration > 0 ? min(max(playback.position / duration, 0), 1) : 0
-        let trackHeight: CGFloat = 3
-        let thumbSize: CGFloat = 8
+        let trackHeight: CGFloat = isDragging ? 7 : 3
+        let hitSlop: CGFloat = 24
 
         VStack(spacing: 12) {
             GeometryReader { proxy in
                 let width = max(proxy.size.width, 1)
+                let currentX = width * progress
 
                 ZStack(alignment: .leading) {
                     Capsule()
@@ -360,31 +363,38 @@ struct SeekBarView: View {
                     Capsule()
                         .fill(Color.white.opacity(0.85))
                         .frame(width: width * progress, height: trackHeight)
-
-                    if isDragging {
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: thumbSize, height: thumbSize)
-                            .offset(x: min(max(0, width * progress - thumbSize / 2), width - thumbSize))
-                    }
                 }
-                .frame(height: max(trackHeight, thumbSize))
+                .animation(.spring(response: 0.22, dampingFraction: 0.8), value: isDragging)
+                .frame(height: trackHeight)
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
-                            isDragging = true
+                            if !dragStarted {
+                                guard abs(value.location.x - currentX) <= hitSlop else {
+                                    return
+                                }
+                                dragStarted = true
+                                isDragging = true
+                            }
+                            guard dragStarted else { return }
                             let clampedX = min(max(0, value.location.x), width)
                             playback.seek(to: clampedX / width)
                         }
                         .onEnded { value in
+                            guard dragStarted else {
+                                dragStarted = false
+                                isDragging = false
+                                return
+                            }
                             let clampedX = min(max(0, value.location.x), width)
                             playback.seek(to: clampedX / width)
                             isDragging = false
+                            dragStarted = false
                         }
                 )
             }
-            .frame(height: max(trackHeight, thumbSize))
+            .frame(height: trackHeight)
             
             HStack {
                 Text(TimeFormatting.string(from: playback.position))
@@ -459,20 +469,30 @@ struct TransportControlsView: View {
 }
 
 struct VolumeControlView: View {
+    @State private var isVolumePressed = false
+    @State private var volume: Float = AVAudioSession.sharedInstance().outputVolume
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "speaker.fill")
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.5))
+                .scaleEffect(isVolumePressed ? 1.2 : 1.0)
             
-            VolumeView()
+            VolumeSliderView(value: $volume, isPressed: $isVolumePressed)
                 .frame(height: 20)
-                .tint(Color.white)
                 
             Image(systemName: "speaker.wave.3.fill")
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.5))
+                .scaleEffect(isVolumePressed ? 1.2 : 1.0)
         }
+        .animation(.spring(response: 0.22, dampingFraction: 0.75), value: isVolumePressed)
+        .background(
+            VolumeView(volume: $volume)
+                .frame(width: 1, height: 1)
+                .opacity(0.01)
+        )
         .padding(.horizontal, 32)
         .padding(.bottom, 32)
     }
@@ -538,24 +558,120 @@ struct BottomActionsView: View {
 import MediaPlayer
 
 struct VolumeView: UIViewRepresentable {
+    @Binding var volume: Float
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(volume: $volume)
+    }
+
     func makeUIView(context: Context) -> MPVolumeView {
         let volumeView = MPVolumeView(frame: .zero)
         volumeView.showsVolumeSlider = true
-        // showsRouteButton is deprecated and we have a custom button, it's usually hidden by default if we restrict frame or use overlay
-        // volumeView.showsRouteButton = false // Deprecated
-        
-        // Customize thumb
-        let config = UIImage.SymbolConfiguration(pointSize: 12, weight: .bold)
-        let thumb = UIImage(systemName: "circle.fill", withConfiguration: config)?.withTintColor(.white, renderingMode: .alwaysOriginal)
-        volumeView.setVolumeThumbImage(thumb, for: .normal)
+        context.coordinator.configure(in: volumeView)
         return volumeView
     }
 
     func updateUIView(_ uiView: MPVolumeView, context: Context) {
-        // Traverse subviews for styling if needed
-        if let slider = uiView.subviews.first(where: { $0 is UISlider }) as? UISlider {
-            slider.minimumTrackTintColor = .white
-            slider.maximumTrackTintColor = UIColor.white.withAlphaComponent(0.2)
+        context.coordinator.configure(in: uiView)
+        context.coordinator.updateVolume(volume)
+    }
+}
+
+extension VolumeView {
+    final class Coordinator: NSObject {
+        @Binding private var volume: Float
+        private weak var slider: UISlider?
+        private var volumeObservation: NSKeyValueObservation?
+
+        init(volume: Binding<Float>) {
+            _volume = volume
+        }
+
+        func configure(in volumeView: MPVolumeView) {
+            guard let slider = volumeView.subviews.first(where: { $0 is UISlider }) as? UISlider else {
+                return
+            }
+
+            if self.slider !== slider {
+                self.slider = slider
+                slider.isUserInteractionEnabled = false
+                slider.isContinuous = true
+                volumeObservation = AVAudioSession.sharedInstance().observe(\.outputVolume, options: [.new]) { [weak self] session, _ in
+                    guard let self else { return }
+                    let newValue = session.outputVolume
+                    if abs(self.volume - newValue) > 0.001 {
+                        DispatchQueue.main.async {
+                            self.volume = newValue
+                        }
+                    }
+                }
+            }
+        }
+
+        func updateVolume(_ volume: Float) {
+            guard let slider else { return }
+            if abs(slider.value - volume) > 0.001 {
+                slider.value = volume
+                slider.sendActions(for: .valueChanged)
+            }
+        }
+    }
+}
+
+struct VolumeSliderView: View {
+    @Binding var value: Float
+    @Binding var isPressed: Bool
+    @State private var dragStarted = false
+    private let normalTrackHeight: CGFloat = 3
+    private let pressedTrackHeight: CGFloat = 7
+    private let hitSlop: CGFloat = 24
+    private let feedbackGenerator = UIImpactFeedbackGenerator(style: .soft)
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = max(proxy.size.width, 1)
+            let progress = CGFloat(value)
+            let currentX = width * progress
+            let trackHeight = isPressed ? pressedTrackHeight : normalTrackHeight
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.white.opacity(0.25))
+                    .frame(height: trackHeight)
+
+                Capsule()
+                    .fill(Color.white.opacity(0.85))
+                    .frame(width: width * progress, height: trackHeight)
+            }
+            .animation(.spring(response: 0.22, dampingFraction: 0.8), value: isPressed)
+            .frame(height: trackHeight)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        if !dragStarted {
+                            guard abs(gesture.location.x - currentX) <= hitSlop else {
+                                return
+                            }
+                            dragStarted = true
+                            isPressed = true
+                            feedbackGenerator.prepare()
+                            feedbackGenerator.impactOccurred()
+                        }
+                        guard dragStarted else { return }
+                        let clampedX = min(max(0, gesture.location.x), width)
+                        value = Float(clampedX / width)
+                    }
+                    .onEnded { gesture in
+                        defer {
+                            dragStarted = false
+                            isPressed = false
+                        }
+                        guard dragStarted else { return }
+                        let clampedX = min(max(0, gesture.location.x), width)
+                        value = Float(clampedX / width)
+                    }
+            )
         }
     }
 }
