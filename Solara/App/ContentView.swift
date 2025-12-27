@@ -389,8 +389,7 @@ struct SeekBarView: View {
                             scrubbedPosition = duration * newProgress
                         }
                         .onEnded { value in
-                            guard dragStarted else {
-                                dragStarted = false
+                            guard let dragStartProgress, let dragStartX else {
                                 isDragging = false
                                 return
                             }

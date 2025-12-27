@@ -34,6 +34,7 @@ final class PlaybackManager: ObservableObject {
     private var timeObserver: Any?
     private var remoteCommandCenter: MPRemoteCommandCenter { .shared() }
     private let persistenceURL: URL
+    private var wasPlayingBeforeScrub = false
 
     init(apiClient: APIClient, imageLoader: ImageLoader = .shared) {
         self.apiClient = apiClient
