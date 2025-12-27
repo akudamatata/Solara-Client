@@ -633,6 +633,8 @@ struct VolumeSliderView: View {
     @Binding var value: Float
     @Binding var isPressed: Bool
     @State private var dragStarted = false
+    @State private var dragStartVolume: Float = 0
+    @State private var dragStartX: CGFloat = 0
     private let normalTrackHeight: CGFloat = 4.5
     private let pressedTrackHeight: CGFloat = 8
     private let trackFrameHeight: CGFloat = 14
@@ -668,12 +670,15 @@ struct VolumeSliderView: View {
                             }
                             dragStarted = true
                             isPressed = true
+                            dragStartVolume = value
+                            dragStartX = gesture.startLocation.x
                             feedbackGenerator.prepare()
                             feedbackGenerator.impactOccurred()
                         }
                         guard dragStarted else { return }
-                        let clampedX = min(max(0, gesture.location.x), width)
-                        value = Float(clampedX / width)
+                        let deltaX = gesture.location.x - dragStartX
+                        let nextValue = dragStartVolume + Float(deltaX / width)
+                        value = min(max(nextValue, 0), 1)
                     }
                     .onEnded { gesture in
                         defer {
@@ -681,8 +686,9 @@ struct VolumeSliderView: View {
                             isPressed = false
                         }
                         guard dragStarted else { return }
-                        let clampedX = min(max(0, gesture.location.x), width)
-                        value = Float(clampedX / width)
+                        let deltaX = gesture.location.x - dragStartX
+                        let nextValue = dragStartVolume + Float(deltaX / width)
+                        value = min(max(nextValue, 0), 1)
                     }
             )
         }
