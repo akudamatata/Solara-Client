@@ -149,7 +149,7 @@ struct FavoritesSheet: View {
                 }
             }
         }
-        .frame(maxWidth: UIScreen.main.bounds.width, maxHeight: .infinity) // Prevent horizontal overflow
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             Group {
                 // Dynamic Background
@@ -160,6 +160,7 @@ struct FavoritesSheet: View {
                         imageLoader: imageLoader,
                         contentMode: .fill
                     )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .blur(radius: 60)
                     .overlay(Color.black.opacity(0.5))
                 } else {
