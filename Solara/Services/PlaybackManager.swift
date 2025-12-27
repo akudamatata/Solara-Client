@@ -227,19 +227,11 @@ final class PlaybackManager: ObservableObject {
         guard !isScrubbing else { return }
         wasPlayingBeforeScrub = isPlaying
         isScrubbing = true
-        if isPlaying {
-            pause()
-        }
     }
 
     func endScrubbing() {
         guard isScrubbing else { return }
         isScrubbing = false
-        if wasPlayingBeforeScrub {
-            player.play()
-            isPlaying = true
-            updateNowPlayingInfo()
-        }
         wasPlayingBeforeScrub = false
     }
 
