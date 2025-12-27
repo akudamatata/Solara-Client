@@ -389,12 +389,10 @@ struct SeekBarView: View {
                             scrubbedPosition = duration * newProgress
                         }
                         .onEnded { value in
-                            guard let dragStartProgress, let dragStartX else {
+                            guard let startProgress = dragStartProgress, let startX = dragStartX else {
                                 isDragging = false
                                 return
                             }
-                            let startProgress = dragStartProgress ?? 0
-                            let startX = dragStartX ?? value.startLocation.x
                             let delta = value.location.x - startX
                             let newProgress = min(max(startProgress + Double(delta / width), 0), 1)
                             playback.seek(to: newProgress)
