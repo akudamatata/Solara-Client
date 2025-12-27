@@ -347,8 +347,9 @@ struct SeekBarView: View {
     var body: some View {
         let duration = playback.duration
         let progress = duration > 0 ? min(max(playback.position / duration, 0), 1) : 0
-        let trackHeight: CGFloat = isDragging ? 7 : 3
+        let trackHeight: CGFloat = isDragging ? 8 : 4.5
         let hitSlop: CGFloat = 24
+        let trackFrameHeight: CGFloat = 14
 
         VStack(spacing: 12) {
             GeometryReader { proxy in
@@ -364,8 +365,9 @@ struct SeekBarView: View {
                         .fill(Color.white.opacity(0.85))
                         .frame(width: width * progress, height: trackHeight)
                 }
+                .animation(.none, value: progress)
                 .animation(.spring(response: 0.22, dampingFraction: 0.8), value: isDragging)
-                .frame(height: trackHeight)
+                .frame(height: trackFrameHeight)
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
@@ -394,7 +396,7 @@ struct SeekBarView: View {
                         }
                 )
             }
-            .frame(height: trackHeight)
+            .frame(height: trackFrameHeight)
             
             HStack {
                 Text(TimeFormatting.string(from: playback.position))
@@ -622,8 +624,9 @@ struct VolumeSliderView: View {
     @Binding var value: Float
     @Binding var isPressed: Bool
     @State private var dragStarted = false
-    private let normalTrackHeight: CGFloat = 3
-    private let pressedTrackHeight: CGFloat = 7
+    private let normalTrackHeight: CGFloat = 4.5
+    private let pressedTrackHeight: CGFloat = 8
+    private let trackFrameHeight: CGFloat = 14
     private let hitSlop: CGFloat = 24
     private let feedbackGenerator = UIImpactFeedbackGenerator(style: .soft)
 
@@ -643,8 +646,9 @@ struct VolumeSliderView: View {
                     .fill(Color.white.opacity(0.85))
                     .frame(width: width * progress, height: trackHeight)
             }
+            .animation(.none, value: value)
             .animation(.spring(response: 0.22, dampingFraction: 0.8), value: isPressed)
-            .frame(height: trackHeight)
+            .frame(height: trackFrameHeight)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
@@ -673,6 +677,7 @@ struct VolumeSliderView: View {
                     }
             )
         }
+        .frame(height: trackFrameHeight)
     }
 }
 
