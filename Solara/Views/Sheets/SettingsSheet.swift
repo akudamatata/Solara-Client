@@ -11,23 +11,26 @@ struct SettingsSheet: View {
     ]
     
     var body: some View {
-        ZStack {
-            // Background
-            if let url = playback.artworkURL {
-                RemoteImageView(
-                    url: url,
-                    placeholderImage: playback.artwork,
-                    imageLoader: ImageLoader.shared,
-                    contentMode: .fill
-                )
-                .ignoresSafeArea()
-                .blur(radius: 80)
-                .overlay(Color.black.opacity(0.7))
-            } else {
-                Color(red: 0.05, green: 0.05, blue: 0.06).ignoresSafeArea()
-            }
-            
-            VStack(spacing: 0) {
+        GeometryReader { proxy in
+            ZStack {
+                // Background
+                if let url = playback.artworkURL {
+                    RemoteImageView(
+                        url: url,
+                        placeholderImage: playback.artwork,
+                        imageLoader: ImageLoader.shared,
+                        contentMode: .fill
+                    )
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .ignoresSafeArea()
+                    .clipped()
+                    .blur(radius: 80)
+                    .overlay(Color.black.opacity(0.7))
+                } else {
+                    Color(red: 0.05, green: 0.05, blue: 0.06).ignoresSafeArea()
+                }
+                
+                VStack(spacing: 0) {
                 // Header
                 HStack {
                     Text("系统设置")
@@ -102,7 +105,10 @@ struct SettingsSheet: View {
                     }
                     .padding(.horizontal, 20)
                 }
+                }
+                .frame(width: proxy.size.width, height: proxy.size.height)
             }
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .onDisappear {
             saveSettings()

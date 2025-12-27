@@ -15,43 +15,49 @@ struct ContentView: View {
     @State private var showSettings = false
 
     var body: some View {
-        ZStack {
-            // Background
-            PlayerBackgroundView(playback: playback, imageLoader: imageLoader)
+        GeometryReader { proxy in
+            ZStack {
+                // Background
+                PlayerBackgroundView(playback: playback, imageLoader: imageLoader)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
 
-            VStack(spacing: 0) {
-                if showLyrics {
-                    // MARK: - LYRICS MODE
-                    LyricsModeView(
-                        showLyrics: $showLyrics,
-                        animation: animation,
-                        imageLoader: imageLoader
+                VStack(spacing: 0) {
+                    if showLyrics {
+                        // MARK: - LYRICS MODE
+                        LyricsModeView(
+                            showLyrics: $showLyrics,
+                            animation: animation,
+                            imageLoader: imageLoader,
+                            availableSize: proxy.size
+                        )
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .zIndex(1)
+                        .environmentObject(playback)
+                    } else {
+                        // MARK: - STANDARD MODE
+                        StandardPlayerView(
+                            showSearch: $showSearch,
+                            showSettings: $showSettings,
+                            animation: animation,
+                            imageLoader: imageLoader,
+                            availableWidth: proxy.size.width
+                        )
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .zIndex(0)
+                        .environmentObject(playback)
+                    }
+
+                    // MARK: - SHARED CONTROLS
+                    PlayerControlsView(
+                        showQueue: $showQueue,
+                        showFavorites: $showFavorites,
+                        showLyrics: $showLyrics
                     )
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .zIndex(1)
-                    .environmentObject(playback)
-                } else {
-                    // MARK: - STANDARD MODE
-                    StandardPlayerView(
-                        showSearch: $showSearch,
-                        showSettings: $showSettings,
-                        animation: animation,
-                        imageLoader: imageLoader
-                    )
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .zIndex(0)
                     .environmentObject(playback)
                 }
-
-                // MARK: - SHARED CONTROLS
-                PlayerControlsView(
-                    showQueue: $showQueue,
-                    showFavorites: $showFavorites,
-                    showLyrics: $showLyrics
-                )
-                .environmentObject(playback)
+                .frame(width: proxy.size.width, height: proxy.size.height)
             }
-            .frame(width: UIScreen.main.bounds.width)
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .sheet(isPresented: $showFavorites) {
             FavoritesSheet().environmentObject(playback)
@@ -63,8 +69,8 @@ struct ContentView: View {
             SearchSheet(viewModel: searchViewModel) { songs in
                 playback.enqueue(songs)
             } onPlayNow: { songs in
-                playback.enqueue(songs) 
-                playback.play(song: songs[0]) 
+                playback.enqueue(songs)
+                playback.play(song: songs[0])
             }
             .environmentObject(playback)
         }
@@ -88,7 +94,9 @@ struct PlayerBackgroundView: View {
                 imageLoader: imageLoader,
                 contentMode: .fill
             )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ignoresSafeArea()
+            .clipped()
             .blur(radius: 60)
             .overlay(Color.black.opacity(0.5))
         } else {
@@ -103,6 +111,7 @@ struct LyricsModeView: View {
     @Binding var showLyrics: Bool
     var animation: Namespace.ID
     let imageLoader: ImageLoader
+    let availableSize: CGSize
     
     // Derived property for favorite status to keep view simple
     private var isCurrentFavorite: Bool {
@@ -179,8 +188,10 @@ struct LyricsModeView: View {
             }
             
             // 2. Lyrics List
-            LyricsScrollView().environmentObject(playback)
+            LyricsScrollView(availableHeight: availableSize.height)
+                .environmentObject(playback)
         }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -190,6 +201,7 @@ struct StandardPlayerView: View {
     @Binding var showSettings: Bool // Pass binding to trigger from subviews if needed, though gesture is localized
     var animation: Namespace.ID
     let imageLoader: ImageLoader
+    let availableWidth: CGFloat
     
     private var isCurrentFavorite: Bool {
         guard let song = playback.currentSong else { return false }
@@ -245,7 +257,7 @@ struct StandardPlayerView: View {
             Spacer()
             
             // Large Artwork
-            let artworkSize = UIScreen.main.bounds.width - 48
+            let artworkSize = availableWidth - 48
             RemoteImageView(
                 url: playback.artworkURL,
                 placeholderImage: playback.artwork,
@@ -513,6 +525,7 @@ struct LyricsScrollView: View {
     @EnvironmentObject var playback: PlaybackManager
     @State private var isUserScrolling = false
     @State private var userScrollTimeoutTask: Task<Void, Never>?
+    let availableHeight: CGFloat
 
     var body: some View {
         if playback.lyrics.isEmpty {
@@ -539,7 +552,7 @@ struct LyricsScrollView: View {
                                 }
                         }
                     }
-                    .padding(.vertical, UIScreen.main.bounds.height / 3)
+                    .padding(.vertical, availableHeight / 3)
                     .padding(.horizontal, 32)
                 }
                 .scrollDisabled(false)
