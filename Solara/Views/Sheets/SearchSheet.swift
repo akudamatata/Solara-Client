@@ -19,6 +19,7 @@ struct SearchSheet: View {
                     imageLoader: imageLoader,
                     contentMode: .fill
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
                 .blur(radius: 80)
                 .overlay(Color.black.opacity(0.6))
@@ -251,8 +252,9 @@ struct SearchSheet: View {
                     .transition(.move(edge: .bottom))
                 }
             }
-            .frame(maxWidth: UIScreen.main.bounds.width) // Prevent horizontal overflow
+            .frame(maxWidth: .infinity)
             .animation(.spring(response: 0.3), value: viewModel.isSelectionMode)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

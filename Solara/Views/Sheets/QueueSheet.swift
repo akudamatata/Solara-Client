@@ -15,6 +15,7 @@ struct QueueSheet: View {
                     imageLoader: imageLoader,
                     contentMode: .fill
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
                 .blur(radius: 80)
                 .overlay(Color.black.opacity(0.6))
@@ -111,7 +112,8 @@ struct QueueSheet: View {
                 .scrollContentBackground(.hidden)
                 .environment(\.colorScheme, .dark)
             }
-            .frame(maxWidth: UIScreen.main.bounds.width) // Prevent overflow
+            .frame(maxWidth: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
