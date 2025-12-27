@@ -459,20 +459,25 @@ struct TransportControlsView: View {
 }
 
 struct VolumeControlView: View {
+    @State private var isVolumePressed = false
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "speaker.fill")
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.5))
+                .scaleEffect(isVolumePressed ? 1.2 : 1.0)
             
-            VolumeView()
+            VolumeView(isPressed: $isVolumePressed)
                 .frame(height: 20)
                 .tint(Color.white)
                 
             Image(systemName: "speaker.wave.3.fill")
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.5))
+                .scaleEffect(isVolumePressed ? 1.2 : 1.0)
         }
+        .animation(.spring(response: 0.22, dampingFraction: 0.75), value: isVolumePressed)
         .padding(.horizontal, 32)
         .padding(.bottom, 32)
     }
@@ -538,24 +543,104 @@ struct BottomActionsView: View {
 import MediaPlayer
 
 struct VolumeView: UIViewRepresentable {
+    @Binding var isPressed: Bool
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isPressed: $isPressed)
+    }
+
     func makeUIView(context: Context) -> MPVolumeView {
         let volumeView = MPVolumeView(frame: .zero)
         volumeView.showsVolumeSlider = true
         // showsRouteButton is deprecated and we have a custom button, it's usually hidden by default if we restrict frame or use overlay
         // volumeView.showsRouteButton = false // Deprecated
         
-        // Customize thumb
-        let config = UIImage.SymbolConfiguration(pointSize: 12, weight: .bold)
-        let thumb = UIImage(systemName: "circle.fill", withConfiguration: config)?.withTintColor(.white, renderingMode: .alwaysOriginal)
-        volumeView.setVolumeThumbImage(thumb, for: .normal)
+        context.coordinator.configure(in: volumeView)
         return volumeView
     }
 
     func updateUIView(_ uiView: MPVolumeView, context: Context) {
-        // Traverse subviews for styling if needed
-        if let slider = uiView.subviews.first(where: { $0 is UISlider }) as? UISlider {
+        context.coordinator.configure(in: uiView)
+    }
+}
+
+extension VolumeView {
+    final class Coordinator: NSObject {
+        @Binding private var isPressed: Bool
+        private weak var slider: UISlider?
+        private let normalTrackHeight: CGFloat = 3
+        private let pressedTrackHeight: CGFloat = 7
+        private let normalThumbSize: CGFloat = 12
+        private let pressedThumbSize: CGFloat = 16
+        private let trackCornerRadius: CGFloat = 3.5
+        private let feedbackGenerator = UIImpactFeedbackGenerator(style: .soft)
+
+        init(isPressed: Binding<Bool>) {
+            _isPressed = isPressed
+        }
+
+        func configure(in volumeView: MPVolumeView) {
+            guard let slider = volumeView.subviews.first(where: { $0 is UISlider }) as? UISlider else {
+                return
+            }
+
+            if self.slider !== slider {
+                self.slider = slider
+                slider.addTarget(self, action: #selector(touchDown), for: [.touchDown])
+                slider.addTarget(self, action: #selector(touchEnded), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+                slider.isContinuous = true
+            }
+
             slider.minimumTrackTintColor = .white
             slider.maximumTrackTintColor = UIColor.white.withAlphaComponent(0.2)
+
+            applyTrackImages(isPressed: isPressed, to: slider)
+            applyThumbImage(isPressed: isPressed, to: slider)
+        }
+
+        @objc private func touchDown() {
+            guard let slider else { return }
+            feedbackGenerator.prepare()
+            feedbackGenerator.impactOccurred()
+            isPressed = true
+            applyTrackImages(isPressed: true, to: slider)
+            applyThumbImage(isPressed: true, to: slider)
+        }
+
+        @objc private func touchEnded() {
+            guard let slider else { return }
+            isPressed = false
+            applyTrackImages(isPressed: false, to: slider)
+            applyThumbImage(isPressed: false, to: slider)
+        }
+
+        private func applyTrackImages(isPressed: Bool, to slider: UISlider) {
+            let height = isPressed ? pressedTrackHeight : normalTrackHeight
+            let minColor = slider.minimumTrackTintColor ?? .white
+            let maxColor = slider.maximumTrackTintColor ?? UIColor.white.withAlphaComponent(0.2)
+            slider.setMinimumTrackImage(trackImage(color: minColor, height: height), for: .normal)
+            slider.setMaximumTrackImage(trackImage(color: maxColor, height: height), for: .normal)
+        }
+
+        private func applyThumbImage(isPressed: Bool, to slider: UISlider) {
+            let size = isPressed ? pressedThumbSize : normalThumbSize
+            let config = UIImage.SymbolConfiguration(pointSize: size, weight: .bold)
+            let thumb = UIImage(systemName: "circle.fill", withConfiguration: config)?
+                .withTintColor(.white, renderingMode: .alwaysOriginal)
+            slider.setThumbImage(thumb, for: .normal)
+        }
+
+        private func trackImage(color: UIColor, height: CGFloat) -> UIImage {
+            let size = CGSize(width: 1, height: height)
+            let renderer = UIGraphicsImageRenderer(size: size)
+            let image = renderer.image { context in
+                color.setFill()
+                let rect = CGRect(origin: .zero, size: size)
+                let path = UIBezierPath(roundedRect: rect, cornerRadius: min(trackCornerRadius, height / 2))
+                context.cgContext.addPath(path.cgPath)
+                context.cgContext.fillPath()
+            }
+            return image.resizableImage(withCapInsets: .zero, resizingMode: .stretch)
         }
     }
 }
