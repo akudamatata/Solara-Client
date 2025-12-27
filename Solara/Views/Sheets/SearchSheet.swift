@@ -12,6 +12,9 @@ struct SearchSheet: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack {
+                let insets = proxy.safeAreaInsets
+                let extendedWidth = proxy.size.width + insets.leading + insets.trailing
+                let extendedHeight = proxy.size.height + insets.top + insets.bottom
                 // Dynamic Background (Synchronized with Main Interface)
                 if let url = playback.artworkURL {
                     RemoteImageView(
@@ -20,7 +23,8 @@ struct SearchSheet: View {
                         imageLoader: imageLoader,
                         contentMode: .fill
                     )
-                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .frame(width: extendedWidth, height: extendedHeight)
+                    .offset(x: -insets.leading, y: -insets.top)
                     .blur(radius: 80)
                     .overlay(Color.black.opacity(0.6))
                     .ignoresSafeArea()
