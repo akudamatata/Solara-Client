@@ -342,7 +342,8 @@ struct PlayerControlsView: View {
 struct SeekBarView: View {
     @ObservedObject var playback: PlaybackManager
     @State private var isDragging = false
-    @State private var dragStarted = false
+    @State private var dragStartProgress: Double?
+    @State private var dragStartX: CGFloat?
     @State private var scrubbedPosition: TimeInterval?
 
     var body: some View {
@@ -374,30 +375,33 @@ struct SeekBarView: View {
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
-                            if !dragStarted {
+                            if dragStartProgress == nil {
                                 guard abs(value.location.x - currentX) <= hitSlop else {
                                     return
                                 }
-                                dragStarted = true
+                                dragStartProgress = duration > 0 ? (displayedPosition / duration) : 0
+                                dragStartX = value.startLocation.x
                                 isDragging = true
                                 playback.beginScrubbing()
                             }
-                            guard dragStarted else { return }
-                            let clampedX = min(max(0, value.location.x), width)
-                            scrubbedPosition = duration * (clampedX / width)
+                            guard let dragStartProgress, let dragStartX else { return }
+                            let deltaX = value.location.x - dragStartX
+                            let newProgress = min(max(dragStartProgress + (deltaX / width), 0), 1)
+                            scrubbedPosition = duration * newProgress
                         }
                         .onEnded { value in
-                            guard dragStarted else {
-                                dragStarted = false
+                            guard let dragStartProgress, let dragStartX else {
                                 isDragging = false
                                 return
                             }
-                            let clampedX = min(max(0, value.location.x), width)
-                            playback.seek(to: clampedX / width)
+                            let deltaX = value.location.x - dragStartX
+                            let newProgress = min(max(dragStartProgress + (deltaX / width), 0), 1)
+                            playback.seek(to: newProgress)
                             playback.endScrubbing()
+                            dragStartProgress = nil
+                            dragStartX = nil
                             scrubbedPosition = nil
                             isDragging = false
-                            dragStarted = false
                         }
                 )
             }
