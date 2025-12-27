@@ -10,27 +10,28 @@ struct SearchSheet: View {
     let onPlayNow: ([Song]) -> Void
 
     var body: some View {
-        ZStack {
-            // Dynamic Background (Synchronized with Main Interface)
-            if let url = playback.artworkURL {
-                RemoteImageView(
-                    url: url,
-                    placeholderImage: playback.artwork,
-                    imageLoader: imageLoader,
-                    contentMode: .fill
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea()
-                .blur(radius: 80)
-                .overlay(Color.black.opacity(0.6))
-            } else {
-                Color(red: 0.05, green: 0.05, blue: 0.06)
+        GeometryReader { proxy in
+            ZStack {
+                // Dynamic Background (Synchronized with Main Interface)
+                if let url = playback.artworkURL {
+                    RemoteImageView(
+                        url: url,
+                        placeholderImage: playback.artwork,
+                        imageLoader: imageLoader,
+                        contentMode: .fill
+                    )
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .blur(radius: 80)
+                    .overlay(Color.black.opacity(0.6))
                     .ignoresSafeArea()
-            }
+                } else {
+                    Color(red: 0.05, green: 0.05, blue: 0.06)
+                        .ignoresSafeArea()
+                }
 
-            VStack(spacing: 0) {
-                // Premium Floating Search Bar
-                VStack(spacing: 16) {
+                VStack(spacing: 0) {
+                    // Premium Floating Search Bar
+                    VStack(spacing: 16) {
                     HStack {
                         Text("搜索")
                             .font(.system(size: 34, weight: .bold))
@@ -121,140 +122,133 @@ struct SearchSheet: View {
                         .padding(.horizontal, 24)
                     }
                     .padding(.bottom, 16)
-                }
-                .background(
-                    LinearGradient(
-                        colors: [Color.black.opacity(0.6), Color.black.opacity(0.0)],
-                        startPoint: .top,
-                        endPoint: .bottom
+                    }
+                    .background(
+                        LinearGradient(
+                            colors: [Color.black.opacity(0.6), Color.black.opacity(0.0)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     )
-                )
 
-                // Results List
-                // Results List
-                List {
-                    if viewModel.isSearching {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                                .tint(.white)
-                            Spacer()
-                        }
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .padding(.top, 40)
-                    } else if let error = viewModel.lastError {
-                        ContentUnavailableView(error, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.white.opacity(0.6))
+                    // Results List
+                    List {
+                        if viewModel.isSearching {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                    .tint(.white)
+                                Spacer()
+                            }
                             .listRowBackground(Color.clear)
-                    } else if viewModel.results.isEmpty && !viewModel.keyword.isEmpty {
-                         VStack(spacing: 20) {
-                            Image(systemName: "music.note.list")
-                                .font(.system(size: 60))
-                                .foregroundStyle(.white.opacity(0.2))
-                            Text("未找到相关歌曲")
-                                .font(.title3.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.4))
-                         }
-                         .frame(maxWidth: .infinity)
-                         .padding(.top, 100)
-                         .listRowBackground(Color.clear)
-                         .listRowSeparator(.hidden)
-                    } else {
-                        ForEach(viewModel.results) { song in
-                            HStack(spacing: 16) {
-                                if viewModel.isSelectionMode {
-                                    Image(systemName: viewModel.selectedSongs.contains(song.identity) ? "checkmark.circle.fill" : "circle")
-                                        .font(.title2)
-                                        .foregroundStyle(viewModel.selectedSongs.contains(song.identity) ? .pink : .white.opacity(0.3))
-                                        .onTapGesture {
+                            .listRowSeparator(.hidden)
+                            .padding(.top, 40)
+                        } else if let error = viewModel.lastError {
+                            ContentUnavailableView(error, systemImage: "exclamationmark.triangle")
+                                .foregroundStyle(.white.opacity(0.6))
+                                .listRowBackground(Color.clear)
+                        } else if viewModel.results.isEmpty && !viewModel.keyword.isEmpty {
+                            VStack(spacing: 20) {
+                                Image(systemName: "music.note.list")
+                                    .font(.system(size: 60))
+                                    .foregroundStyle(.white.opacity(0.2))
+                                Text("未找到相关歌曲")
+                                    .font(.title3.weight(.semibold))
+                                    .foregroundStyle(.white.opacity(0.4))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 100)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                        } else {
+                            ForEach(viewModel.results) { song in
+                                HStack(spacing: 16) {
+                                    if viewModel.isSelectionMode {
+                                        Image(systemName: viewModel.selectedSongs.contains(song.identity) ? "checkmark.circle.fill" : "circle")
+                                            .font(.title2)
+                                            .foregroundStyle(viewModel.selectedSongs.contains(song.identity) ? .pink : .white.opacity(0.3))
+                                            .onTapGesture {
+                                                withAnimation(.spring(response: 0.2)) {
+                                                    viewModel.toggleSelection(song)
+                                                }
+                                            }
+                                    }
+                                    
+                                    SongRow(song: song, isCurrent: playback.currentSong?.identity == song.identity, showCover: false) {
+                                        // Row play action
+                                        if viewModel.isSelectionMode {
                                             withAnimation(.spring(response: 0.2)) {
                                                 viewModel.toggleSelection(song)
                                             }
+                                        } else {
+                                            onPlayNow([song])
+                                            dismiss()
                                         }
+                                    }
                                 }
-                                
-                                SongRow(song: song, isCurrent: playback.currentSong?.identity == song.identity, showCover: false) {
-                                    // Row play action
-                                    if viewModel.isSelectionMode {
-                                        withAnimation(.spring(response: 0.2)) {
-                                            viewModel.toggleSelection(song)
-                                        }
-                                    } else {
-                                        onPlayNow([song])
-                                        dismiss()
+                                .listRowBackground(Color.clear)
+                                .listRowSeparatorTint(.white.opacity(0.1))
+                                .listRowInsets(EdgeInsets(top: 4, leading: 24, bottom: 4, trailing: 24))
+                                .onAppear {
+                                    if song.identity == viewModel.results.last?.identity {
+                                        viewModel.loadMore()
                                     }
                                 }
                             }
-                            .listRowBackground(Color.clear)
-                            .listRowSeparatorTint(.white.opacity(0.1))
-                            .listRowInsets(EdgeInsets(top: 4, leading: 24, bottom: 4, trailing: 24))
-                            .onAppear {
-                                if song.identity == viewModel.results.last?.identity {
-                                    viewModel.loadMore()
-                                }
-                            }
                         }
                     }
-                }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .environment(\.colorScheme, .dark)
-                
-                // Batch Actions Bar
-                if viewModel.isSelectionMode && !viewModel.selectedSongs.isEmpty {
-                    HStack(spacing: 20) {
-                        Button {
-                            // Add selected to queue
-                            let selected = viewModel.results.filter { viewModel.selectedSongs.contains($0.identity) }
-                            onAddToQueue(selected)
-                            viewModel.isSelectionMode = false
-                        } label: {
-                            HStack {
-                                Image(systemName: "text.badge.plus")
-                                Text("添加到播放 (\(viewModel.selectedSongs.count))")
-                            }
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.pink)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        
-                        Button {
-                            // Add selected to favorites
-                             let selected = viewModel.results.filter { viewModel.selectedSongs.contains($0.identity) }
-                             // Ideally PlaybackManager handles this, but we don't have a batch favorite method yet.
-                             // We can just iterate or add one to PlaybackManager.
-                             // For now, let's just toggle explicitly or assume PlaybackManager needs an update.
-                             // Wait, playback.toggleFavorite is singular.
-                             // I'll add `playback.addToFavorites(songs)` or just loop here.
-                             // Accessing playback directly.
-                             for song in selected {
-                                 if !playback.favorites.contains(where: { $0.identity == song.identity }) {
-                                     playback.toggleFavorite(song) // This toggles, so be careful.
-                                     // Need strict "Add".
-                                 }
-                             }
-                             viewModel.isSelectionMode = false
-                        } label: {
-                            Image(systemName: "heart.fill")
-                                .font(.title2)
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .environment(\.colorScheme, .dark)
+                    
+                    // Batch Actions Bar
+                    if viewModel.isSelectionMode && !viewModel.selectedSongs.isEmpty {
+                        HStack(spacing: 20) {
+                            Button {
+                                // Add selected to queue
+                                let selected = viewModel.results.filter { viewModel.selectedSongs.contains($0.identity) }
+                                onAddToQueue(selected)
+                                viewModel.isSelectionMode = false
+                            } label: {
+                                HStack {
+                                    Image(systemName: "text.badge.plus")
+                                    Text("添加到播放 (\(viewModel.selectedSongs.count))")
+                                }
+                                .font(.headline)
                                 .foregroundStyle(.white)
                                 .padding()
-                                .background(Color.white.opacity(0.15))
-                                .clipShape(Circle())
+                                .frame(maxWidth: .infinity)
+                                .background(Color.pink)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
+                            
+                            Button {
+                                // Add selected to favorites
+                                let selected = viewModel.results.filter { viewModel.selectedSongs.contains($0.identity) }
+                                for song in selected {
+                                    if !playback.favorites.contains(where: { $0.identity == song.identity }) {
+                                        playback.toggleFavorite(song)
+                                    }
+                                }
+                                viewModel.isSelectionMode = false
+                            } label: {
+                                Image(systemName: "heart.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(.white)
+                                    .padding()
+                                    .background(Color.white.opacity(0.15))
+                                    .clipShape(Circle())
+                            }
                         }
+                        .padding(20)
+                        .background(Color.black.opacity(0.8))
+                        .transition(.move(edge: .bottom))
                     }
-                    .padding(20)
-                    .background(Color.black.opacity(0.8))
-                    .transition(.move(edge: .bottom))
                 }
+                .frame(width: proxy.size.width, height: proxy.size.height)
+                .animation(.spring(response: 0.3), value: viewModel.isSelectionMode)
             }
-            .frame(maxWidth: .infinity)
-            .animation(.spring(response: 0.3), value: viewModel.isSelectionMode)
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
