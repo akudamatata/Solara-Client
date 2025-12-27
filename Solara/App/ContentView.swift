@@ -51,7 +51,7 @@ struct ContentView: View {
                 )
                 .environmentObject(playback)
             }
-            .frame(maxWidth: .infinity)
+            .frame(width: UIScreen.main.bounds.width)
         }
         .sheet(isPresented: $showFavorites) {
             FavoritesSheet().environmentObject(playback)
@@ -245,14 +245,14 @@ struct StandardPlayerView: View {
             Spacer()
             
             // Large Artwork
+            let artworkSize = UIScreen.main.bounds.width - 48
             RemoteImageView(
                 url: playback.artworkURL,
                 placeholderImage: playback.artwork,
                 imageLoader: imageLoader
             )
             .matchedGeometryEffect(id: "artwork", in: animation)
-            .aspectRatio(1, contentMode: .fit)
-            .padding(.horizontal, 24)
+            .frame(width: artworkSize, height: artworkSize)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
             .padding(.bottom, 32)

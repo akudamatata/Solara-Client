@@ -149,7 +149,7 @@ struct FavoritesSheet: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity) // Prevent horizontal overflow
+        .frame(maxWidth: UIScreen.main.bounds.width, maxHeight: .infinity) // Prevent horizontal overflow
         .background(
             Group {
                 // Dynamic Background
