@@ -10,25 +10,26 @@ struct SearchSheet: View {
     let onPlayNow: ([Song]) -> Void
 
     var body: some View {
-        ZStack {
-            // Dynamic Background (Synchronized with Main Interface)
-            if let url = playback.artworkURL {
-                RemoteImageView(
-                    url: url,
-                    placeholderImage: playback.artwork,
-                    imageLoader: imageLoader,
-                    contentMode: .fill
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea()
-                .blur(radius: 80)
-                .overlay(Color.black.opacity(0.6))
-            } else {
-                Color(red: 0.05, green: 0.05, blue: 0.06)
+        GeometryReader { proxy in
+            ZStack {
+                // Dynamic Background (Synchronized with Main Interface)
+                if let url = playback.artworkURL {
+                    RemoteImageView(
+                        url: url,
+                        placeholderImage: playback.artwork,
+                        imageLoader: imageLoader,
+                        contentMode: .fill
+                    )
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .blur(radius: 80)
+                    .overlay(Color.black.opacity(0.6))
                     .ignoresSafeArea()
-            }
+                } else {
+                    Color(red: 0.05, green: 0.05, blue: 0.06)
+                        .ignoresSafeArea()
+                }
 
-            VStack(spacing: 0) {
+                VStack(spacing: 0) {
                 // Premium Floating Search Bar
                 VStack(spacing: 16) {
                     HStack {
@@ -192,10 +193,13 @@ struct SearchSheet: View {
                             .onAppear {
                                 if song.identity == viewModel.results.last?.identity {
                                     viewModel.loadMore()
-                                }
-                            }
-                        }
-                    }
+                }
+                .frame(width: proxy.size.width, height: proxy.size.height)
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+    }
+}
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
