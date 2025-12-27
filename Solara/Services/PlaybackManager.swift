@@ -225,14 +225,12 @@ final class PlaybackManager: ObservableObject {
 
     func beginScrubbing() {
         guard !isScrubbing else { return }
-        wasPlayingBeforeScrub = isPlaying
         isScrubbing = true
     }
 
     func endScrubbing() {
         guard isScrubbing else { return }
         isScrubbing = false
-        wasPlayingBeforeScrub = false
     }
 
     func setQuality(_ value: SongQuality) {

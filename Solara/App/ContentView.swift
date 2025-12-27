@@ -342,22 +342,21 @@ struct PlayerControlsView: View {
 struct SeekBarView: View {
     @ObservedObject var playback: PlaybackManager
     @State private var isDragging = false
+    @State private var dragStarted = false
+    @State private var scrubbedPosition: TimeInterval?
     @State private var dragStartProgress: Double?
     @State private var dragStartX: CGFloat?
-    @State private var scrubbedPosition: TimeInterval?
 
     var body: some View {
         let duration = playback.duration
         let displayedPosition = scrubbedPosition ?? playback.position
         let progress = duration > 0 ? min(max(displayedPosition / duration, 0), 1) : 0
         let trackHeight: CGFloat = isDragging ? 8 : 4.5
-        let hitSlop: CGFloat = 24
         let trackFrameHeight: CGFloat = 14
 
         VStack(spacing: 12) {
             GeometryReader { proxy in
                 let width = max(proxy.size.width, 1)
-                let currentX = width * progress
 
                 ZStack(alignment: .leading) {
                     Capsule()
@@ -375,18 +374,18 @@ struct SeekBarView: View {
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
-                            if dragStartProgress == nil {
-                                guard abs(value.location.x - currentX) <= hitSlop else {
-                                    return
-                                }
-                                dragStartProgress = duration > 0 ? (displayedPosition / duration) : 0
-                                dragStartX = value.startLocation.x
+                            if !dragStarted {
+                                dragStarted = true
                                 isDragging = true
                                 playback.beginScrubbing()
+                                dragStartProgress = duration > 0 ? displayedPosition / duration : 0
+                                dragStartX = value.startLocation.x
                             }
-                            guard let dragStartProgress, let dragStartX else { return }
-                            let deltaX = value.location.x - dragStartX
-                            let newProgress = min(max(dragStartProgress + (deltaX / width), 0), 1)
+                            guard dragStarted else { return }
+                            let startProgress = dragStartProgress ?? 0
+                            let startX = dragStartX ?? value.startLocation.x
+                            let delta = value.location.x - startX
+                            let newProgress = min(max(startProgress + Double(delta / width), 0), 1)
                             scrubbedPosition = duration * newProgress
                         }
                         .onEnded { value in
@@ -394,14 +393,17 @@ struct SeekBarView: View {
                                 isDragging = false
                                 return
                             }
-                            let deltaX = value.location.x - dragStartX
-                            let newProgress = min(max(dragStartProgress + (deltaX / width), 0), 1)
+                            let startProgress = dragStartProgress ?? 0
+                            let startX = dragStartX ?? value.startLocation.x
+                            let delta = value.location.x - startX
+                            let newProgress = min(max(startProgress + Double(delta / width), 0), 1)
                             playback.seek(to: newProgress)
                             playback.endScrubbing()
-                            dragStartProgress = nil
-                            dragStartX = nil
                             scrubbedPosition = nil
                             isDragging = false
+                            dragStarted = false
+                            dragStartProgress = nil
+                            dragStartX = nil
                         }
                 )
             }
@@ -633,19 +635,17 @@ struct VolumeSliderView: View {
     @Binding var value: Float
     @Binding var isPressed: Bool
     @State private var dragStarted = false
-    @State private var dragStartVolume: Float = 0
-    @State private var dragStartX: CGFloat = 0
+    @State private var dragStartValue: Float?
+    @State private var dragStartX: CGFloat?
     private let normalTrackHeight: CGFloat = 4.5
     private let pressedTrackHeight: CGFloat = 8
     private let trackFrameHeight: CGFloat = 14
-    private let hitSlop: CGFloat = 24
     private let feedbackGenerator = UIImpactFeedbackGenerator(style: .soft)
 
     var body: some View {
         GeometryReader { proxy in
             let width = max(proxy.size.width, 1)
             let progress = CGFloat(value)
-            let currentX = width * progress
             let trackHeight = isPressed ? pressedTrackHeight : normalTrackHeight
 
             ZStack(alignment: .leading) {
@@ -665,30 +665,33 @@ struct VolumeSliderView: View {
                 DragGesture(minimumDistance: 0)
                     .onChanged { gesture in
                         if !dragStarted {
-                            guard abs(gesture.location.x - currentX) <= hitSlop else {
-                                return
-                            }
                             dragStarted = true
                             isPressed = true
-                            dragStartVolume = value
+                            dragStartValue = value
                             dragStartX = gesture.startLocation.x
                             feedbackGenerator.prepare()
                             feedbackGenerator.impactOccurred()
                         }
                         guard dragStarted else { return }
-                        let deltaX = gesture.location.x - dragStartX
-                        let nextValue = dragStartVolume + Float(deltaX / width)
-                        value = min(max(nextValue, 0), 1)
+                        let startValue = dragStartValue ?? value
+                        let startX = dragStartX ?? gesture.startLocation.x
+                        let delta = gesture.location.x - startX
+                        let newValue = min(max(startValue + Float(delta / width), 0), 1)
+                        value = newValue
                     }
                     .onEnded { gesture in
                         defer {
                             dragStarted = false
                             isPressed = false
+                            dragStartValue = nil
+                            dragStartX = nil
                         }
                         guard dragStarted else { return }
-                        let deltaX = gesture.location.x - dragStartX
-                        let nextValue = dragStartVolume + Float(deltaX / width)
-                        value = min(max(nextValue, 0), 1)
+                        let startValue = dragStartValue ?? value
+                        let startX = dragStartX ?? gesture.startLocation.x
+                        let delta = gesture.location.x - startX
+                        let newValue = min(max(startValue + Float(delta / width), 0), 1)
+                        value = newValue
                     }
             )
         }
