@@ -19,6 +19,7 @@ struct ContentView: View {
             ZStack {
                 // Background
                 PlayerBackgroundView(playback: playback, imageLoader: imageLoader)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
 
                 VStack(spacing: 0) {
                     if showLyrics {
@@ -54,7 +55,7 @@ struct ContentView: View {
                     )
                     .environmentObject(playback)
                 }
-                .frame(maxWidth: .infinity)
+                .frame(width: proxy.size.width, height: proxy.size.height)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
