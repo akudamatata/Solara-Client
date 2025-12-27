@@ -56,7 +56,7 @@ struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .sheet(isPresented: $showFavorites) {
             FavoritesSheet().environmentObject(playback)
@@ -93,7 +93,9 @@ struct PlayerBackgroundView: View {
                 imageLoader: imageLoader,
                 contentMode: .fill
             )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ignoresSafeArea()
+            .clipped()
             .blur(radius: 60)
             .overlay(Color.black.opacity(0.5))
         } else {
