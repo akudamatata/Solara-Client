@@ -162,7 +162,6 @@ struct FavoritesSheet: View {
                             contentMode: .fill
                         )
                         .frame(width: proxy.size.width, height: proxy.size.height)
-                        .clipped()
                         .blur(radius: 60)
                         .overlay(Color.black.opacity(0.5))
                     } else {

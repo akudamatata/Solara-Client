@@ -17,10 +17,9 @@ struct QueueSheet: View {
                         contentMode: .fill
                     )
                     .frame(width: proxy.size.width, height: proxy.size.height)
-                    .ignoresSafeArea()
-                    .clipped()
                     .blur(radius: 80)
                     .overlay(Color.black.opacity(0.6))
+                    .ignoresSafeArea()
                 } else {
                     Color(red: 0.05, green: 0.05, blue: 0.06)
                         .ignoresSafeArea()

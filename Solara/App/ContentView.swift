@@ -87,21 +87,22 @@ struct PlayerBackgroundView: View {
     let imageLoader: ImageLoader
 
     var body: some View {
-        if let url = playback.artworkURL {
-            RemoteImageView(
-                url: url,
-                placeholderImage: playback.artwork,
-                imageLoader: imageLoader,
-                contentMode: .fill
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .ignoresSafeArea()
-            .clipped()
-            .blur(radius: 60)
-            .overlay(Color.black.opacity(0.5))
-        } else {
-            Color(red: 0.11, green: 0.11, blue: 0.12)
+        GeometryReader { proxy in
+            if let url = playback.artworkURL {
+                RemoteImageView(
+                    url: url,
+                    placeholderImage: playback.artwork,
+                    imageLoader: imageLoader,
+                    contentMode: .fill
+                )
+                .frame(width: proxy.size.width, height: proxy.size.height)
+                .blur(radius: 60)
+                .overlay(Color.black.opacity(0.5))
                 .ignoresSafeArea()
+            } else {
+                Color(red: 0.11, green: 0.11, blue: 0.12)
+                    .ignoresSafeArea()
+            }
         }
     }
 }
