@@ -18,6 +18,7 @@ final class PlaybackManager: ObservableObject {
     @Published private(set) var artworkURL: URL?
     @Published private(set) var isRadarLoading = false
     @Published var errorMessage: String?
+    @Published var isScrubbing = false
 
     var currentSong: Song? {
         guard let index = currentIndex, queue.indices.contains(index) else { return nil }
@@ -215,7 +216,20 @@ final class PlaybackManager: ObservableObject {
     func seek(to progress: Double) {
         guard duration > 0 else { return }
         let time = CMTime(seconds: progress * duration, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        player.seek(to: time)
+        let tolerance = CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        player.seek(to: time, toleranceBefore: tolerance, toleranceAfter: tolerance)
+        position = time.seconds
+        updateNowPlayingInfo()
+    }
+
+    func beginScrubbing() {
+        guard !isScrubbing else { return }
+        isScrubbing = true
+    }
+
+    func endScrubbing() {
+        guard isScrubbing else { return }
+        isScrubbing = false
     }
 
     func setQuality(_ value: SongQuality) {
@@ -293,7 +307,9 @@ final class PlaybackManager: ObservableObject {
         timeObserver = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.4, preferredTimescale: CMTimeScale(NSEC_PER_SEC)), queue: .main) { [weak self] time in
             guard let self else { return }
             Task { @MainActor in
-                self.position = time.seconds
+                if !self.isScrubbing {
+                    self.position = time.seconds
+                }
                 if let duration = self.player.currentItem?.duration.seconds, duration.isFinite {
                     self.duration = duration
                 }
