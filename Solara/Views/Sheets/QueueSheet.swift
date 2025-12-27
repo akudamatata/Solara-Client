@@ -109,9 +109,7 @@ struct QueueSheet: View {
                 }
                 .listStyle(.grouped)
                 .scrollContentBackground(.hidden)
-                .environment(\.colorScheme, .dark)
-            }
-            .frame(maxWidth: UIScreen.main.bounds.width) // Prevent overflow
+                .frame(maxWidth: .infinity) 
         }
     }
 }

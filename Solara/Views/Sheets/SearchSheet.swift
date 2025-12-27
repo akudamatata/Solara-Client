@@ -251,7 +251,7 @@ struct SearchSheet: View {
                     .transition(.move(edge: .bottom))
                 }
             }
-            .frame(maxWidth: UIScreen.main.bounds.width) // Prevent horizontal overflow
+            .frame(maxWidth: .infinity) // Prevent horizontal overflow
             .animation(.spring(response: 0.3), value: viewModel.isSelectionMode)
         }
     }
