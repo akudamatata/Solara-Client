@@ -459,20 +459,25 @@ struct TransportControlsView: View {
 }
 
 struct VolumeControlView: View {
+    @State private var isVolumePressed = false
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "speaker.fill")
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.5))
+                .scaleEffect(isVolumePressed ? 1.2 : 1.0)
             
-            VolumeView()
+            VolumeView(isPressed: $isVolumePressed)
                 .frame(height: 20)
                 .tint(Color.white)
                 
             Image(systemName: "speaker.wave.3.fill")
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.5))
+                .scaleEffect(isVolumePressed ? 1.2 : 1.0)
         }
+        .animation(.spring(response: 0.22, dampingFraction: 0.75), value: isVolumePressed)
         .padding(.horizontal, 32)
         .padding(.bottom, 32)
     }
@@ -538,8 +543,10 @@ struct BottomActionsView: View {
 import MediaPlayer
 
 struct VolumeView: UIViewRepresentable {
+    @Binding var isPressed: Bool
+
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(isPressed: $isPressed)
     }
 
     func makeUIView(context: Context) -> MPVolumeView {
@@ -559,11 +566,18 @@ struct VolumeView: UIViewRepresentable {
 
 extension VolumeView {
     final class Coordinator: NSObject {
+        @Binding private var isPressed: Bool
         private weak var slider: UISlider?
         private let normalTrackHeight: CGFloat = 3
-        private let pressedTrackHeight: CGFloat = 8
+        private let pressedTrackHeight: CGFloat = 7
         private let normalThumbSize: CGFloat = 12
         private let pressedThumbSize: CGFloat = 16
+        private let trackCornerRadius: CGFloat = 3.5
+        private let feedbackGenerator = UIImpactFeedbackGenerator(style: .soft)
+
+        init(isPressed: Binding<Bool>) {
+            _isPressed = isPressed
+        }
 
         func configure(in volumeView: MPVolumeView) {
             guard let slider = volumeView.subviews.first(where: { $0 is UISlider }) as? UISlider else {
@@ -580,18 +594,22 @@ extension VolumeView {
             slider.minimumTrackTintColor = .white
             slider.maximumTrackTintColor = UIColor.white.withAlphaComponent(0.2)
 
-            applyTrackImages(isPressed: false, to: slider)
-            applyThumbImage(isPressed: false, to: slider)
+            applyTrackImages(isPressed: isPressed, to: slider)
+            applyThumbImage(isPressed: isPressed, to: slider)
         }
 
         @objc private func touchDown() {
             guard let slider else { return }
+            feedbackGenerator.prepare()
+            feedbackGenerator.impactOccurred()
+            isPressed = true
             applyTrackImages(isPressed: true, to: slider)
             applyThumbImage(isPressed: true, to: slider)
         }
 
         @objc private func touchEnded() {
             guard let slider else { return }
+            isPressed = false
             applyTrackImages(isPressed: false, to: slider)
             applyThumbImage(isPressed: false, to: slider)
         }
@@ -617,7 +635,10 @@ extension VolumeView {
             let renderer = UIGraphicsImageRenderer(size: size)
             let image = renderer.image { context in
                 color.setFill()
-                context.cgContext.fill(CGRect(origin: .zero, size: size))
+                let rect = CGRect(origin: .zero, size: size)
+                let path = UIBezierPath(roundedRect: rect, cornerRadius: min(trackCornerRadius, height / 2))
+                context.cgContext.addPath(path.cgPath)
+                context.cgContext.fillPath()
             }
             return image.resizableImage(withCapInsets: .zero, resizingMode: .stretch)
         }
