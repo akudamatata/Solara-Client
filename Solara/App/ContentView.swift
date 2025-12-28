@@ -220,7 +220,7 @@ struct StandardPlayerView: View {
 
     var body: some View {
         let artworkPadding = max(availableHeight * 0.04, 20)
-        let topEdgePadding = max(availableHeight * 0.025, 8)
+        let topEdgePadding = max(availableHeight * 0.012, 4)
         VStack(spacing: 0) {
             // Top Bar
             ZStack {
@@ -331,7 +331,7 @@ struct PlayerControlsView: View {
     let availableHeight: CGFloat
 
     var body: some View {
-        let bottomEdgePadding = max(availableHeight * 0.03, 10)
+        let bottomEdgePadding = max(availableHeight * 0.015, 6)
         VStack(spacing: 0) {
             SeekBarView(playback: playback)
             TransportControlsView(playback: playback)
