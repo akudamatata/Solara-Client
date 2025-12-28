@@ -220,7 +220,7 @@ struct StandardPlayerView: View {
 
     var body: some View {
         let artworkPadding = max(availableHeight * 0.04, 20)
-        let topEdgePadding = max(availableHeight * 0.012, 4)
+        let topEdgePadding = max(availableHeight * 0.006, 2)
         VStack(spacing: 0) {
             // Top Bar
             ZStack {
@@ -331,7 +331,7 @@ struct PlayerControlsView: View {
     let availableHeight: CGFloat
 
     var body: some View {
-        let bottomEdgePadding = max(availableHeight * 0.015, 6)
+        let bottomEdgePadding = max(availableHeight * 0.008, 4)
         VStack(spacing: 0) {
             SeekBarView(playback: playback)
             TransportControlsView(playback: playback)
@@ -454,7 +454,7 @@ struct SeekBarView: View {
             }
         }
         .padding(.horizontal, 32)
-        .padding(.bottom, 24)
+        .padding(.bottom, 12)
     }
 }
 
@@ -482,7 +482,7 @@ struct TransportControlsView: View {
                     .foregroundStyle(.white)
             }
         }
-        .padding(.bottom, 32)
+        .padding(.bottom, 16)
     }
 }
 
@@ -512,7 +512,7 @@ struct VolumeControlView: View {
                 .opacity(0.01)
         )
         .padding(.horizontal, 32)
-        .padding(.bottom, 32)
+        .padding(.bottom, 16)
     }
 }
 
