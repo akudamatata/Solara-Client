@@ -334,6 +334,7 @@ struct PlayerControlsView: View {
     var body: some View {
         VStack(spacing: 0) {
             SeekBarView(playback: playback)
+                .padding(.top, 15)
             TransportControlsView(playback: playback)
                 .padding(.vertical, 30)
             VolumeControlView()
@@ -546,6 +547,8 @@ struct BottomActionsView: View {
              }
              .frame(maxWidth: .infinity)
 
+            Spacer(minLength: 0)
+
              Button(action: { showFavorites.toggle() }) {
                  Image(systemName: "heart.fill")
                      .font(.system(size: 22))
@@ -554,6 +557,8 @@ struct BottomActionsView: View {
              }
              .frame(maxWidth: .infinity)
              
+            Spacer(minLength: 0)
+
              Button(action: { 
                  withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                      playback.togglePlayMode()
@@ -565,6 +570,8 @@ struct BottomActionsView: View {
                      .contentTransition(.symbolEffect(.replace))
              }
              .frame(maxWidth: .infinity)
+
+            Spacer(minLength: 0)
 
              Button(action: { showQueue.toggle() }) {
                  Image(systemName: "list.bullet")
