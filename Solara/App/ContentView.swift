@@ -19,8 +19,8 @@ struct ContentView: View {
         GeometryReader { proxy in
             let safeAreaInsets = proxy.safeAreaInsets
             let availableHeight = proxy.size.height - safeAreaInsets.top - safeAreaInsets.bottom
-            let topEdgeInset = safeAreaInsets.top + availableHeight * 0.015
-            let bottomEdgeInset = safeAreaInsets.bottom + availableHeight * 0.018
+            let topEdgeInset = safeAreaInsets.top
+            let bottomEdgeInset = safeAreaInsets.bottom + 4
             ZStack {
                 // Background
                 PlayerBackgroundView(playback: playback, imageLoader: imageLoader)
@@ -33,7 +33,8 @@ struct ContentView: View {
                             showLyrics: $showLyrics,
                             animation: animation,
                             imageLoader: imageLoader,
-                            availableSize: proxy.size
+                            availableSize: proxy.size,
+                            topEdgeInset: topEdgeInset
                         )
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                         .zIndex(1)
@@ -46,8 +47,7 @@ struct ContentView: View {
                             animation: animation,
                             imageLoader: imageLoader,
                             availableWidth: proxy.size.width,
-                            availableHeight: availableHeight,
-                            topEdgeInset: topEdgeInset
+                            availableHeight: availableHeight
                         )
                         .transition(.move(edge: .top).combined(with: .opacity))
                         .zIndex(0)
@@ -95,27 +95,22 @@ struct PlayerBackgroundView: View {
     let imageLoader: ImageLoader
 
     var body: some View {
-        GeometryReader { proxy in
-            let insets = proxy.safeAreaInsets
-            let extendedWidth = proxy.size.width + insets.leading + insets.trailing
-            let extendedHeight = proxy.size.height + insets.top + insets.bottom
-
-            if let url = playback.artworkURL {
-                RemoteImageView(
-                    url: url,
-                    placeholderImage: playback.artwork,
-                    imageLoader: imageLoader,
-                    contentMode: .fill
-                )
-                .frame(width: extendedWidth, height: extendedHeight)
-                .offset(x: -insets.leading, y: -insets.top)
-                .blur(radius: 60)
-                .overlay(Color.black.opacity(0.5))
-                .ignoresSafeArea()
-            } else {
-                Color(red: 0.11, green: 0.11, blue: 0.12)
-                    .ignoresSafeArea()
+        GeometryReader { _ in
+            ZStack {
+                if let url = playback.artworkURL {
+                    RemoteImageView(
+                        url: url,
+                        placeholderImage: playback.artwork,
+                        imageLoader: imageLoader,
+                        contentMode: .fill
+                    )
+                    .blur(radius: 60)
+                    .overlay(Color.black.opacity(0.5))
+                } else {
+                    Color(red: 0.11, green: 0.11, blue: 0.12)
+                }
             }
+            .ignoresSafeArea()
         }
     }
 }
@@ -126,6 +121,7 @@ struct LyricsModeView: View {
     var animation: Namespace.ID
     let imageLoader: ImageLoader
     let availableSize: CGSize
+    let topEdgeInset: CGFloat
     
     // Derived property for favorite status to keep view simple
     private var isCurrentFavorite: Bool {
@@ -192,7 +188,7 @@ struct LyricsModeView: View {
                 }
             }
             .padding(.horizontal, 24)
-            .padding(.top, 48)
+            .padding(.top, 12)
             .padding(.bottom, 20)
             .contentShape(Rectangle())
             .onTapGesture {
@@ -217,7 +213,6 @@ struct StandardPlayerView: View {
     let imageLoader: ImageLoader
     let availableWidth: CGFloat
     let availableHeight: CGFloat
-    let topEdgeInset: CGFloat
     
     private var isCurrentFavorite: Bool {
         guard let song = playback.currentSong else { return false }
@@ -225,7 +220,6 @@ struct StandardPlayerView: View {
     }
 
     var body: some View {
-        let artworkPadding = max(availableHeight * 0.04, 20)
         VStack(spacing: 0) {
             // Top Bar
             ZStack {
@@ -269,8 +263,10 @@ struct StandardPlayerView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, topEdgeInset)
+            .padding(.top, 10)
             
+            Spacer(minLength: 12)
+
             // Large Artwork
             let artworkSize = availableWidth - 48
             RemoteImageView(
@@ -282,8 +278,8 @@ struct StandardPlayerView: View {
             .frame(width: artworkSize, height: artworkSize)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
-            .padding(.top, artworkPadding)
-            .padding(.bottom, artworkPadding)
+
+            Spacer(minLength: 20)
             
             // Track Info
             HStack(alignment: .center) {
@@ -338,8 +334,11 @@ struct PlayerControlsView: View {
     var body: some View {
         VStack(spacing: 0) {
             SeekBarView(playback: playback)
+                .padding(.top, 15)
             TransportControlsView(playback: playback)
+                .padding(.vertical, 24)
             VolumeControlView()
+            Spacer(minLength: 10)
             BottomActionsView(
                 showQueue: $showQueue,
                 showFavorites: $showFavorites,
@@ -525,7 +524,7 @@ struct BottomActionsView: View {
     let bottomEdgeInset: CGFloat
 
     var body: some View {
-        HStack(spacing: 40) { 
+        HStack { 
              Button(action: { 
                  withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
                      showLyrics.toggle() 
@@ -547,6 +546,8 @@ struct BottomActionsView: View {
                      .symbolEffect(.bounce, value: showLyrics)
              }
 
+            Spacer(minLength: 0)
+
              Button(action: { showFavorites.toggle() }) {
                  Image(systemName: "heart.fill")
                      .font(.system(size: 24))
@@ -554,6 +555,8 @@ struct BottomActionsView: View {
                      .symbolEffect(.bounce, value: showFavorites)
              }
              
+            Spacer(minLength: 0)
+
              Button(action: { 
                  withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                      playback.togglePlayMode()
@@ -565,12 +568,15 @@ struct BottomActionsView: View {
                      .contentTransition(.symbolEffect(.replace))
              }
 
+            Spacer(minLength: 0)
+
              Button(action: { showQueue.toggle() }) {
                  Image(systemName: "list.bullet")
                      .font(.system(size: 24))
                      .foregroundStyle(.white.opacity(0.6))
              }
         }
+        .padding(.horizontal, 48)
         .padding(.bottom, bottomEdgeInset)
     }
 }
