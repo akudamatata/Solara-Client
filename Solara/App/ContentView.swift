@@ -20,7 +20,7 @@ struct ContentView: View {
             let safeAreaInsets = proxy.safeAreaInsets
             let availableHeight = proxy.size.height - safeAreaInsets.top - safeAreaInsets.bottom
             let topEdgeInset = safeAreaInsets.top
-            let bottomEdgeInset = safeAreaInsets.bottom + 6
+            let bottomEdgeInset = safeAreaInsets.bottom + 10
             ZStack {
                 // Background
                 PlayerBackgroundView(playback: playback, imageLoader: imageLoader)
@@ -47,8 +47,7 @@ struct ContentView: View {
                             animation: animation,
                             imageLoader: imageLoader,
                             availableWidth: proxy.size.width,
-                            availableHeight: availableHeight,
-                            topEdgeInset: topEdgeInset
+                            availableHeight: availableHeight
                         )
                         .transition(.move(edge: .top).combined(with: .opacity))
                         .zIndex(0)
@@ -214,7 +213,6 @@ struct StandardPlayerView: View {
     let imageLoader: ImageLoader
     let availableWidth: CGFloat
     let availableHeight: CGFloat
-    let topEdgeInset: CGFloat
     
     private var isCurrentFavorite: Bool {
         guard let song = playback.currentSong else { return false }
@@ -265,7 +263,7 @@ struct StandardPlayerView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, topEdgeInset + 12)
+            .padding(.top, 25)
             
             Spacer(minLength: 10)
 
