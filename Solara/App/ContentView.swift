@@ -20,7 +20,7 @@ struct ContentView: View {
             let safeAreaInsets = proxy.safeAreaInsets
             let availableHeight = proxy.size.height - safeAreaInsets.top - safeAreaInsets.bottom
             let topEdgeInset = safeAreaInsets.top
-            let bottomEdgeInset = safeAreaInsets.bottom + 4
+            let bottomEdgeInset = safeAreaInsets.bottom - 4
             ZStack {
                 // Background
                 PlayerBackgroundView(playback: playback, imageLoader: imageLoader)
@@ -336,9 +336,9 @@ struct PlayerControlsView: View {
             SeekBarView(playback: playback)
                 .padding(.top, 15)
             TransportControlsView(playback: playback)
-                .padding(.vertical, 24)
+                .padding(.vertical, 30)
             VolumeControlView()
-            Spacer(minLength: 10)
+            Spacer(minLength: 20)
             BottomActionsView(
                 showQueue: $showQueue,
                 showFavorites: $showFavorites,
@@ -524,14 +524,14 @@ struct BottomActionsView: View {
     let bottomEdgeInset: CGFloat
 
     var body: some View {
-        HStack { 
+        HStack {
              Button(action: { 
                  withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
                      showLyrics.toggle() 
                  }
              }) {
                  Image(systemName: "quote.bubble.fill")
-                     .font(.system(size: 24))
+                     .font(.system(size: 22))
                      .foregroundStyle(showLyrics ? .white : .white.opacity(0.4))
                      .background(
                          Group {
@@ -545,15 +545,17 @@ struct BottomActionsView: View {
                      )
                      .symbolEffect(.bounce, value: showLyrics)
              }
+             .frame(maxWidth: .infinity)
 
             Spacer(minLength: 0)
 
              Button(action: { showFavorites.toggle() }) {
                  Image(systemName: "heart.fill")
-                     .font(.system(size: 24))
+                     .font(.system(size: 22))
                      .foregroundStyle(showFavorites ? .pink : .white.opacity(0.4)) 
                      .symbolEffect(.bounce, value: showFavorites)
              }
+             .frame(maxWidth: .infinity)
              
             Spacer(minLength: 0)
 
@@ -563,20 +565,22 @@ struct BottomActionsView: View {
                  }
              }) {
                  Image(systemName: playback.playMode.iconName)
-                     .font(.system(size: 24))
+                     .font(.system(size: 22))
                      .foregroundStyle(.white.opacity(0.6))
                      .contentTransition(.symbolEffect(.replace))
              }
+             .frame(maxWidth: .infinity)
 
             Spacer(minLength: 0)
 
              Button(action: { showQueue.toggle() }) {
                  Image(systemName: "list.bullet")
-                     .font(.system(size: 24))
+                     .font(.system(size: 22))
                      .foregroundStyle(.white.opacity(0.6))
              }
+             .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, 48)
+        .padding(.horizontal, 32)
         .padding(.bottom, bottomEdgeInset)
     }
 }
