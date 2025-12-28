@@ -17,6 +17,10 @@ struct ContentView: View {
 
     var body: some View {
         GeometryReader { proxy in
+            let safeAreaInsets = proxy.safeAreaInsets
+            let availableHeight = proxy.size.height - safeAreaInsets.top - safeAreaInsets.bottom
+            let topEdgeInset = safeAreaInsets.top + availableHeight * 0.015
+            let bottomEdgeInset = safeAreaInsets.bottom + availableHeight * 0.018
             ZStack {
                 // Background
                 PlayerBackgroundView(playback: playback, imageLoader: imageLoader)
@@ -42,7 +46,8 @@ struct ContentView: View {
                             animation: animation,
                             imageLoader: imageLoader,
                             availableWidth: proxy.size.width,
-                            availableHeight: proxy.size.height
+                            availableHeight: availableHeight,
+                            topEdgeInset: topEdgeInset
                         )
                         .transition(.move(edge: .top).combined(with: .opacity))
                         .zIndex(0)
@@ -54,7 +59,7 @@ struct ContentView: View {
                         showQueue: $showQueue,
                         showFavorites: $showFavorites,
                         showLyrics: $showLyrics,
-                        availableHeight: proxy.size.height
+                        bottomEdgeInset: bottomEdgeInset
                     )
                     .environmentObject(playback)
                 }
@@ -212,6 +217,7 @@ struct StandardPlayerView: View {
     let imageLoader: ImageLoader
     let availableWidth: CGFloat
     let availableHeight: CGFloat
+    let topEdgeInset: CGFloat
     
     private var isCurrentFavorite: Bool {
         guard let song = playback.currentSong else { return false }
@@ -220,7 +226,6 @@ struct StandardPlayerView: View {
 
     var body: some View {
         let artworkPadding = max(availableHeight * 0.04, 20)
-        let topEdgePadding = max(availableHeight * 0.006, 2)
         VStack(spacing: 0) {
             // Top Bar
             ZStack {
@@ -264,7 +269,7 @@ struct StandardPlayerView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, topEdgePadding)
+            .padding(.top, topEdgeInset)
             
             // Large Artwork
             let artworkSize = availableWidth - 48
@@ -328,10 +333,9 @@ struct PlayerControlsView: View {
     @Binding var showQueue: Bool
     @Binding var showFavorites: Bool
     @Binding var showLyrics: Bool
-    let availableHeight: CGFloat
+    let bottomEdgeInset: CGFloat
 
     var body: some View {
-        let bottomEdgePadding = max(availableHeight * 0.008, 4)
         VStack(spacing: 0) {
             SeekBarView(playback: playback)
             TransportControlsView(playback: playback)
@@ -340,7 +344,7 @@ struct PlayerControlsView: View {
                 showQueue: $showQueue,
                 showFavorites: $showFavorites,
                 showLyrics: $showLyrics,
-                bottomEdgePadding: bottomEdgePadding
+                bottomEdgeInset: bottomEdgeInset
             )
         }
     }
@@ -454,7 +458,6 @@ struct SeekBarView: View {
             }
         }
         .padding(.horizontal, 32)
-        .padding(.bottom, 12)
     }
 }
 
@@ -482,7 +485,6 @@ struct TransportControlsView: View {
                     .foregroundStyle(.white)
             }
         }
-        .padding(.bottom, 16)
     }
 }
 
@@ -512,7 +514,6 @@ struct VolumeControlView: View {
                 .opacity(0.01)
         )
         .padding(.horizontal, 32)
-        .padding(.bottom, 16)
     }
 }
 
@@ -521,7 +522,7 @@ struct BottomActionsView: View {
     @Binding var showQueue: Bool
     @Binding var showFavorites: Bool
     @Binding var showLyrics: Bool
-    let bottomEdgePadding: CGFloat
+    let bottomEdgeInset: CGFloat
 
     var body: some View {
         HStack(spacing: 40) { 
@@ -570,7 +571,7 @@ struct BottomActionsView: View {
                      .foregroundStyle(.white.opacity(0.6))
              }
         }
-        .padding(.bottom, bottomEdgePadding)
+        .padding(.bottom, bottomEdgeInset)
     }
 }
 
