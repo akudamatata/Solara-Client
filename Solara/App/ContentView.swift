@@ -53,7 +53,8 @@ struct ContentView: View {
                     PlayerControlsView(
                         showQueue: $showQueue,
                         showFavorites: $showFavorites,
-                        showLyrics: $showLyrics
+                        showLyrics: $showLyrics,
+                        availableHeight: proxy.size.height
                     )
                     .environmentObject(playback)
                 }
@@ -219,6 +220,7 @@ struct StandardPlayerView: View {
 
     var body: some View {
         let artworkPadding = max(availableHeight * 0.04, 20)
+        let topEdgePadding = max(availableHeight * 0.025, 8)
         VStack(spacing: 0) {
             // Top Bar
             ZStack {
@@ -262,7 +264,7 @@ struct StandardPlayerView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 10)
+            .padding(.top, topEdgePadding)
             
             // Large Artwork
             let artworkSize = availableWidth - 48
@@ -326,8 +328,10 @@ struct PlayerControlsView: View {
     @Binding var showQueue: Bool
     @Binding var showFavorites: Bool
     @Binding var showLyrics: Bool
+    let availableHeight: CGFloat
 
     var body: some View {
+        let bottomEdgePadding = max(availableHeight * 0.03, 10)
         VStack(spacing: 0) {
             SeekBarView(playback: playback)
             TransportControlsView(playback: playback)
@@ -335,7 +339,8 @@ struct PlayerControlsView: View {
             BottomActionsView(
                 showQueue: $showQueue,
                 showFavorites: $showFavorites,
-                showLyrics: $showLyrics
+                showLyrics: $showLyrics,
+                bottomEdgePadding: bottomEdgePadding
             )
         }
     }
@@ -516,6 +521,7 @@ struct BottomActionsView: View {
     @Binding var showQueue: Bool
     @Binding var showFavorites: Bool
     @Binding var showLyrics: Bool
+    let bottomEdgePadding: CGFloat
 
     var body: some View {
         HStack(spacing: 40) { 
@@ -564,7 +570,7 @@ struct BottomActionsView: View {
                      .foregroundStyle(.white.opacity(0.6))
              }
         }
-        .padding(.bottom, 20)
+        .padding(.bottom, bottomEdgePadding)
     }
 }
 
