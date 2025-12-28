@@ -41,7 +41,8 @@ struct ContentView: View {
                             showSettings: $showSettings,
                             animation: animation,
                             imageLoader: imageLoader,
-                            availableWidth: proxy.size.width
+                            availableWidth: proxy.size.width,
+                            availableHeight: proxy.size.height
                         )
                         .transition(.move(edge: .top).combined(with: .opacity))
                         .zIndex(0)
@@ -209,6 +210,7 @@ struct StandardPlayerView: View {
     var animation: Namespace.ID
     let imageLoader: ImageLoader
     let availableWidth: CGFloat
+    let availableHeight: CGFloat
     
     private var isCurrentFavorite: Bool {
         guard let song = playback.currentSong else { return false }
@@ -216,6 +218,7 @@ struct StandardPlayerView: View {
     }
 
     var body: some View {
+        let artworkPadding = max(availableHeight * 0.04, 20)
         VStack(spacing: 0) {
             // Top Bar
             ZStack {
@@ -261,8 +264,6 @@ struct StandardPlayerView: View {
             .padding(.horizontal, 20)
             .padding(.top, 10)
             
-            Spacer()
-            
             // Large Artwork
             let artworkSize = availableWidth - 48
             RemoteImageView(
@@ -274,7 +275,8 @@ struct StandardPlayerView: View {
             .frame(width: artworkSize, height: artworkSize)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
-            .padding(.bottom, 32)
+            .padding(.top, artworkPadding)
+            .padding(.bottom, artworkPadding)
             
             // Track Info
             HStack(alignment: .center) {
