@@ -19,8 +19,8 @@ struct ContentView: View {
         GeometryReader { proxy in
             let safeAreaInsets = proxy.safeAreaInsets
             let availableHeight = proxy.size.height - safeAreaInsets.top - safeAreaInsets.bottom
-            let topEdgeInset = safeAreaInsets.top + availableHeight * 0.015
-            let bottomEdgeInset = safeAreaInsets.bottom + availableHeight * 0.018
+            let topEdgeInset = safeAreaInsets.top + availableHeight * 0.008
+            let bottomEdgeInset = safeAreaInsets.bottom + availableHeight * 0.01
             ZStack {
                 // Background
                 PlayerBackgroundView(playback: playback, imageLoader: imageLoader)
@@ -33,7 +33,8 @@ struct ContentView: View {
                             showLyrics: $showLyrics,
                             animation: animation,
                             imageLoader: imageLoader,
-                            availableSize: proxy.size
+                            availableSize: proxy.size,
+                            topEdgeInset: topEdgeInset
                         )
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                         .zIndex(1)
@@ -126,6 +127,7 @@ struct LyricsModeView: View {
     var animation: Namespace.ID
     let imageLoader: ImageLoader
     let availableSize: CGSize
+    let topEdgeInset: CGFloat
     
     // Derived property for favorite status to keep view simple
     private var isCurrentFavorite: Bool {
@@ -192,7 +194,7 @@ struct LyricsModeView: View {
                 }
             }
             .padding(.horizontal, 24)
-            .padding(.top, 48)
+            .padding(.top, topEdgeInset + 12)
             .padding(.bottom, 20)
             .contentShape(Rectangle())
             .onTapGesture {
@@ -225,7 +227,7 @@ struct StandardPlayerView: View {
     }
 
     var body: some View {
-        let artworkPadding = max(availableHeight * 0.04, 20)
+        let artworkPadding = max(availableHeight * 0.025, 14)
         VStack(spacing: 0) {
             // Top Bar
             ZStack {
