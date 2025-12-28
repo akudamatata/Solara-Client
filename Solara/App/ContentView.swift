@@ -19,8 +19,8 @@ struct ContentView: View {
         GeometryReader { proxy in
             let safeAreaInsets = proxy.safeAreaInsets
             let availableHeight = proxy.size.height - safeAreaInsets.top - safeAreaInsets.bottom
-            let topEdgeInset = safeAreaInsets.top + availableHeight * 0.025
-            let bottomEdgeInset = safeAreaInsets.bottom + availableHeight * 0.03
+            let topEdgeInset = safeAreaInsets.top + availableHeight * 0.015
+            let bottomEdgeInset = safeAreaInsets.bottom + availableHeight * 0.018
             ZStack {
                 // Background
                 PlayerBackgroundView(playback: playback, imageLoader: imageLoader)
