@@ -20,7 +20,7 @@ struct ContentView: View {
             let safeAreaInsets = proxy.safeAreaInsets
             let availableHeight = proxy.size.height - safeAreaInsets.top - safeAreaInsets.bottom
             let topEdgeInset = safeAreaInsets.top
-            let bottomEdgeInset = safeAreaInsets.bottom + 10
+            let bottomEdgeInset = safeAreaInsets.bottom + 4
             ZStack {
                 // Background
                 PlayerBackgroundView(playback: playback, imageLoader: imageLoader)
@@ -188,7 +188,7 @@ struct LyricsModeView: View {
                 }
             }
             .padding(.horizontal, 24)
-            .padding(.top, topEdgeInset + 12)
+            .padding(.top, 12)
             .padding(.bottom, 20)
             .contentShape(Rectangle())
             .onTapGesture {
@@ -263,9 +263,9 @@ struct StandardPlayerView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 25)
+            .padding(.top, 10)
             
-            Spacer(minLength: 10)
+            Spacer(minLength: 12)
 
             // Large Artwork
             let artworkSize = availableWidth - 48
@@ -334,11 +334,11 @@ struct PlayerControlsView: View {
     var body: some View {
         VStack(spacing: 0) {
             SeekBarView(playback: playback)
-                .padding(.top, 10)
+                .padding(.top, 15)
             TransportControlsView(playback: playback)
-                .padding(.vertical, 20)
+                .padding(.vertical, 24)
             VolumeControlView()
-            Spacer(minLength: 0)
+            Spacer(minLength: 10)
             BottomActionsView(
                 showQueue: $showQueue,
                 showFavorites: $showFavorites,
