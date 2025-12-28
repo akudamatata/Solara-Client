@@ -261,8 +261,6 @@ struct StandardPlayerView: View {
             .padding(.horizontal, 20)
             .padding(.top, 10)
             
-            Spacer()
-            
             // Large Artwork
             let artworkSize = availableWidth - 48
             RemoteImageView(
@@ -274,6 +272,7 @@ struct StandardPlayerView: View {
             .frame(width: artworkSize, height: artworkSize)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
+            .padding(.top, 32)
             .padding(.bottom, 32)
             
             // Track Info
