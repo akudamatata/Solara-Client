@@ -22,6 +22,8 @@ struct RemoteImageView: View {
                 ZStack {
                     Color(red: 0.15, green: 0.15, blue: 0.16)
                     Image(systemName: "music.note")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
                         .font(.system(size: 40))
                         .foregroundStyle(.white.opacity(0.2))
                 }
