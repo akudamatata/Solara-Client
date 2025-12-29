@@ -41,6 +41,7 @@ struct ContentView: View {
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .layoutPriority(1)
+                        .transition(.identity)
                         .zIndex(1)
                         .environmentObject(playback)
                     } else {
@@ -56,6 +57,7 @@ struct ContentView: View {
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .layoutPriority(1)
+                        .transition(.identity)
                         .zIndex(0)
                         .environmentObject(playback)
                     }
