@@ -524,7 +524,7 @@ struct BottomActionsView: View {
     let bottomEdgeInset: CGFloat
 
     var body: some View {
-        HStack {
+        HStack(spacing: 40) { 
              Button(action: { 
                  withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
                      showLyrics.toggle() 
@@ -545,9 +545,6 @@ struct BottomActionsView: View {
                      )
                      .symbolEffect(.bounce, value: showLyrics)
              }
-             .frame(maxWidth: .infinity)
-
-            Spacer(minLength: 0)
 
              Button(action: { showFavorites.toggle() }) {
                  Image(systemName: "heart.fill")
@@ -555,10 +552,7 @@ struct BottomActionsView: View {
                      .foregroundStyle(showFavorites ? .pink : .white.opacity(0.4)) 
                      .symbolEffect(.bounce, value: showFavorites)
              }
-             .frame(maxWidth: .infinity)
              
-            Spacer(minLength: 0)
-
              Button(action: { 
                  withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                      playback.togglePlayMode()
@@ -569,19 +563,15 @@ struct BottomActionsView: View {
                      .foregroundStyle(.white.opacity(0.6))
                      .contentTransition(.symbolEffect(.replace))
              }
-             .frame(maxWidth: .infinity)
-
-            Spacer(minLength: 0)
 
              Button(action: { showQueue.toggle() }) {
                  Image(systemName: "list.bullet")
                      .font(.system(size: 22))
                      .foregroundStyle(.white.opacity(0.6))
              }
-             .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, 32)
         .padding(.bottom, bottomEdgeInset)
+        .frame(maxWidth: .infinity)
     }
 }
 
