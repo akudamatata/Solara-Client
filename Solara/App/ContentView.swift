@@ -41,7 +41,7 @@ struct ContentView: View {
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .layoutPriority(1)
-                        .transition(.identity)
+                        .transition(.asymmetric(insertion: .opacity, removal: .opacity))
                         .zIndex(1)
                         .environmentObject(playback)
                     } else {
@@ -57,7 +57,7 @@ struct ContentView: View {
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .layoutPriority(1)
-                        .transition(.identity)
+                        .transition(.asymmetric(insertion: .opacity, removal: .opacity))
                         .zIndex(0)
                         .environmentObject(playback)
                     }
