@@ -27,17 +27,31 @@ struct ContentView: View {
                     .frame(width: proxy.size.width, height: proxy.size.height)
 
                 VStack(spacing: 0) {
-                    // MARK: - PLAYER VIEW (handles both normal and lyrics mode internally)
-                    StandardPlayerView(
-                        showSearch: $showSearch,
-                        showSettings: $showSettings,
-                        showLyrics: $showLyrics,
-                        animation: animation,
-                        imageLoader: imageLoader,
-                        availableWidth: proxy.size.width,
-                        availableHeight: availableHeight
-                    )
-                    .environmentObject(playback)
+                    if showLyrics {
+                        // MARK: - LYRICS MODE
+                        LyricsModeView(
+                            showLyrics: $showLyrics,
+                            animation: animation,
+                            imageLoader: imageLoader,
+                            availableSize: proxy.size,
+                            topEdgeInset: topEdgeInset
+                        )
+                        .zIndex(1)
+                        .environmentObject(playback)
+                    } else {
+                        // MARK: - STANDARD MODE
+                        StandardPlayerView(
+                            showSearch: $showSearch,
+                            showSettings: $showSettings,
+                            showLyrics: $showLyrics,
+                            animation: animation,
+                            imageLoader: imageLoader,
+                            availableWidth: proxy.size.width,
+                            availableHeight: availableHeight
+                        )
+                        .zIndex(0)
+                        .environmentObject(playback)
+                    }
 
                     // MARK: - SHARED CONTROLS
                     PlayerControlsView(
@@ -185,8 +199,12 @@ struct LyricsModeView: View {
             // 2. Lyrics List
             LyricsScrollView(availableHeight: availableSize.height)
                 .environmentObject(playback)
+            
+            // Spacer to push PlayerControlsView to bottom
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
+        .frame(maxHeight: .infinity)
     }
 }
 
@@ -315,17 +333,6 @@ struct StandardPlayerView: View {
                     .frame(height: 80)
                     .padding(.horizontal, 32)
                     .padding(.bottom, 24)
-                }
-                .opacity(showLyrics ? 0 : 1)
-                .accessibilityHidden(showLyrics)
-                
-                // Group 2: Lyrics View - overlays the entire artwork + track info area
-                if showLyrics {
-                    LyricsScrollView(availableHeight: availableHeight)
-                        .environmentObject(playback)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding(.horizontal, 32)
-                        .transition(.opacity)
                 }
             }
         }
