@@ -145,16 +145,16 @@ struct LyricsModeView: View {
                 // Small Artwork
                 if let artworkURL = playback.artworkURL {
                      RemoteImageView(url: artworkURL, placeholderImage: playback.artwork, imageLoader: imageLoader, contentMode: .fill)
-                        .matchedGeometryEffect(id: "artwork", in: animation)
                         .frame(width: 56, height: 56)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .matchedGeometryEffect(id: "artwork", in: animation)
                         .shadow(radius: 8)
                 } else {
                     Image(systemName: "music.note")
-                        .matchedGeometryEffect(id: "artwork", in: animation)
                         .frame(width: 56, height: 56)
                         .background(Color.white.opacity(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .matchedGeometryEffect(id: "artwork", in: animation)
                 }
                 
                 // Info
@@ -294,9 +294,9 @@ struct StandardPlayerView: View {
                         placeholderImage: playback.artwork,
                         imageLoader: imageLoader
                     )
-                    .matchedGeometryEffect(id: "artwork", in: animation)
                     .frame(width: artworkSize, height: artworkSize)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .matchedGeometryEffect(id: "artwork", in: animation)
                     .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
                     
                     // 2. Spacing between artwork and track info
