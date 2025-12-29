@@ -44,6 +44,7 @@ struct ContentView: View {
                         StandardPlayerView(
                             showSearch: $showSearch,
                             showSettings: $showSettings,
+                            showLyrics: $showLyrics,
                             animation: animation,
                             imageLoader: imageLoader,
                             availableWidth: proxy.size.width,
@@ -208,7 +209,8 @@ struct LyricsModeView: View {
 struct StandardPlayerView: View {
     @EnvironmentObject var playback: PlaybackManager
     @Binding var showSearch: Bool
-    @Binding var showSettings: Bool // Pass binding to trigger from subviews if needed, though gesture is localized
+    @Binding var showSettings: Bool
+    @Binding var showLyrics: Bool
     var animation: Namespace.ID
     let imageLoader: ImageLoader
     let availableWidth: CGFloat
@@ -267,17 +269,31 @@ struct StandardPlayerView: View {
             
             Spacer(minLength: 12)
 
-            // Large Artwork
+            // Large Artwork with Lyrics Overlay (ZStack to maintain stable layout)
             let artworkSize = availableWidth - 48
-            RemoteImageView(
-                url: playback.artworkURL,
-                placeholderImage: playback.artwork,
-                imageLoader: imageLoader
-            )
-            .matchedGeometryEffect(id: "artwork", in: animation)
+            ZStack {
+                // 1. Artwork: Always present to maintain layout height
+                RemoteImageView(
+                    url: playback.artworkURL,
+                    placeholderImage: playback.artwork,
+                    imageLoader: imageLoader
+                )
+                .matchedGeometryEffect(id: "artwork", in: animation)
+                .frame(width: artworkSize, height: artworkSize)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
+                .opacity(showLyrics ? 0 : 1)
+                .accessibilityHidden(showLyrics)
+                
+                // 2. Lyrics View: Overlaid when active
+                if showLyrics {
+                    LyricsScrollView(availableHeight: availableHeight)
+                        .environmentObject(playback)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .transition(.opacity)
+                }
+            }
             .frame(width: artworkSize, height: artworkSize)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
 
             Spacer(minLength: 20)
             
