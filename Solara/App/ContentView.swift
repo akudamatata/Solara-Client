@@ -39,6 +39,9 @@ struct ContentView: View {
                             topEdgeInset: topEdgeInset,
                             artworkSize: artworkSize
                         )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .layoutPriority(1)
+                        .transition(.opacity)
                         .zIndex(1)
                         .environmentObject(playback)
                     } else {
@@ -52,6 +55,9 @@ struct ContentView: View {
                             availableWidth: proxy.size.width,
                             availableHeight: availableHeight
                         )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .layoutPriority(1)
+                        .transition(.opacity)
                         .zIndex(0)
                         .environmentObject(playback)
                     }
@@ -201,10 +207,10 @@ struct LyricsModeView: View {
             }
             
             // 2. Lyrics List with fixed height to match StandardPlayerView
-            // artworkSize + 60 ensures the total height matches or slightly exceeds standard mode
+            // artworkSize + 120 ensures robust height that presses bottom controls down
             LyricsScrollView(availableHeight: availableSize.height)
                 .environmentObject(playback)
-                .frame(height: artworkSize + 60)
+                .frame(height: artworkSize + 120)
             
             // 3. Bottom spacer to prevent PlayerControlsView from expanding upward
             Spacer(minLength: 0)
