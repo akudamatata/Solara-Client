@@ -201,10 +201,13 @@ struct LyricsModeView: View {
             }
             
             // 2. Lyrics List with fixed height to match StandardPlayerView
-            // artworkSize + 70 compensates for TopBar/Info height difference
+            // artworkSize + 60 ensures the total height matches or slightly exceeds standard mode
             LyricsScrollView(availableHeight: availableSize.height)
                 .environmentObject(playback)
-                .frame(height: artworkSize + 70)
+                .frame(height: artworkSize + 60)
+            
+            // 3. Bottom spacer to prevent PlayerControlsView from expanding upward
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
     }
