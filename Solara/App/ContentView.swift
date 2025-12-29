@@ -27,6 +27,8 @@ struct ContentView: View {
                     .frame(width: proxy.size.width, height: proxy.size.height)
 
                 VStack(spacing: 0) {
+                    let artworkSize = proxy.size.width - 48
+                    
                     if showLyrics {
                         // MARK: - LYRICS MODE
                         LyricsModeView(
@@ -34,7 +36,8 @@ struct ContentView: View {
                             animation: animation,
                             imageLoader: imageLoader,
                             availableSize: proxy.size,
-                            topEdgeInset: topEdgeInset
+                            topEdgeInset: topEdgeInset,
+                            artworkSize: artworkSize
                         )
                         .zIndex(1)
                         .environmentObject(playback)
@@ -121,6 +124,7 @@ struct LyricsModeView: View {
     let imageLoader: ImageLoader
     let availableSize: CGSize
     let topEdgeInset: CGFloat
+    let artworkSize: CGFloat
     
     // Derived property for favorite status to keep view simple
     private var isCurrentFavorite: Bool {
@@ -196,15 +200,13 @@ struct LyricsModeView: View {
                 }
             }
             
-            // 2. Lyrics List
+            // 2. Lyrics List with fixed height to match StandardPlayerView
+            // artworkSize + 70 compensates for TopBar/Info height difference
             LyricsScrollView(availableHeight: availableSize.height)
                 .environmentObject(playback)
-            
-            // Spacer to push PlayerControlsView to bottom
-            Spacer(minLength: 0)
+                .frame(height: artworkSize + 70)
         }
         .frame(maxWidth: .infinity)
-        .frame(maxHeight: .infinity)
     }
 }
 
