@@ -27,33 +27,17 @@ struct ContentView: View {
                     .frame(width: proxy.size.width, height: proxy.size.height)
 
                 VStack(spacing: 0) {
-                    if showLyrics {
-                        // MARK: - LYRICS MODE
-                        LyricsModeView(
-                            showLyrics: $showLyrics,
-                            animation: animation,
-                            imageLoader: imageLoader,
-                            availableSize: proxy.size,
-                            topEdgeInset: topEdgeInset
-                        )
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                        .zIndex(1)
-                        .environmentObject(playback)
-                    } else {
-                        // MARK: - STANDARD MODE
-                        StandardPlayerView(
-                            showSearch: $showSearch,
-                            showSettings: $showSettings,
-                            showLyrics: $showLyrics,
-                            animation: animation,
-                            imageLoader: imageLoader,
-                            availableWidth: proxy.size.width,
-                            availableHeight: availableHeight
-                        )
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .zIndex(0)
-                        .environmentObject(playback)
-                    }
+                    // MARK: - PLAYER VIEW (handles both normal and lyrics mode internally)
+                    StandardPlayerView(
+                        showSearch: $showSearch,
+                        showSettings: $showSettings,
+                        showLyrics: $showLyrics,
+                        animation: animation,
+                        imageLoader: imageLoader,
+                        availableWidth: proxy.size.width,
+                        availableHeight: availableHeight
+                    )
+                    .environmentObject(playback)
 
                     // MARK: - SHARED CONTROLS
                     PlayerControlsView(
@@ -328,6 +312,7 @@ struct StandardPlayerView: View {
                             }
                         }
                     }
+                    .frame(height: 80)
                     .padding(.horizontal, 32)
                     .padding(.bottom, 24)
                 }
