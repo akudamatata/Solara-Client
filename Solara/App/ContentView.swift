@@ -267,75 +267,82 @@ struct StandardPlayerView: View {
             .padding(.horizontal, 20)
             .padding(.top, 10)
             
+            
             Spacer(minLength: 12)
 
-            // Large Artwork with Lyrics Overlay (ZStack to maintain stable layout)
+            // Combined Artwork + Track Info with Lyrics Overlay (ZStack for stable layout)
             let artworkSize = availableWidth - 48
             ZStack {
-                // 1. Artwork: Always present to maintain layout height
-                RemoteImageView(
-                    url: playback.artworkURL,
-                    placeholderImage: playback.artwork,
-                    imageLoader: imageLoader
-                )
-                .matchedGeometryEffect(id: "artwork", in: animation)
-                .frame(width: artworkSize, height: artworkSize)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
+                // Group 1: Normal player interface (Artwork + Track Info)
+                // This VStack acts as the "anchor" to maintain height
+                VStack(spacing: 0) {
+                    // 1. Artwork
+                    RemoteImageView(
+                        url: playback.artworkURL,
+                        placeholderImage: playback.artwork,
+                        imageLoader: imageLoader
+                    )
+                    .matchedGeometryEffect(id: "artwork", in: animation)
+                    .frame(width: artworkSize, height: artworkSize)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
+                    
+                    // 2. Spacing between artwork and track info
+                    Spacer()
+                        .frame(height: 20)
+                    
+                    // 3. Track Info
+                    HStack(alignment: .center) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(playback.currentSong?.name ?? "Not Playing")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                                .matchedGeometryEffect(id: "title", in: animation)
+                            
+                            Text(playback.currentSong?.artist ?? "Solara Music")
+                                .font(.title3)
+                                .foregroundStyle(.white.opacity(0.7))
+                                .lineLimit(1)
+                                .matchedGeometryEffect(id: "artist", in: animation)
+                        }
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 20) {
+                            Button {} label: {
+                                 Image(systemName: "ellipsis.circle.fill")
+                                     .font(.system(size: 24))
+                                     .foregroundStyle(.white.opacity(0.4))
+                            }
+                            Button {
+                                 if let song = playback.currentSong {
+                                    playback.toggleFavorite(song)
+                                }
+                            } label: {
+                                Image(systemName: isCurrentFavorite ? "heart.fill" : "heart")
+                                    .font(.system(size: 24))
+                                    .foregroundStyle(isCurrentFavorite ? .red : .white.opacity(0.4))
+                                    .symbolEffect(.bounce, value: isCurrentFavorite)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 24)
+                }
                 .opacity(showLyrics ? 0 : 1)
                 .accessibilityHidden(showLyrics)
                 
-                // 2. Lyrics View: Overlaid when active
+                // Group 2: Lyrics View - overlays the entire artwork + track info area
                 if showLyrics {
                     LyricsScrollView(availableHeight: availableHeight)
                         .environmentObject(playback)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.horizontal, 32)
                         .transition(.opacity)
                 }
             }
-            .frame(width: artworkSize, height: artworkSize)
-
-            Spacer(minLength: 20)
-            
-            // Track Info
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(playback.currentSong?.name ?? "Not Playing")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .matchedGeometryEffect(id: "title", in: animation)
-                    
-                    Text(playback.currentSong?.artist ?? "Solara Music")
-                        .font(.title3)
-                        .foregroundStyle(.white.opacity(0.7))
-                        .lineLimit(1)
-                        .matchedGeometryEffect(id: "artist", in: animation)
-                }
-                
-                Spacer()
-                
-                HStack(spacing: 20) {
-                    Button {} label: {
-                         Image(systemName: "ellipsis.circle.fill")
-                             .font(.system(size: 24))
-                             .foregroundStyle(.white.opacity(0.4))
-                    }
-                    Button {
-                         if let song = playback.currentSong {
-                            playback.toggleFavorite(song)
-                        }
-                    } label: {
-                        Image(systemName: isCurrentFavorite ? "heart.fill" : "heart")
-                            .font(.system(size: 24))
-                            .foregroundStyle(isCurrentFavorite ? .red : .white.opacity(0.4))
-                            .symbolEffect(.bounce, value: isCurrentFavorite)
-                    }
-                }
-            }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 24)
         }
     }
 }
