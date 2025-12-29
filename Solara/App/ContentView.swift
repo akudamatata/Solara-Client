@@ -335,10 +335,18 @@ struct PlayerControlsView: View {
         VStack(spacing: 0) {
             SeekBarView(playback: playback)
                 .padding(.top, 15)
-            TransportControlsView(playback: playback)
-                .padding(.vertical, 30)
-            VolumeControlView()
+            
+            // Upper flexible spacing: pushes transport controls down
             Spacer(minLength: 20)
+            
+            TransportControlsView(playback: playback)
+            
+            // Lower flexible spacing: pushes volume control down
+            Spacer(minLength: 20)
+            
+            VolumeControlView()
+                .padding(.bottom, 40)
+            
             BottomActionsView(
                 showQueue: $showQueue,
                 showFavorites: $showFavorites,
