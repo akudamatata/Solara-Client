@@ -524,7 +524,7 @@ struct BottomActionsView: View {
     let bottomEdgeInset: CGFloat
 
     var body: some View {
-        HStack(spacing: 40) { 
+        HStack(spacing: 58) { 
              Button(action: { 
                  withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
                      showLyrics.toggle() 
