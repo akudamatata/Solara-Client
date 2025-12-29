@@ -197,7 +197,7 @@ struct LyricsModeView: View {
                 }
             }
             .padding(.horizontal, 24)
-            .padding(.top, 12)
+            .padding(.top, 10)
             .padding(.bottom, 20)
             .contentShape(Rectangle())
             .onTapGesture {
@@ -206,11 +206,10 @@ struct LyricsModeView: View {
                 }
             }
             
-            // 2. Lyrics List with fixed height to match StandardPlayerView
-            // artworkSize + 120 ensures robust height that presses bottom controls down
+            // artworkSize + 100 balances height to press bottom controls without overflow
             LyricsScrollView(availableHeight: availableSize.height)
                 .environmentObject(playback)
-                .frame(height: artworkSize + 120)
+                .frame(height: artworkSize + 100)
             
             // 3. Bottom spacer to prevent PlayerControlsView from expanding upward
             Spacer(minLength: 0)
