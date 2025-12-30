@@ -95,11 +95,11 @@ struct ContentView: View {
         .sheet(isPresented: $showSettings) {
             SettingsSheet().environmentObject(playback)
         }
-    }
-    .onChange(of: playback.lyrics) { _, newLyrics in
-        if newLyrics.isEmpty && showLyrics {
-            withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
-                showLyrics = false
+        .onChange(of: playback.lyrics) { _, newLyrics in
+            if newLyrics.isEmpty && showLyrics {
+                withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
+                    showLyrics = false
+                }
             }
         }
     }
