@@ -289,7 +289,8 @@ struct StandardPlayerView: View {
             .padding(.top, 10)
             
             
-            Spacer(minLength: 12)
+            Spacer()
+                .frame(height: 20)
 
             // Combined Artwork + Track Info with Lyrics Overlay (ZStack for stable layout)
             let artworkSize = availableWidth - 48
@@ -354,6 +355,8 @@ struct StandardPlayerView: View {
                     .padding(.bottom, 24)
                 }
             }
+            
+            Spacer(minLength: 0) // Push content up
         }
     }
 }
