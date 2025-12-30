@@ -4,6 +4,7 @@ import UIKit
 struct SongRow: View {
     let song: Song
     var isCurrent: Bool = false
+    var showCover: Bool = true
     var showActions: Bool = true // New parameter
     var artworkOverrideURL: URL? = nil 
     var onAddToQueue: (() -> Void)? = nil
