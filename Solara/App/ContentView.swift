@@ -39,7 +39,8 @@ struct ContentView: View {
                             animation: animation,
                             imageLoader: imageLoader,
                             availableWidth: proxy.size.width,
-                            availableHeight: availableHeight
+                            availableHeight: availableHeight,
+                            topEdgeInset: topEdgeInset
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .layoutPriority(1)
@@ -236,6 +237,7 @@ struct StandardPlayerView: View {
     let imageLoader: ImageLoader
     let availableWidth: CGFloat
     let availableHeight: CGFloat
+    let topEdgeInset: CGFloat
     
     private var isCurrentFavorite: Bool {
         guard let song = playback.currentSong else { return false }
@@ -287,11 +289,11 @@ struct StandardPlayerView: View {
             }
 
             .padding(.horizontal, 20)
-            .padding(.top, 0)
+            .padding(.top, topEdgeInset)
             
             
             Spacer()
-                .frame(height: 20)
+                .frame(height: 22)
 
             // Combined Artwork + Track Info with Lyrics Overlay (ZStack for stable layout)
             let artworkSize = availableWidth - 48
