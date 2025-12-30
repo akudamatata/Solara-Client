@@ -39,7 +39,8 @@ struct ContentView: View {
                             animation: animation,
                             imageLoader: imageLoader,
                             availableWidth: proxy.size.width,
-                            availableHeight: availableHeight
+                            availableHeight: availableHeight,
+                            topEdgeInset: topEdgeInset
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .layoutPriority(1)
@@ -236,6 +237,7 @@ struct StandardPlayerView: View {
     let imageLoader: ImageLoader
     let availableWidth: CGFloat
     let availableHeight: CGFloat
+    let topEdgeInset: CGFloat
     
     private var isCurrentFavorite: Bool {
         guard let song = playback.currentSong else { return false }
@@ -285,8 +287,9 @@ struct StandardPlayerView: View {
                     }
                 }
             }
+
             .padding(.horizontal, 20)
-            .padding(.top, 30)
+            .padding(.top, topEdgeInset + 10)
             
             
             Spacer()
