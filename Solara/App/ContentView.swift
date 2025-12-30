@@ -289,7 +289,7 @@ struct StandardPlayerView: View {
             }
 
             .padding(.horizontal, 20)
-            .padding(.top, topEdgeInset)
+            .padding(.top, topEdgeInset + 10)
             
             
             Spacer()
