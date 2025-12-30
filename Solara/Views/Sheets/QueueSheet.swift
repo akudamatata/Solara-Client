@@ -92,6 +92,7 @@ struct QueueSheet: View {
                                     SongRow(
                                         song: song,
                                         isCurrent: playback.currentSong?.identity == song.identity,
+                                        showActions: false,
                                         artworkOverrideURL: (playback.currentSong?.identity == song.identity) ? playback.artworkURL : nil,
                                         onAddToQueue: {
                                             playback.enqueue(song)
@@ -101,9 +102,32 @@ struct QueueSheet: View {
                                     }
                                     .listRowBackground(Color.clear)
                                     .listRowSeparatorTint(.white.opacity(0.1))
+                                    .swipeActions(edge: .leading) {
+                                         Button {
+                                             withAnimation {
+                                                 playback.toggleFavorite(song)
+                                             }
+                                         } label: {
+                                             let isFav = playback.favorites.contains(where: { $0.identity == song.identity })
+                                             Label(isFav ? "取消收藏" : "收藏", systemImage: isFav ? "heart.slash.fill" : "heart.fill")
+                                         }
+                                         .tint(.pink)
+                                    }
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                         Button(role: .destructive) {
+                                             // playback.removeSong logic usually needs index or offset. 
+                                             // Since we are iterating with index, we can construct IndexSet 
+                                             // OR add removeByIdentity to playback.
+                                             // But standard .onDelete uses offsets.
+                                             // Here `playback.removeSong` needs `IndexSet`.
+                                             // We have `index` from enumerated().
+                                             playback.removeSong(at: IndexSet(integer: index))
+                                         } label: {
+                                             Label("删除", systemImage: "trash")
+                                         }
+                                    }
                                 }
                             }
-                            .onDelete(perform: playback.removeSong)
                             .onMove(perform: playback.moveSong)
                         } header: {
                             Text("稍后播放")

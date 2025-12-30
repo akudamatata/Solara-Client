@@ -4,8 +4,8 @@ import UIKit
 struct SongRow: View {
     let song: Song
     var isCurrent: Bool = false
-    var showCover: Bool = true
-    var artworkOverrideURL: URL? = nil // New parameter
+    var showActions: Bool = true // New parameter
+    var artworkOverrideURL: URL? = nil 
     var onAddToQueue: (() -> Void)? = nil
     var onTap: (() -> Void)?
     
@@ -85,20 +85,22 @@ struct SongRow: View {
                 
                 Spacer()
                 
-                if let onAddToQueue {
-                    Button(action: onAddToQueue) {
-                        Image(systemName: "plus.circle")
-                            .font(.system(size: 20))
-                            .foregroundStyle(.white.opacity(0.6))
-                            .padding(.horizontal, 4)
+                if showActions {
+                    if let onAddToQueue {
+                        Button(action: onAddToQueue) {
+                            Image(systemName: "plus.circle")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.white.opacity(0.6))
+                                .padding(.horizontal, 4)
+                        }
                     }
-                }
 
-                if !isCurrent {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.white.opacity(0.3))
-                        .padding(8)
+                    if !isCurrent {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white.opacity(0.3))
+                            .padding(8)
+                    }
                 }
             }
             .padding(.vertical, 8)

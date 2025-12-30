@@ -96,6 +96,13 @@ struct ContentView: View {
             SettingsSheet().environmentObject(playback)
         }
     }
+    .onChange(of: playback.lyrics) { _, newLyrics in
+        if newLyrics.isEmpty && showLyrics {
+            withAnimation(.spring(response: 0.4, dampingFraction: 1.0)) {
+                showLyrics = false
+            }
+        }
+    }
 }
 
 // MARK: - Subviews
@@ -567,7 +574,7 @@ struct BottomActionsView: View {
              }) {
                  Image(systemName: "quote.bubble.fill")
                      .font(.system(size: 22))
-                     .foregroundStyle(showLyrics ? .white : .white.opacity(0.4))
+                     .foregroundStyle(playback.lyrics.isEmpty ? .white.opacity(0.2) : (showLyrics ? .white : .white.opacity(0.4)))
                      .background(
                          Group {
                              if showLyrics {
@@ -580,6 +587,7 @@ struct BottomActionsView: View {
                      )
                      .symbolEffect(.bounce, value: showLyrics)
              }
+             .disabled(playback.lyrics.isEmpty)
 
              Button(action: { showFavorites.toggle() }) {
                  Image(systemName: "heart.fill")

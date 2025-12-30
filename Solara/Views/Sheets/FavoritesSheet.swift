@@ -99,11 +99,11 @@ struct FavoritesSheet: View {
                                     .buttonStyle(.plain)
 
                                     Button(action: {
-                                        playback.playImmediately(playback.favorites.shuffled())
+                                        playback.enqueue(playback.favorites)
                                     }) {
                                         HStack {
-                                            Image(systemName: "shuffle")
-                                            Text("随机播放")
+                                            Image(systemName: "text.badge.plus")
+                                            Text("一键添加至播放列表")
                                         }
                                         .font(.subheadline.bold())
                                         .foregroundStyle(.white)
