@@ -29,22 +29,8 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     let artworkSize = proxy.size.width - 48
                     
-                    if showLyrics {
-                        // MARK: - LYRICS MODE
-                        LyricsModeView(
-                            showLyrics: $showLyrics,
-                            animation: animation,
-                            imageLoader: imageLoader,
-                            availableSize: proxy.size,
-                            topEdgeInset: topEdgeInset,
-                            artworkSize: artworkSize
-                        )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .layoutPriority(1)
-                        .transition(.asymmetric(insertion: .opacity, removal: .opacity))
-                        .zIndex(1)
-                        .environmentObject(playback)
-                    } else {
+                    // MARK: - ZStack: Both views always present for stable matchedGeometryEffect
+                    ZStack {
                         // MARK: - STANDARD MODE
                         StandardPlayerView(
                             showSearch: $showSearch,
@@ -57,10 +43,26 @@ struct ContentView: View {
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .layoutPriority(1)
-                        .transition(.asymmetric(insertion: .opacity, removal: .opacity))
-                        .zIndex(0)
+                        .opacity(showLyrics ? 0 : 1)
+                        .allowsHitTesting(!showLyrics)
+                        .environmentObject(playback)
+                        
+                        // MARK: - LYRICS MODE
+                        LyricsModeView(
+                            showLyrics: $showLyrics,
+                            animation: animation,
+                            imageLoader: imageLoader,
+                            availableSize: proxy.size,
+                            topEdgeInset: topEdgeInset,
+                            artworkSize: artworkSize
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .layoutPriority(1)
+                        .opacity(showLyrics ? 1 : 0)
+                        .allowsHitTesting(showLyrics)
                         .environmentObject(playback)
                     }
+                    .animation(.spring(response: 0.4, dampingFraction: 1.0), value: showLyrics)
 
                     // MARK: - SHARED CONTROLS
                     PlayerControlsView(
@@ -147,14 +149,14 @@ struct LyricsModeView: View {
                      RemoteImageView(url: artworkURL, placeholderImage: playback.artwork, imageLoader: imageLoader, contentMode: .fill)
                         .frame(width: 56, height: 56)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .matchedGeometryEffect(id: "artwork", in: animation)
+                        .matchedGeometryEffect(id: "artwork", in: animation, isSource: showLyrics)
                         .shadow(radius: 8)
                 } else {
                     Image(systemName: "music.note")
                         .frame(width: 56, height: 56)
                         .background(Color.white.opacity(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .matchedGeometryEffect(id: "artwork", in: animation)
+                        .matchedGeometryEffect(id: "artwork", in: animation, isSource: showLyrics)
                 }
                 
                 // Info
@@ -163,13 +165,13 @@ struct LyricsModeView: View {
                         .font(.title3.bold())
                         .foregroundStyle(.white)
                         .lineLimit(1)
-                        .matchedGeometryEffect(id: "title", in: animation)
+                        .matchedGeometryEffect(id: "title", in: animation, isSource: showLyrics)
                     
                     Text(playback.currentSong?.artist ?? "未知艺术家")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.6))
                         .lineLimit(1)
-                        .matchedGeometryEffect(id: "artist", in: animation)
+                        .matchedGeometryEffect(id: "artist", in: animation, isSource: showLyrics)
                 }
                 
                 Spacer()
@@ -197,7 +199,7 @@ struct LyricsModeView: View {
                 }
             }
             .padding(.horizontal, 24)
-            .padding(.top, 10)
+            .padding(.top, topEdgeInset + 10)
             .padding(.bottom, 20)
             .contentShape(Rectangle())
             .onTapGesture {
@@ -296,7 +298,7 @@ struct StandardPlayerView: View {
                     )
                     .frame(width: artworkSize, height: artworkSize)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .matchedGeometryEffect(id: "artwork", in: animation)
+                    .matchedGeometryEffect(id: "artwork", in: animation, isSource: !showLyrics)
                     .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
                     
                     // 2. Spacing between artwork and track info
@@ -311,13 +313,13 @@ struct StandardPlayerView: View {
                                 .fontWeight(.bold)
                                 .foregroundStyle(.white)
                                 .lineLimit(1)
-                                .matchedGeometryEffect(id: "title", in: animation)
+                                .matchedGeometryEffect(id: "title", in: animation, isSource: !showLyrics)
                             
                             Text(playback.currentSong?.artist ?? "Solara Music")
                                 .font(.title3)
                                 .foregroundStyle(.white.opacity(0.7))
                                 .lineLimit(1)
-                                .matchedGeometryEffect(id: "artist", in: animation)
+                                .matchedGeometryEffect(id: "artist", in: animation, isSource: !showLyrics)
                         }
                         
                         Spacer()
