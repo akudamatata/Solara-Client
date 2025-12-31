@@ -199,7 +199,7 @@ struct SearchSheet: View {
                                     }
                                 }
                             }
-                            }
+
                             
                             if viewModel.isSearching {
                                 HStack {
