@@ -20,7 +20,7 @@ struct ContentView: View {
             let safeAreaInsets = proxy.safeAreaInsets
             let availableHeight = proxy.size.height - safeAreaInsets.top - safeAreaInsets.bottom
             let topEdgeInset = safeAreaInsets.top
-            let bottomEdgeInset = safeAreaInsets.bottom + 35
+            let bottomEdgeInset = safeAreaInsets.bottom + 55
             ZStack {
                 // Background
                 PlayerBackgroundView(playback: playback, imageLoader: imageLoader)
