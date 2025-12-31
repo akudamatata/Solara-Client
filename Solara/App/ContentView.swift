@@ -20,7 +20,7 @@ struct ContentView: View {
             let safeAreaInsets = proxy.safeAreaInsets
             let availableHeight = proxy.size.height - safeAreaInsets.top - safeAreaInsets.bottom
             let topEdgeInset = safeAreaInsets.top
-            let bottomEdgeInset = safeAreaInsets.bottom + 20
+            let bottomEdgeInset = safeAreaInsets.bottom + 35
             ZStack {
                 // Background
                 PlayerBackgroundView(playback: playback, imageLoader: imageLoader)
@@ -289,11 +289,11 @@ struct StandardPlayerView: View {
             }
 
             .padding(.horizontal, 20)
-            .padding(.top, max(0, topEdgeInset - 7))
+            .padding(.top, max(0, topEdgeInset - 6))
             
             
             Spacer()
-                .frame(height: 30)
+                .frame(height: 28)
 
             // Combined Artwork + Track Info with Lyrics Overlay (ZStack for stable layout)
             let artworkSize = availableWidth - 48
