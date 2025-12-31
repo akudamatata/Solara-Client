@@ -357,7 +357,7 @@ struct StandardPlayerView: View {
                     }
                     .frame(height: 80)
                     .padding(.horizontal, 32)
-                    .padding(.bottom, 12)
+                    .padding(.bottom, 4)
                 }
             }
             
@@ -379,15 +379,15 @@ struct PlayerControlsView: View {
                 .padding(.top, 0)
             
             // Upper flexible spacing: pushes transport controls down
-            Spacer(minLength: 18)
+            Spacer(minLength: 45)
             
             TransportControlsView(playback: playback)
             
             // Lower flexible spacing: pushes volume control down
-            Spacer(minLength: 35)
+            Spacer(minLength: 60)
             
             VolumeControlView()
-                .padding(.bottom, 40)
+                .padding(.bottom, 10)
             
             BottomActionsView(
                 showQueue: $showQueue,
