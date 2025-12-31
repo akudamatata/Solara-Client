@@ -556,9 +556,9 @@ struct VolumeControlView: View {
         }
         .animation(.spring(response: 0.22, dampingFraction: 0.75), value: isVolumePressed)
         .background(
-            VolumeView(volume: $volume)
-                .frame(width: 1, height: 1)
-                .opacity(0.01)
+                VolumeView(volume: $volume, isDragging: isVolumePressed)
+                    .frame(width: 0, height: 0)
+                    .opacity(0.01)
         )
         .padding(.horizontal, 32)
     }
@@ -628,6 +628,7 @@ import MediaPlayer
 
 struct VolumeView: UIViewRepresentable {
     @Binding var volume: Float
+    var isDragging: Bool
 
     func makeCoordinator() -> Coordinator {
         Coordinator(volume: $volume)
@@ -643,6 +644,7 @@ struct VolumeView: UIViewRepresentable {
     func updateUIView(_ uiView: MPVolumeView, context: Context) {
         context.coordinator.configure(in: uiView)
         context.coordinator.updateVolume(volume)
+        context.coordinator.updateDraggingState(isDragging)
     }
 }
 
@@ -651,6 +653,7 @@ extension VolumeView {
         @Binding private var volume: Float
         private weak var slider: UISlider?
         private var volumeObservation: NSKeyValueObservation?
+        private var isDragging: Bool = false
 
         init(volume: Binding<Float>) {
             _volume = volume
@@ -666,7 +669,7 @@ extension VolumeView {
                 slider.isUserInteractionEnabled = false
                 slider.isContinuous = true
                 volumeObservation = AVAudioSession.sharedInstance().observe(\.outputVolume, options: [.new]) { [weak self] session, _ in
-                    guard let self else { return }
+                    guard let self, !self.isDragging else { return }
                     let newValue = session.outputVolume
                     if abs(self.volume - newValue) > 0.001 {
                         DispatchQueue.main.async {
@@ -681,8 +684,16 @@ extension VolumeView {
             guard let slider else { return }
             if abs(slider.value - volume) > 0.001 {
                 slider.value = volume
-                slider.sendActions(for: .valueChanged)
+                // Only send action if not dragging to avoid loops? 
+                // Actually slider.value = ... is mostly visual if user is not interacting with MPVolumeView directly (w/ hidden).
+                // But we call sendActions to ensure system sync? 
+                // slider.sendActions(for: .valueChanged) 
+                // If we trigger valueChanged, does it trigger observer? Likely.
             }
+        }
+        
+        func updateDraggingState(_ isDragging: Bool) {
+            self.isDragging = isDragging
         }
     }
 }

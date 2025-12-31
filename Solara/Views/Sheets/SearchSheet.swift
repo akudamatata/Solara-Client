@@ -137,7 +137,7 @@ struct SearchSheet: View {
 
                     // Results List
                     List {
-                        if viewModel.isSearching {
+                        if viewModel.isSearching && viewModel.results.isEmpty {
                             HStack {
                                 Spacer()
                                 ProgressView()
@@ -147,7 +147,7 @@ struct SearchSheet: View {
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                             .padding(.top, 40)
-                        } else if let error = viewModel.lastError {
+                        } else if let error = viewModel.lastError, viewModel.results.isEmpty {
                             ContentUnavailableView(error, systemImage: "exclamationmark.triangle")
                                 .foregroundStyle(.white.opacity(0.6))
                                 .listRowBackground(Color.clear)
@@ -198,6 +198,19 @@ struct SearchSheet: View {
                                         viewModel.loadMore()
                                     }
                                 }
+                            }
+                            }
+                            
+                            if viewModel.isSearching {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                        .tint(.white)
+                                    Spacer()
+                                }
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .padding(.vertical, 20)
                             }
                         }
                     }
