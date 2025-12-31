@@ -308,11 +308,11 @@ struct StandardPlayerView: View {
                         imageLoader: imageLoader
                     )
                     .frame(width: artworkSize, height: artworkSize)
-                    .scaleEffect(playback.isPlaying ? 1.0 : 0.8)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .scaleEffect(playback.isPlaying ? 1.0 : 0.8)
                     .matchedGeometryEffect(id: "artwork", in: animation, isSource: !showLyrics)
                     .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.6), value: playback.isPlaying)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.7), value: playback.isPlaying)
                     
                     // 2. Spacing between artwork and track info
                     Spacer()
