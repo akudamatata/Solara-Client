@@ -355,7 +355,7 @@ struct StandardPlayerView: View {
                     }
                     .frame(height: 80)
                     .padding(.horizontal, 32)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 12)
                 }
             }
             
@@ -374,7 +374,7 @@ struct PlayerControlsView: View {
     var body: some View {
         VStack(spacing: 0) {
             SeekBarView(playback: playback)
-                .padding(.top, 10)
+                .padding(.top, 0)
             
             // Upper flexible spacing: pushes transport controls down
             Spacer(minLength: 18)
