@@ -773,11 +773,10 @@ struct LyricsScrollView: View {
                     VStack(alignment: .leading, spacing: 30) {
                         ForEach(playback.lyrics) { line in
                             Text(line.text)
-                                .font(.system(size: isCurrentLine(line) ? 32 : 24, weight: isCurrentLine(line) ? .bold : .semibold))
-                                .foregroundStyle(isCurrentLine(line) ? .white : .white.opacity(0.4))
+                                .font(.system(size: 28, weight: isCurrentLine(line) ? .bold : .semibold))
+                                .foregroundStyle(isCurrentLine(line) ? .white : .white.opacity(0.5))
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .blur(radius: isCurrentLine(line) ? 0 : 0.8)
-                                .scaleEffect(isCurrentLine(line) ? 1.05 : 1.0)
+                                .blur(radius: isCurrentLine(line) ? 0 : 0.5)
                                 .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isCurrentLine(line))
                                 .id(line.id)
                                 .contentShape(Rectangle())
@@ -787,9 +786,21 @@ struct LyricsScrollView: View {
                                 }
                         }
                     }
-                    .padding(.vertical, availableHeight / 3)
+                    .padding(.vertical, availableHeight / 2.5)
                     .padding(.horizontal, 32)
                 }
+                .mask(
+                    LinearGradient(
+                        gradient: Gradient(stops: [
+                            .init(color: .clear, location: 0),
+                            .init(color: .black, location: 0.15),
+                            .init(color: .black, location: 0.85),
+                            .init(color: .clear, location: 1)
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
                 .scrollDisabled(false)
                 .simultaneousGesture(
                     DragGesture().onChanged { _ in
