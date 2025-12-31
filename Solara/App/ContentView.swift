@@ -288,7 +288,7 @@ struct StandardPlayerView: View {
                 }
             }
 
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 24)
             .padding(.top, max(0, topEdgeInset - 6))
             
             
