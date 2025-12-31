@@ -5,6 +5,7 @@ final class SearchViewModel: ObservableObject {
     @Published var keyword: String = ""
     @Published private(set) var isSearching: Bool = false
     @Published private(set) var results: [Song] = []
+    @Published var hasSearched: Bool = false
     @Published var selectedSource: SongSource = .netease {
         didSet {
             if !keyword.isEmpty {
@@ -42,6 +43,7 @@ final class SearchViewModel: ObservableObject {
         results = []
         lastError = nil
         isSelectionMode = false
+        hasSearched = false
     }
 
     func search() {
@@ -90,7 +92,7 @@ final class SearchViewModel: ObservableObject {
             await performSearch(query: query, source: selectedSource, page: nextPage)
         }
     }
-
+    
     private func performSearch(query: String, source: SongSource, page: Int) async {
         do {
             let limit = 20
@@ -107,18 +109,21 @@ final class SearchViewModel: ObservableObject {
                     self.currentPage = page
                     self.hasMore = songs.count >= limit // Simple heuristic
                     self.isSearching = false
+                    self.hasSearched = true
                 }
             }
         } catch {
-            if !Task.isCancelled {
+             // ...
+             if !Task.isCancelled {
                 await MainActor.run {
-                    // Only show error for first page, otherwise just stop loading more
                     if page == 1 {
-                        self.lastError = error.localizedDescription
+                         self.lastError = error.localizedDescription
                     }
                     self.isSearching = false
+                    self.hasSearched = true
                 }
-            }
+             }
         }
     }
+
 }

@@ -151,7 +151,7 @@ struct SearchSheet: View {
                             ContentUnavailableView(error, systemImage: "exclamationmark.triangle")
                                 .foregroundStyle(.white.opacity(0.6))
                                 .listRowBackground(Color.clear)
-                        } else if viewModel.results.isEmpty && !viewModel.keyword.isEmpty {
+                        } else if viewModel.results.isEmpty && !viewModel.keyword.isEmpty && viewModel.hasSearched {
                             VStack(spacing: 20) {
                                 Image(systemName: "music.note.list")
                                     .font(.system(size: 60))
