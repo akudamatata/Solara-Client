@@ -20,7 +20,7 @@ struct ContentView: View {
             let safeAreaInsets = proxy.safeAreaInsets
             let availableHeight = proxy.size.height - safeAreaInsets.top - safeAreaInsets.bottom
             let topEdgeInset = safeAreaInsets.top
-            let bottomEdgeInset = safeAreaInsets.bottom + 10
+            let bottomEdgeInset = safeAreaInsets.bottom + 20
             ZStack {
                 // Background
                 PlayerBackgroundView(playback: playback, imageLoader: imageLoader)
@@ -289,7 +289,7 @@ struct StandardPlayerView: View {
             }
 
             .padding(.horizontal, 20)
-            .padding(.top, max(0, topEdgeInset - 8))
+            .padding(.top, max(0, topEdgeInset - 7))
             
             
             Spacer()
@@ -314,7 +314,7 @@ struct StandardPlayerView: View {
                     
                     // 2. Spacing between artwork and track info
                     Spacer()
-                        .frame(height: 20)
+                        .frame(height: 16)
                     
                     // 3. Track Info
                     HStack(alignment: .center) {
@@ -374,10 +374,10 @@ struct PlayerControlsView: View {
     var body: some View {
         VStack(spacing: 0) {
             SeekBarView(playback: playback)
-                .padding(.top, 15)
+                .padding(.top, 10)
             
             // Upper flexible spacing: pushes transport controls down
-            Spacer(minLength: 35)
+            Spacer(minLength: 18)
             
             TransportControlsView(playback: playback)
             
