@@ -155,13 +155,13 @@ struct LyricsModeView: View {
                 // Small Artwork
                 if let artworkURL = playback.artworkURL {
                      RemoteImageView(url: artworkURL, placeholderImage: playback.artwork, imageLoader: imageLoader, contentMode: .fill)
-                        .frame(width: 56, height: 56)
+                        .frame(width: 66, height: 66)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .matchedGeometryEffect(id: "artwork", in: animation, isSource: showLyrics)
                         .shadow(radius: 8)
                 } else {
                     Image(systemName: "music.note")
-                        .frame(width: 56, height: 56)
+                        .frame(width: 66, height: 66)
                         .background(Color.white.opacity(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .matchedGeometryEffect(id: "artwork", in: animation, isSource: showLyrics)
@@ -206,7 +206,7 @@ struct LyricsModeView: View {
                     }
                 }
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 32)
             .padding(.top, topEdgeInset + 10)
             .padding(.bottom, 20)
             .contentShape(Rectangle())
