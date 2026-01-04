@@ -30,7 +30,7 @@ struct ContentView: View {
                     let artworkSize = proxy.size.width - 48
                     
                     // MARK: - ZStack: Both views always present for stable matchedGeometryEffect
-                    ZStack {
+                    ZStack(alignment: .top) {
                         // MARK: - STANDARD MODE
                         StandardPlayerView(
                             showSearch: $showSearch,
@@ -42,8 +42,7 @@ struct ContentView: View {
                             availableHeight: availableHeight,
                             topEdgeInset: topEdgeInset
                         )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .layoutPriority(1)
+                        .frame(maxWidth: .infinity)
                         .opacity(showLyrics ? 0 : 1)
                         .allowsHitTesting(!showLyrics)
                         .environmentObject(playback)
@@ -56,9 +55,9 @@ struct ContentView: View {
                             availableSize: proxy.size,
                             topEdgeInset: topEdgeInset,
                             artworkSize: artworkSize
+                            artworkSize: artworkSize
                         )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .layoutPriority(1)
+                        .frame(maxWidth: .infinity)
                         .opacity(showLyrics ? 1 : 0)
                         .allowsHitTesting(showLyrics)
                         .environmentObject(playback)
