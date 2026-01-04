@@ -55,7 +55,6 @@ struct ContentView: View {
                             availableSize: proxy.size,
                             topEdgeInset: topEdgeInset,
                             artworkSize: artworkSize
-                            artworkSize: artworkSize
                         )
                         .frame(maxWidth: .infinity)
                         .opacity(showLyrics ? 1 : 0)
