@@ -361,7 +361,8 @@ struct StandardPlayerView: View {
                 }
             }
             
-            Spacer(minLength: 0) // Push content up
+            Spacer()
+                .frame(height: 16)
         }
     }
 }
@@ -379,12 +380,14 @@ struct PlayerControlsView: View {
                 .padding(.top, 0)
             
             // Upper flexible spacing: pushes transport controls down
-            Spacer(minLength: 30)
+            // Upper flexible spacing: pushes transport controls down
+            Spacer(minLength: 20)
             
             TransportControlsView(playback: playback)
             
             // Lower flexible spacing: pushes volume control down
-            Spacer(minLength: 45)
+            // Lower flexible spacing: pushes volume control down
+            Spacer(minLength: 20)
             
             VolumeControlView()
                 .padding(.bottom, 10)
