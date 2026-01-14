@@ -76,6 +76,7 @@ struct ContentView: View {
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
+        .ignoresSafeArea()
         .sheet(isPresented: $showFavorites) {
             FavoritesSheet().environmentObject(playback)
         }
