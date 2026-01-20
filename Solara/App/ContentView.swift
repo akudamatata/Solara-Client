@@ -121,7 +121,7 @@ struct PlayerBackgroundView: View {
                         contentMode: .fill
                     )
                     .blur(radius: 60)
-                    .overlay(Color.black.opacity(0.5))
+                    .overlay(Color.black.opacity(0.2))
                 } else {
                     Color(red: 0.11, green: 0.11, blue: 0.12)
                 }
@@ -287,7 +287,7 @@ struct StandardPlayerView: View {
             }
 
             .padding(.horizontal, 24)
-            .padding(.top, max(0, topEdgeInset - 6))
+            .padding(.top, topEdgeInset)
             
             
             Spacer()
