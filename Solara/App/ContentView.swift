@@ -359,8 +359,6 @@ struct StandardPlayerView: View {
                 }
             }
             
-            Spacer()
-                .frame(height: 28)
         }
     }
 }
@@ -544,18 +542,8 @@ struct VolumeControlView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "speaker.fill")
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.5))
-                .scaleEffect(isVolumePressed ? 1.2 : 1.0)
-            
             VolumeSliderView(value: $volume, isPressed: $isVolumePressed)
                 .frame(height: 20)
-                
-            Image(systemName: "speaker.wave.3.fill")
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.5))
-                .scaleEffect(isVolumePressed ? 1.2 : 1.0)
         }
         .animation(.spring(response: 0.22, dampingFraction: 0.75), value: isVolumePressed)
         .background(
